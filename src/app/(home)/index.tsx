@@ -1,17 +1,27 @@
+import { useUsers } from "@/src/api/queries/useUsers";
 import { SignOutButton } from "@/src/app/components/SignOutButton";
 import { SignedIn, SignedOut, useUser } from "@clerk/clerk-expo";
 import { Link } from "expo-router";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function Page() {
   const { user } = useUser();
-
+  const { data, refetch } = useUsers();
   return (
     <View style={styles.container}>
       <SignedIn>
         <Text style={styles.title}>
           Hello {user?.emailAddresses[0].emailAddress}
         </Text>
+        <Button
+          title="Fetch users"
+          onPress={() => {
+            refetch();
+            if (data) {
+              console.log("Users:", data);
+            }
+          }}
+        />
         <SignOutButton />
       </SignedIn>
 
