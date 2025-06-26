@@ -28,12 +28,12 @@ export default function Page() {
       <SignedOut>
         <Text style={styles.title}>Welcome!</Text>
         <View style={styles.buttonContainer}>
-          <Link href="/sign-in" asChild>
+          <Link href="/(auth)/sign-in" asChild>
             <TouchableOpacity style={styles.button}>
               <Text style={styles.buttonText}>Sign in</Text>
             </TouchableOpacity>
           </Link>
-          <Link href="/sign-up" asChild>
+          <Link href="/(auth)/sign-up" asChild>
             <TouchableOpacity style={styles.button}>
               <Text style={styles.buttonText}>Sign up</Text>
             </TouchableOpacity>
