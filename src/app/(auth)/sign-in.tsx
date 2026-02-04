@@ -32,7 +32,7 @@ export default function SignInScreen() {
 
       if (signInAttempt.status === "complete") {
         await setActive({ session: signInAttempt.createdSessionId });
-        router.replace("/(home)");
+        router.replace("/home");
       } else {
         console.error(JSON.stringify(signInAttempt, null, 2));
       }
@@ -53,7 +53,7 @@ export default function SignInScreen() {
 
       if (createdSessionId) {
         setActive!({ session: createdSessionId });
-        router.replace("/");
+        router.replace("/home");
       } else {
         // Sprawdź czy mamy obiekt signIn czy signUp
         if (signIn) {

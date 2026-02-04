@@ -44,7 +44,7 @@ export default function SignUpScreen() {
 
       if (createdSessionId) {
         setActive!({ session: createdSessionId });
-        router.replace("/(home)");
+        router.replace("/home");
       } else {
         // Obsłuż dalsze kroki jeśli potrzebne
         if (signIn) {
@@ -69,7 +69,7 @@ export default function SignUpScreen() {
 
       if (signUpAttempt.status === "complete") {
         await setActive({ session: signUpAttempt.createdSessionId });
-        router.replace("/");
+        router.replace("/home");
       } else {
         console.error(JSON.stringify(signUpAttempt, null, 2));
       }

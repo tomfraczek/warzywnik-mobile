@@ -1,89 +1,57 @@
-import axios, { InternalAxiosRequestConfig } from "axios";
+import axios, { AxiosError } from "axios";
+
+const apiBaseUrl =
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
 export const restClient = axios.create({
   timeout: 5000,
-  baseURL: "http://localhost:3000", // zmień na swój backend
+  baseURL: apiBaseUrl,
 });
 
-// Dodawanie tokenu do każdego requestu (jeśli ustawiony)
-restClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  if (restClient.defaults.headers.Authorization) {
-    config.headers.Authorization = restClient.defaults.headers.Authorization;
+let tokenProvider: (() => Promise<string | null>) | null = null;
+export const setAuthTokenProvider = (fn: () => Promise<string | null>) => {
+  tokenProvider = fn;
+};
+
+let authErrorHandler: ((status: number) => void) | null = null;
+export const setAuthErrorHandler = (fn: (status: number) => void) => {
+  authErrorHandler = fn;
+};
+
+export const getResponseError = (error: unknown) => {
+  if (!error) return "Unknown error";
+  if (axios.isAxiosError(error)) {
+    const err = error as AxiosError<{ message?: string }>;
+    return (
+      err.response?.data?.message ||
+      err.response?.status ||
+      err.message ||
+      "Unknown error"
+    );
+  }
+  if (error instanceof Error) return error.message;
+  return "Unknown error";
+};
+
+restClient.interceptors.request.use(async (config) => {
+  if (tokenProvider) {
+    const token = await tokenProvider().catch(() => null);
+    if (token) {
+      if (!config.headers) config.headers = {} as any;
+      (config.headers as any)["Authorization"] = `Bearer ${token}`;
+    }
   }
   return config;
 });
 
-// Prosty interceptor odpowiedzi (można rozbudować)
 restClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    console.error("API error:", error?.response?.data || error.message);
-    return Promise.reject(error);
-  }
-);
-
-// Ustawianie tokenu
-export const authorizeAxiosClient = (token: string) => {
-  restClient.defaults.headers.Authorization = `Bearer ${token}`;
-};
-
-// Usuwanie tokenu
-export const unauthorizeAxiosClient = () => {
-  delete restClient.defaults.headers.Authorization;
-};
-
-// Zmiana domeny (jeśli potrzebujesz np. środowisk dev/staging/prod)
-export const changeAxiosClientDomain = (baseURL: string) => {
-  restClient.defaults.baseURL = baseURL;
-};
-
-// Parser błędów z odpowiedzi
-export const getResponseError = (
-  error: unknown
-): { status: number; message: string } => {
-  const defaultError = {
-    message: "Unknown error",
-    status: 500,
-  };
-
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "response" in error &&
-    typeof (error as any).response === "object"
-  ) {
-    const response = (error as any).response;
-
-    if (
-      response &&
-      typeof response === "object" &&
-      "data" in response &&
-      "status" in response
-    ) {
-      const data = response.data;
-      const status = response.status;
-
-      if (
-        data &&
-        typeof data === "object" &&
-        "error" in data &&
-        typeof data.error === "object" &&
-        "message" in data.error
-      ) {
-        return {
-          message: data.error.message,
-          status,
-        };
-      }
-
-      if ("message" in data && typeof data.message === "string") {
-        return {
-          message: data.message,
-          status,
-        };
-      }
+  (res) => res,
+  (err) => {
+    const status = err?.response?.status;
+    if (status === 401 || status === 403) {
+      authErrorHandler?.(status);
     }
-  }
-
-  return defaultError;
-};
+    console.error("API error:", err?.response?.data || err.message);
+    return Promise.reject(err);
+  },
+);
