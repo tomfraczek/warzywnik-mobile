@@ -19,12 +19,15 @@ const getPlantings = async (params: PlantingListParams, pageParam: number) => {
   return parsePaginatedResponse<Planting>(data, pageParam, limit);
 };
 
-export const useGetPlantings = (params: PlantingListParams = {}) => {
+export const useGetPlantings = (
+  params: PlantingListParams = {},
+  options?: { enabled?: boolean },
+) => {
   return useInfiniteQuery({
     queryKey: plantingKeys.list(params),
     queryFn: ({ pageParam = 1 }) => getPlantings(params, pageParam as number),
     getNextPageParam: (lastPage) => lastPage.nextPage,
     initialPageParam: 1,
-    enabled: Boolean(params.bedId),
+    enabled: options?.enabled ?? true,
   });
 };

@@ -71,7 +71,10 @@ export default function BedDetailsScreen() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useGetPlantings({ bedId: resolvedBedId ?? undefined, limit: 10 });
+  } = useGetPlantings(
+    { bedId: resolvedBedId ?? undefined, limit: 10 },
+    { enabled: Boolean(resolvedBedId) },
+  );
 
   const bed = data as Bed | undefined;
   const plantings = useMemo(

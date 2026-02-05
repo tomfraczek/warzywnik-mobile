@@ -23,12 +23,17 @@ export type PlantingVegetable = {
 export type Planting = {
   id: string;
   bedId: string;
+  bedName?: string | null;
   vegetableId: string;
   vegetable?: PlantingVegetable | null;
+  name?: string | null;
   vegetableName?: string | null;
   status: PlantingStatus;
   plannedStartDate: string;
   actualStartDate?: string | null;
+  harvestStartDate?: string | null;
+  harvestEndDate?: string | null;
+  warnings?: Warning[] | null;
   notes?: string | null;
   createdAt?: string;
   updatedAt?: string;
