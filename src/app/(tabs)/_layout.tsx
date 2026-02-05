@@ -1,11 +1,27 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 
 export default function TabsLayout() {
   return (
     <Tabs screenOptions={{ headerShown: false }}>
-      <Tabs.Screen name="home" options={{ title: "Home" }} />
-      <Tabs.Screen name="beds" options={{ title: "Grządki" }} />
+      <Tabs.Screen
+        name="home"
+        options={{
+          title: "Home",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="home" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="beds"
+        options={{
+          title: "Grządki",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="sprout" color={color} size={size} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="planner"
         options={{
@@ -15,7 +31,19 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="profile" options={{ title: "Profil" }} />
+      <Tabs.Screen
+        name="education/index"
+        options={{
+          title: "Edukacja",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons
+              name="book-open"
+              color={color}
+              size={size}
+            />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

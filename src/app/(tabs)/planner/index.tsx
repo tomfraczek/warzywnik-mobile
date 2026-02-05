@@ -23,6 +23,8 @@ type PlannerEvent = {
   vegetableName: string;
   bedName: string;
   type: PlannerEventType;
+  status: PlantingStatus;
+  isActualStart?: boolean;
   dateKey: string;
   hasWarnings: boolean;
 };
@@ -51,7 +53,12 @@ const PlannerEventRow = memo(function PlannerEventRow({
   item,
   onPress,
 }: PlannerEventRowProps) {
-  const typeLabel = item.type === "START" ? "Planowany start" : "Zbiory";
+  const typeLabel =
+    item.type === "START"
+      ? item.isActualStart
+        ? "Start (rzeczywisty)"
+        : "Start (planowany)"
+      : "Zbiory";
 
   return (
     <Pressable style={styles.eventRow} onPress={() => onPress(item)}>
@@ -61,6 +68,7 @@ const PlannerEventRow = memo(function PlannerEventRow({
       </View>
       <View style={styles.eventMeta}>
         <Text style={styles.eventType}>{typeLabel}</Text>
+        <Text style={styles.eventStatus}>{item.status}</Text>
         {item.hasWarnings ? <Text style={styles.warningIcon}>⚠️</Text> : null}
       </View>
     </Pressable>
@@ -98,16 +106,20 @@ export default function PlannerScreen() {
       const vegetableName = getVegetableLabel(planting);
       const bedName = getBedLabel(planting);
 
-      const plannedDate = toDateKey(planting.plannedStartDate);
-      if (plannedDate) {
+      const startDateValue =
+        planting.actualStartDate ?? planting.plannedStartDate;
+      const startDateKey = toDateKey(startDateValue);
+      if (startDateKey) {
         items.push({
-          id: `${planting.id}-planned`,
+          id: `${planting.id}-start`,
           plantingId: planting.id,
           bedId: planting.bedId,
           vegetableName,
           bedName,
           type: "START",
-          dateKey: plannedDate,
+          status: planting.status,
+          isActualStart: Boolean(planting.actualStartDate),
+          dateKey: startDateKey,
           hasWarnings,
         });
       }
@@ -122,6 +134,7 @@ export default function PlannerScreen() {
             vegetableName,
             bedName,
             type: "HARVEST",
+            status: planting.status,
             dateKey: harvestDate,
             hasWarnings,
           });
@@ -336,6 +349,11 @@ const styles = StyleSheet.create({
   eventType: {
     fontSize: 12,
     color: "#111827",
+  },
+  eventStatus: {
+    fontSize: 11,
+    color: "#6b7280",
+    marginTop: 2,
   },
   warningIcon: {
     marginTop: 4,
