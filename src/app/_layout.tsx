@@ -2,8 +2,9 @@ import { setAuthErrorHandler, setAuthTokenProvider } from "@/src/api/axios";
 import { ClerkProvider, useAuth, useClerk } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { Provider as PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { clientPersister, queryClient } from "../api/queryClient";
 
@@ -12,6 +13,7 @@ function AuthBootstrapGate() {
   const { signOut } = useClerk();
   const router = useRouter();
   const segments = useSegments();
+  const pathname = usePathname();
   const isHandlingAuthError = useRef(false);
   const [ready, setReady] = useState(false);
 
@@ -29,7 +31,7 @@ function AuthBootstrapGate() {
       } finally {
         queryClient.clear();
         await clientPersister.removeClient();
-        router.replace("/");
+        router.replace("/(auth)");
         isHandlingAuthError.current = false;
       }
     });
@@ -39,12 +41,17 @@ function AuthBootstrapGate() {
   useEffect(() => {
     if (!isLoaded) return;
     const inAuthGroup = segments[0] === "(auth)";
-    if (!isSignedIn && !inAuthGroup) {
-      router.replace("/");
-    } else if (isSignedIn && inAuthGroup) {
-      router.replace("/home");
+    if (!isSignedIn) {
+      if (!inAuthGroup && pathname !== "/(auth)") {
+        router.replace("/(auth)");
+      }
+      return;
     }
-  }, [isLoaded, isSignedIn, segments, router]);
+
+    if (inAuthGroup || pathname === "/") {
+      router.replace("/(tabs)/home");
+    }
+  }, [isLoaded, isSignedIn, segments, router, pathname]);
 
   if (!ready) return null; // blokuj render do czasu podpięcia providera
   return <Stack screenOptions={{ headerShown: false }} />;
@@ -53,14 +60,16 @@ function AuthBootstrapGate() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={{ persister: clientPersister }}
-      >
-        <ClerkProvider tokenCache={tokenCache}>
-          <AuthBootstrapGate />
-        </ClerkProvider>
-      </PersistQueryClientProvider>
+      <PaperProvider>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{ persister: clientPersister }}
+        >
+          <ClerkProvider tokenCache={tokenCache}>
+            <AuthBootstrapGate />
+          </ClerkProvider>
+        </PersistQueryClientProvider>
+      </PaperProvider>
     </SafeAreaProvider>
   );
 }

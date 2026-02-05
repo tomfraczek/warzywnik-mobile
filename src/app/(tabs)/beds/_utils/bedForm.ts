@@ -158,12 +158,12 @@ export const buildUpdateBedPayload = (
   const currentNormalized = normalizeComparable(current);
   const payload: UpdateBedDto = {};
 
-  for (const key of Object.keys(initialNormalized)) {
+  Object.keys(initialNormalized).forEach((key) => {
     const typedKey = key as keyof typeof initialNormalized;
     if (initialNormalized[typedKey] !== currentNormalized[typedKey]) {
       (payload as any)[key] = currentNormalized[typedKey] as any;
     }
-  }
+  });
 
   if (!currentNormalized.soilTestingEnabled) {
     if (initialNormalized.measuredN != null) payload.measuredN = null;

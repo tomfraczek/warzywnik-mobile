@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, isAxiosError } from "axios";
 
 const apiBaseUrl =
   process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
@@ -20,7 +20,7 @@ export const setAuthErrorHandler = (fn: (status: number) => void) => {
 
 export const getResponseError = (error: unknown) => {
   if (!error) return "Unknown error";
-  if (axios.isAxiosError(error)) {
+  if (isAxiosError(error)) {
     const err = error as AxiosError<{ message?: string }>;
     return (
       err.response?.data?.message ||
