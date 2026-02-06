@@ -1,22 +1,54 @@
+import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
+import { ListRow } from "./_components/ListRow";
 
 const sections = [
-  "Blog / artykuły",
-  "Indeks warzyw",
-  "Indeks gleb",
-  "Indeks szkodników",
-  "Indeks nawozów",
+  {
+    title: "Artykuły",
+    subtitle: "Poradniki i praktyczne wskazówki",
+    route: "/(tabs)/education/articles",
+  },
+  {
+    title: "Warzywa",
+    subtitle: "Odmiany, wymagania, uprawa",
+    route: "/(tabs)/education/vegetables",
+  },
+  {
+    title: "Gleby",
+    subtitle: "Typy gleb i ich właściwości",
+    route: "/(tabs)/education/soils",
+  },
+  {
+    title: "Szkodniki",
+    subtitle: "Rozpoznawanie i zapobieganie",
+    route: "/(tabs)/education/pests",
+  },
+  {
+    title: "Choroby",
+    subtitle: "Objawy i metody ochrony",
+    route: "/(tabs)/education/diseases",
+  },
+  {
+    title: "Nawozy",
+    subtitle: "Rodzaje i zastosowanie",
+    route: "/(tabs)/education/fertilizers",
+  },
 ];
 
 export default function EducationScreen() {
+  const router = useRouter();
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Edukacja</Text>
       <View style={styles.list}>
         {sections.map((section) => (
-          <View key={section} style={styles.listItem}>
-            <Text style={styles.listText}>{section}</Text>
-          </View>
+          <ListRow
+            key={section.title}
+            title={section.title}
+            subtitle={section.subtitle}
+            onPress={() => router.push(section.route)}
+          />
         ))}
       </View>
     </View>
@@ -36,16 +68,5 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: 12,
-  },
-  listItem: {
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 12,
-    backgroundColor: "#f9fafb",
-  },
-  listText: {
-    fontSize: 14,
-    color: "#111827",
   },
 });

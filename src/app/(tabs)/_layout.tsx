@@ -32,7 +32,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="education/index"
+        name="education"
         options={{
           title: "Edukacja",
           tabBarIcon: ({ color, size }) => (
