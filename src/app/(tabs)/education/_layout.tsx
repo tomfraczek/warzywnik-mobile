@@ -5,7 +5,7 @@ export default function EducationLayout() {
     <Stack>
       <Stack.Screen name="index" options={{ title: "Edukacja" }} />
       <Stack.Screen name="articles/index" options={{ title: "Artykuły" }} />
-      <Stack.Screen name="articles/[id]" options={{ title: "Artykuł" }} />
+      <Stack.Screen name="[slug]" options={{ title: "Artykuł" }} />
       <Stack.Screen name="vegetables/index" options={{ title: "Warzywa" }} />
       <Stack.Screen name="vegetables/[id]" options={{ title: "Warzywo" }} />
       <Stack.Screen name="soils/index" options={{ title: "Gleby" }} />

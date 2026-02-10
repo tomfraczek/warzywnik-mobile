@@ -37,7 +37,6 @@ const sections = [
 
 export default function EducationScreen() {
   const router = useRouter();
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Edukacja</Text>
