@@ -13,6 +13,7 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen name="home/settings" options={{ href: null }} />
       <Tabs.Screen
         name="beds"
         options={{

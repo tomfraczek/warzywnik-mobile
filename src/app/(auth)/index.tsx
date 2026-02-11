@@ -1,71 +1,75 @@
 import { Link } from "expo-router";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import {
+  Button,
+  Surface,
+  Text,
+  useTheme,
+  type MD3Theme,
+} from "react-native-paper";
 
 export default function WelcomeScreen() {
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Warzywnik</Text>
-      <Text style={styles.subtitle}>
+    <Surface style={styles.container}>
+      <Text variant="headlineMedium" style={styles.title}>
+        Warzywnik
+      </Text>
+
+      <Text variant="bodyMedium" style={styles.subtitle}>
         Zacznij od zalogowania lub rejestracji
       </Text>
 
       <View style={styles.actions}>
         <Link href="/sign-in" asChild>
-          <TouchableOpacity style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>Zaloguj się</Text>
-          </TouchableOpacity>
+          <Button mode="contained" contentStyle={styles.buttonContent}>
+            Zaloguj
+          </Button>
         </Link>
+
         <Link href="/sign-up" asChild>
-          <TouchableOpacity style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Zarejestruj się</Text>
-          </TouchableOpacity>
+          <Button
+            mode="outlined"
+            contentStyle={styles.buttonContent}
+            style={styles.outlinedButton}
+          >
+            Załóż konto
+          </Button>
         </Link>
       </View>
-    </View>
+    </Surface>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: "center",
-    color: "#6b7280",
-    marginBottom: 32,
-  },
-  actions: {
-    gap: 12,
-  },
-  primaryButton: {
-    backgroundColor: "#3b82f6",
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  primaryButtonText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: "#3b82f6",
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  secondaryButtonText: {
-    color: "#3b82f6",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-});
+function makeStyles(theme: MD3Theme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      justifyContent: "center",
+      padding: 24,
+      backgroundColor: theme.colors.background,
+    },
+    title: {
+      textAlign: "center",
+      marginBottom: 12,
+      color: theme.colors.onBackground,
+      fontWeight: "700",
+    },
+    subtitle: {
+      textAlign: "center",
+      marginBottom: 32,
+      color: theme.colors.onSurfaceVariant,
+    },
+    actions: {
+      gap: 12,
+    },
+    buttonContent: {
+      paddingVertical: 8,
+    },
+    outlinedButton: {
+      borderColor: theme.colors.primary,
+    },
+  });
+}

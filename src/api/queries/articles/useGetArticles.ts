@@ -29,11 +29,15 @@ const getArticles = async (params: ArticleListParams, pageParam: number) => {
   };
 };
 
-export const useGetArticles = (params: ArticleListParams = {}) => {
+export const useGetArticles = (
+  params: ArticleListParams = {},
+  options?: { enabled?: boolean },
+) => {
   return useInfiniteQuery({
     queryKey: articleKeys.list(params),
     queryFn: ({ pageParam = 1 }) => getArticles(params, pageParam as number),
     getNextPageParam: (lastPage) => lastPage.nextPage,
     initialPageParam: 1,
+    enabled: options?.enabled ?? true,
   });
 };
