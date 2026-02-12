@@ -1,5 +1,7 @@
+import { Screen } from "@/src/components/Screen";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
+import { MD3Theme, useTheme } from "react-native-paper";
 import { ListRow } from "./_components/ListRow";
 
 const sections = [
@@ -37,35 +39,40 @@ const sections = [
 
 export default function EducationScreen() {
   const router = useRouter();
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Edukacja</Text>
-      <View style={styles.list}>
-        {sections.map((section) => (
-          <ListRow
-            key={section.title}
-            title={section.title}
-            subtitle={section.subtitle}
-            onPress={() => router.push(section.route)}
-          />
-        ))}
+    <Screen>
+      <View style={styles.container}>
+        <Text style={styles.title}>Edukacja</Text>
+        <View style={styles.list}>
+          {sections.map((section) => (
+            <ListRow
+              key={section.title}
+              title={section.title}
+              subtitle={section.subtitle}
+              onPress={() => router.push(section.route)}
+            />
+          ))}
+        </View>
       </View>
-    </View>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginBottom: 16,
-  },
-  list: {
-    gap: 12,
-  },
-});
+const makeStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      padding: 24,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: "600",
+      marginBottom: 16,
+      color: theme.colors.onBackground,
+    },
+    list: {
+      gap: 12,
+    },
+  });

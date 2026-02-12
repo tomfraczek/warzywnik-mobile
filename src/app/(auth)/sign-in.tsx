@@ -1,15 +1,11 @@
+import { Screen } from "@/src/components/Screen";
 import { useSignIn, useSSO } from "@clerk/clerk-expo";
 import * as AuthSession from "expo-auth-session";
 import { Link, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React from "react";
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Button, MD3Theme, TextInput, useTheme } from "react-native-paper";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -17,6 +13,8 @@ export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
   const router = useRouter();
   const { startSSOFlow } = useSSO();
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
 
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -32,7 +30,7 @@ export default function SignInScreen() {
 
       if (signInAttempt.status === "complete") {
         await setActive({ session: signInAttempt.createdSessionId });
-        router.replace("/home");
+        router.replace("/(tabs)/home");
       } else {
         console.error(JSON.stringify(signInAttempt, null, 2));
       }
@@ -53,7 +51,7 @@ export default function SignInScreen() {
 
       if (createdSessionId) {
         setActive!({ session: createdSessionId });
-        router.replace("/home");
+        router.replace("/(tabs)/home");
       } else {
         // Sprawdź czy mamy obiekt signIn czy signUp
         if (signIn) {
@@ -81,103 +79,80 @@ export default function SignInScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Sign in</Text>
+    <Screen>
+      <View style={styles.container}>
+        <Text style={styles.title}>Sign in</Text>
 
-      <TouchableOpacity
-        style={styles.googleButton}
-        onPress={onGoogleSignInPress}
-      >
-        <Text style={styles.googleButtonText}>Continue with Google</Text>
-      </TouchableOpacity>
+        <Button mode="outlined" onPress={onGoogleSignInPress}>
+          Continue with Google
+        </Button>
 
-      <Text style={styles.orText}>or</Text>
+        <Text style={styles.orText}>or</Text>
 
-      <TextInput
-        style={styles.input}
-        autoCapitalize="none"
-        value={emailAddress}
-        placeholder="Enter email"
-        onChangeText={setEmailAddress}
-      />
-      <TextInput
-        style={styles.input}
-        value={password}
-        placeholder="Enter password"
-        secureTextEntry
-        onChangeText={setPassword}
-      />
-      <TouchableOpacity style={styles.button} onPress={onSignInPress}>
-        <Text style={styles.buttonText}>Continue</Text>
-      </TouchableOpacity>
+        <TextInput
+          style={styles.input}
+          autoCapitalize="none"
+          value={emailAddress}
+          placeholder="Enter email"
+          onChangeText={setEmailAddress}
+        />
+        <TextInput
+          style={styles.input}
+          value={password}
+          placeholder="Enter password"
+          secureTextEntry
+          onChangeText={setPassword}
+        />
+        <Button mode="contained" onPress={onSignInPress}>
+          Continue
+        </Button>
 
-      <View style={styles.footer}>
-        <Text>Don&apos;t have an account?</Text>
-        <Link href="../sign-up">
-          <Text style={styles.link}>Sign up</Text>
-        </Link>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Don&apos;t have an account?</Text>
+          <Link href="../sign-up">
+            <Text style={styles.link}>Sign up</Text>
+          </Link>
+        </View>
       </View>
-    </View>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 24,
-    marginBottom: 24,
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  input: {
-    height: 48,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: "#3b82f6",
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  buttonText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 4,
-  },
-  link: {
-    marginLeft: 4,
-    color: "#3b82f6",
-    fontWeight: "500",
-  },
-  googleButton: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  googleButtonText: {
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  orText: {
-    textAlign: "center",
-    marginBottom: 16,
-    color: "#999",
-  },
-});
+const makeStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      justifyContent: "center",
+      padding: 24,
+      gap: 12,
+    },
+    title: {
+      fontSize: 24,
+      marginBottom: 12,
+      textAlign: "center",
+      fontWeight: "600",
+      color: theme.colors.onBackground,
+    },
+    input: {
+      marginBottom: 4,
+    },
+    footer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: 4,
+      marginTop: 8,
+    },
+    footerText: {
+      color: theme.colors.onSurfaceVariant,
+    },
+    link: {
+      marginLeft: 4,
+      color: theme.colors.primary,
+      fontWeight: "500",
+    },
+    orText: {
+      textAlign: "center",
+      marginVertical: 4,
+      color: theme.colors.onSurfaceVariant,
+    },
+  });

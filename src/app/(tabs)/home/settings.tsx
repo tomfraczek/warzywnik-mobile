@@ -1,9 +1,13 @@
+import { Screen } from "@/src/components/Screen";
 import { StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { MD3Theme, useTheme } from "react-native-paper";
 
 export default function HomeSettingsScreen() {
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
+
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+    <Screen style={styles.container}>
       <Text style={styles.title}>Ustawienia</Text>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Język i region</Text>
@@ -17,36 +21,37 @@ export default function HomeSettingsScreen() {
         <Text style={styles.sectionTitle}>Powiadomienia</Text>
         <Text style={styles.placeholder}>TODO</Text>
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    padding: 20,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 20,
-  },
-  section: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    backgroundColor: "#f9fafb",
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 6,
-  },
-  placeholder: {
-    fontSize: 13,
-    color: "#9ca3af",
-  },
-});
+const makeStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    container: {
+      padding: 20,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: "700",
+      marginBottom: 20,
+      color: theme.colors.onBackground,
+    },
+    section: {
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+      backgroundColor: theme.colors.surface,
+      marginBottom: 12,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      marginBottom: 6,
+      color: theme.colors.onSurface,
+    },
+    placeholder: {
+      fontSize: 13,
+      color: theme.colors.onSurfaceVariant,
+    },
+  });

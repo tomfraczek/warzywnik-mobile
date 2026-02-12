@@ -1,28 +1,36 @@
+import { Screen } from "@/src/components/Screen";
 import { StyleSheet, Text, View } from "react-native";
+import { MD3Theme, useTheme } from "react-native-paper";
 
 export default function ArticleDetailsScreen() {
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Artykuł</Text>
-      <Text style={styles.subtitle}>
-        Szczegóły będą dostępne po podłączeniu CMS.
-      </Text>
-    </View>
+    <Screen>
+      <View style={styles.container}>
+        <Text style={styles.title}>Artykuł</Text>
+        <Text style={styles.subtitle}>
+          Szczegóły będą dostępne po podłączeniu CMS.
+        </Text>
+      </View>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: "#6b7280",
-  },
-});
+const makeStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      padding: 24,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: "600",
+      marginBottom: 8,
+      color: theme.colors.onBackground,
+    },
+    subtitle: {
+      color: theme.colors.onSurfaceVariant,
+    },
+  });

@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Button, MD3Theme, useTheme } from "react-native-paper";
 
 type EmptyStateProps = {
   title: string;
@@ -13,47 +14,41 @@ export function EmptyState({
   actionLabel,
   onAction,
 }: EmptyStateProps) {
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       {actionLabel && onAction ? (
-        <Pressable style={styles.button} onPress={onAction}>
-          <Text style={styles.buttonText}>{actionLabel}</Text>
-        </Pressable>
+        <Button mode="outlined" onPress={onAction} style={styles.button}>
+          {actionLabel}
+        </Button>
       ) : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    padding: 24,
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111827",
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 12,
-    color: "#6b7280",
-    textAlign: "center",
-    marginTop: 6,
-  },
-  button: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  buttonText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#111827",
-  },
-});
+const makeStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    container: {
+      padding: 24,
+      alignItems: "center",
+    },
+    title: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.colors.onSurface,
+      textAlign: "center",
+    },
+    subtitle: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+      textAlign: "center",
+      marginTop: 6,
+    },
+    button: {
+      marginTop: 12,
+    },
+  });

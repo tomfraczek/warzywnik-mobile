@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { MD3Theme, useTheme } from "react-native-paper";
 
 type ListRowProps = {
   title: string;
@@ -7,6 +8,9 @@ type ListRowProps = {
 };
 
 export function ListRow({ title, subtitle, onPress }: ListRowProps) {
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
+
   return (
     <Pressable style={styles.container} onPress={onPress}>
       <View style={styles.textWrap}>
@@ -17,25 +21,26 @@ export function ListRow({ title, subtitle, onPress }: ListRowProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 12,
-    backgroundColor: "#fff",
-  },
-  textWrap: {
-    gap: 4,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  subtitle: {
-    fontSize: 12,
-    color: "#6b7280",
-  },
-});
+const makeStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    container: {
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+      borderRadius: 12,
+      backgroundColor: theme.colors.surface,
+    },
+    textWrap: {
+      gap: 4,
+    },
+    title: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: theme.colors.onSurface,
+    },
+    subtitle: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+    },
+  });

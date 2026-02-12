@@ -1,16 +1,16 @@
 import { getResponseError } from "@/src/api/axios";
 import { useGetDiseases } from "@/src/api/queries/diseases/useGetDiseases";
+import { Screen } from "@/src/components/Screen";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
+import { Button, MD3Theme, TextInput, useTheme } from "react-native-paper";
 import { EmptyState } from "../_components/EmptyState";
 import { ListRow } from "../_components/ListRow";
 import { useDebouncedValue } from "../_components/useDebouncedValue";
@@ -19,6 +19,8 @@ export default function DiseasesIndexScreen() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 300);
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
 
   const {
     data,
@@ -46,112 +48,106 @@ export default function DiseasesIndexScreen() {
 
   if (isLoading && items.length === 0) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator />
-      </View>
+      <Screen>
+        <View style={styles.center}>
+          <ActivityIndicator />
+        </View>
+      </Screen>
     );
   }
 
   if (error && items.length === 0) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{String(getResponseError(error))}</Text>
-        <Pressable style={styles.retryButton} onPress={() => refetch()}>
-          <Text style={styles.retryText}>Spróbuj ponownie</Text>
-        </Pressable>
-      </View>
+      <Screen>
+        <View style={styles.center}>
+          <Text style={styles.errorText}>
+            {String(getResponseError(error))}
+          </Text>
+          <Button mode="outlined" onPress={() => refetch()}>
+            Spróbuj ponownie
+          </Button>
+        </View>
+      </Screen>
     );
   }
 
   return (
-    <FlatList
-      data={items}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.listContent}
-      ListHeaderComponent={
-        <View style={styles.searchBox}>
-          <Text style={styles.searchLabel}>Szukaj</Text>
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Nazwa choroby"
-            style={styles.searchInput}
+    <Screen>
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <View style={styles.searchBox}>
+            <Text style={styles.searchLabel}>Szukaj</Text>
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Nazwa choroby"
+              style={styles.searchInput}
+            />
+          </View>
+        }
+        renderItem={({ item }) => (
+          <ListRow
+            title={item.name}
+            subtitle={item.description ?? undefined}
+            onPress={() => router.push(`/(tabs)/education/diseases/${item.id}`)}
           />
-        </View>
-      }
-      renderItem={({ item }) => (
-        <ListRow
-          title={item.name}
-          subtitle={item.description ?? undefined}
-          onPress={() => router.push(`/(tabs)/education/diseases/${item.id}`)}
-        />
-      )}
-      ItemSeparatorComponent={() => <View style={styles.separator} />}
-      onEndReached={handleLoadMore}
-      onEndReachedThreshold={0.4}
-      ListFooterComponent={
-        isFetchingNextPage ? <ActivityIndicator style={styles.footer} /> : null
-      }
-      ListEmptyComponent={
-        <EmptyState
-          title="Brak wyników"
-          subtitle="Spróbuj zmienić zapytanie wyszukiwania."
-        />
-      }
-    />
+        )}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <ActivityIndicator style={styles.footer} />
+          ) : null
+        }
+        ListEmptyComponent={
+          <EmptyState
+            title="Brak wyników"
+            subtitle="Spróbuj zmienić zapytanie wyszukiwania."
+          />
+        }
+      />
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  listContent: {
-    padding: 16,
-    paddingBottom: 32,
-    backgroundColor: "#fff",
-  },
-  searchBox: {
-    marginBottom: 12,
-  },
-  searchLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 6,
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 14,
-  },
-  separator: {
-    height: 10,
-  },
-  footer: {
-    marginTop: 12,
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-    backgroundColor: "#fff",
-  },
-  errorText: {
-    color: "#ef4444",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  retryButton: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  retryText: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-});
+const makeStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    listContent: {
+      padding: 16,
+      paddingBottom: 32,
+      backgroundColor: theme.colors.background,
+    },
+    searchBox: {
+      marginBottom: 12,
+    },
+    searchLabel: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: theme.colors.onSurface,
+      marginBottom: 6,
+    },
+    searchInput: {
+      borderRadius: 10,
+    },
+    separator: {
+      height: 10,
+    },
+    footer: {
+      marginTop: 12,
+    },
+    center: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 24,
+    },
+    errorText: {
+      color: theme.colors.error,
+      marginBottom: 12,
+      textAlign: "center",
+    },
+  });

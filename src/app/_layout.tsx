@@ -1,3 +1,5 @@
+// app/_layout.tsx (albo odpowiedni RootLayout w Twoim projekcie)
+
 import { setAuthErrorHandler, setAuthTokenProvider } from "@/src/api/axios";
 import { ClerkProvider, useAuth, useClerk } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
@@ -17,24 +19,17 @@ const lightTheme = {
   ...MD3LightTheme,
   colors: {
     ...MD3LightTheme.colors,
-
-    // Option A (Natural, calm)
     primary: "#4C7A5A",
     secondary: "#A3B18A",
     tertiary: "#E9C46A",
-
     background: "#F4F6F3",
     surface: "#FFFFFF",
-
     error: "#E63946",
-
-    // Good to set explicitly for consistency
     onPrimary: "#FFFFFF",
     onSecondary: "#1E1E1E",
     onTertiary: "#1E1E1E",
     onBackground: "#2B2B2B",
     onSurface: "#2B2B2B",
-
     outline: "#D6DAD5",
   },
 };
@@ -43,23 +38,17 @@ const darkTheme = {
   ...MD3DarkTheme,
   colors: {
     ...MD3DarkTheme.colors,
-
-    // Dark counterpart (aligned with Option A)
     primary: "#6B9C7C",
     secondary: "#B9C6A3",
     tertiary: "#F0D58A",
-
     background: "#121212",
     surface: "#1A1A1A",
-
     error: "#FF6B6B",
-
     onPrimary: "#0B1F14",
     onSecondary: "#0E160F",
     onTertiary: "#2A2008",
     onBackground: "#E6E6E6",
     onSurface: "#E6E6E6",
-
     outline: "#3A3A3A",
   },
 };
@@ -75,7 +64,15 @@ function AuthBootstrapGate() {
 
   useEffect(() => {
     if (!isLoaded) return;
+
+    if (!isSignedIn) {
+      setAuthTokenProvider(async () => null);
+      setReady(true);
+      return;
+    }
+
     setAuthTokenProvider(async () => (await getToken()) ?? null);
+
     setAuthErrorHandler(async (_status) => {
       if (isHandlingAuthError.current) return;
       isHandlingAuthError.current = true;
@@ -90,12 +87,15 @@ function AuthBootstrapGate() {
         isHandlingAuthError.current = false;
       }
     });
+
     setReady(true);
-  }, [isLoaded, getToken, router, signOut]);
+  }, [isLoaded, isSignedIn, getToken, router, signOut]);
 
   useEffect(() => {
     if (!isLoaded) return;
+
     const inAuthGroup = segments[0] === "(auth)";
+
     if (!isSignedIn) {
       if (!inAuthGroup && pathname !== "/(auth)") {
         router.replace("/(auth)");
@@ -109,6 +109,7 @@ function AuthBootstrapGate() {
   }, [isLoaded, isSignedIn, segments, router, pathname]);
 
   if (!ready) return null;
+
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
@@ -123,7 +124,10 @@ export default function RootLayout() {
           client={queryClient}
           persistOptions={{ persister: clientPersister }}
         >
-          <ClerkProvider tokenCache={tokenCache}>
+          <ClerkProvider
+            publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
+            tokenCache={tokenCache}
+          >
             <AuthBootstrapGate />
           </ClerkProvider>
         </PersistQueryClientProvider>

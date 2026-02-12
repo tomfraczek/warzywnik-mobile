@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
+import { MD3Theme, useTheme } from "react-native-paper";
 
 type SectionBlockProps = {
   title: string;
@@ -7,6 +8,9 @@ type SectionBlockProps = {
 };
 
 export function SectionBlock({ title, text, items }: SectionBlockProps) {
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
+
   if (!text && (!items || items.length === 0)) return null;
 
   return (
@@ -26,27 +30,28 @@ export function SectionBlock({ title, text, items }: SectionBlockProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 6,
-  },
-  text: {
-    fontSize: 13,
-    color: "#374151",
-    lineHeight: 18,
-  },
-  list: {
-    marginTop: 6,
-    gap: 4,
-  },
-  listItem: {
-    fontSize: 13,
-    color: "#374151",
-  },
-});
+const makeStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    container: {
+      marginBottom: 16,
+    },
+    title: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.colors.onSurface,
+      marginBottom: 6,
+    },
+    text: {
+      fontSize: 13,
+      color: theme.colors.onSurfaceVariant,
+      lineHeight: 18,
+    },
+    list: {
+      marginTop: 6,
+      gap: 4,
+    },
+    listItem: {
+      fontSize: 13,
+      color: theme.colors.onSurfaceVariant,
+    },
+  });

@@ -3,6 +3,7 @@ import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
 import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { clientPersister, queryClient } from "@/src/api/queryClient";
+import { Screen } from "@/src/components/Screen";
 import { useClerk } from "@clerk/clerk-expo";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -15,8 +16,13 @@ import {
   Text,
   View,
 } from "react-native";
-import { IconButton, Menu } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  Button,
+  IconButton,
+  MD3Theme,
+  Menu,
+  useTheme,
+} from "react-native-paper";
 
 const ADVICE_LIMIT = 3;
 const CANDIDATE_LIMIT = 10;
@@ -123,6 +129,8 @@ const scoreArticle = (
 export default function HomeScreen() {
   const router = useRouter();
   const { signOut } = useClerk();
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
   const [menuVisible, setMenuVisible] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
@@ -252,7 +260,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+    <Screen safeAreaEdges={["top", "left", "right"]}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View>
@@ -295,14 +303,13 @@ export default function HomeScreen() {
               {tips.length === 0 ? (
                 <View style={styles.emptyCard}>
                   <Text style={styles.emptyTitle}>Brak porad na dziś</Text>
-                  <Pressable
+                  <Button
+                    mode="text"
                     onPress={() => router.push("/(tabs)/education")}
                     style={styles.inlineAction}
                   >
-                    <Text style={styles.inlineActionText}>
-                      Przejdź do edukacji
-                    </Text>
-                  </Pressable>
+                    Przejdź do edukacji
+                  </Button>
                 </View>
               ) : (
                 tips.map((article) => (
@@ -337,18 +344,20 @@ export default function HomeScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Skróty</Text>
               <View style={styles.shortcuts}>
-                <Pressable
-                  style={styles.shortcutButton}
+                <Button
+                  mode="contained"
                   onPress={() => router.push("/(tabs)/beds/new")}
-                >
-                  <Text style={styles.shortcutText}>+ Dodaj grządkę</Text>
-                </Pressable>
-                <Pressable
                   style={styles.shortcutButton}
-                  onPress={() => router.push("/(tabs)/beds")}
                 >
-                  <Text style={styles.shortcutText}>+ Dodaj uprawę</Text>
-                </Pressable>
+                  + Dodaj grządkę
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={() => router.push("/(tabs)/beds")}
+                  style={styles.shortcutButton}
+                >
+                  + Dodaj uprawę
+                </Button>
               </View>
             </View>
 
@@ -376,139 +385,130 @@ export default function HomeScreen() {
               <View style={styles.section}>
                 <View style={styles.emptyCard}>
                   <Text style={styles.emptyTitle}>Dodaj pierwszą grządkę</Text>
-                  <Pressable
+                  <Button
+                    mode="text"
                     onPress={() => router.push("/(tabs)/beds/new")}
                     style={styles.inlineAction}
                   >
-                    <Text style={styles.inlineActionText}>Utwórz grządkę</Text>
-                  </Pressable>
+                    Utwórz grządkę
+                  </Button>
                 </View>
               </View>
             ) : null}
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 32,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginTop: 4,
-  },
-  section: {
-    marginTop: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 12,
-  },
-  loading: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: 40,
-  },
-  tipCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    marginBottom: 12,
-    gap: 12,
-  },
-  tipText: {
-    flex: 1,
-  },
-  tipTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    marginBottom: 6,
-  },
-  tipExcerpt: {
-    fontSize: 13,
-    color: "#6b7280",
-  },
-  tipImage: {
-    width: 72,
-    height: 72,
-    borderRadius: 10,
-    backgroundColor: "#f3f4f6",
-  },
-  shortcuts: {
-    gap: 12,
-  },
-  shortcutButton: {
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: "#f9fafb",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  shortcutText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  statsGrid: {
-    gap: 12,
-  },
-  statCard: {
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: "#f9fafb",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  statLabel: {
-    fontSize: 13,
-    color: "#6b7280",
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginTop: 4,
-  },
-  emptyCard: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    backgroundColor: "#f9fafb",
-  },
-  emptyTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  inlineAction: {
-    alignSelf: "flex-start",
-  },
-  inlineActionText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#16a34a",
-  },
-});
+const makeStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    content: {
+      padding: 20,
+      paddingBottom: 32,
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: "700",
+      color: theme.colors.onBackground,
+    },
+    subtitle: {
+      fontSize: 14,
+      color: theme.colors.onSurfaceVariant,
+      marginTop: 4,
+    },
+    section: {
+      marginTop: 16,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      marginBottom: 12,
+      color: theme.colors.onBackground,
+    },
+    loading: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingTop: 40,
+    },
+    tipCard: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      padding: 14,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+      backgroundColor: theme.colors.surface,
+      marginBottom: 12,
+      gap: 12,
+    },
+    tipText: {
+      flex: 1,
+    },
+    tipTitle: {
+      fontSize: 15,
+      fontWeight: "600",
+      marginBottom: 6,
+      color: theme.colors.onSurface,
+    },
+    tipExcerpt: {
+      fontSize: 13,
+      color: theme.colors.onSurfaceVariant,
+    },
+    tipImage: {
+      width: 72,
+      height: 72,
+      borderRadius: 10,
+      backgroundColor: theme.colors.surfaceVariant,
+    },
+    shortcuts: {
+      gap: 12,
+    },
+    shortcutButton: {
+      borderRadius: 12,
+    },
+    statsGrid: {
+      gap: 12,
+    },
+    statCard: {
+      padding: 14,
+      borderRadius: 12,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+    },
+    statLabel: {
+      fontSize: 13,
+      color: theme.colors.onSurfaceVariant,
+    },
+    statValue: {
+      fontSize: 20,
+      fontWeight: "700",
+      marginTop: 4,
+      color: theme.colors.onSurface,
+    },
+    emptyCard: {
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+      backgroundColor: theme.colors.surface,
+    },
+    emptyTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      marginBottom: 8,
+      color: theme.colors.onSurface,
+    },
+    inlineAction: {
+      alignSelf: "flex-start",
+    },
+  });

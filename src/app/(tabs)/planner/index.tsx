@@ -3,6 +3,7 @@ import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
 import { Planting, PlantingStatus } from "@/src/api/queries/plantings/types";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
+import { Screen } from "@/src/components/Screen";
 import { useRouter } from "expo-router";
 import { memo, useMemo, useState } from "react";
 import {
@@ -14,6 +15,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { Button, MD3Theme, useTheme } from "react-native-paper";
 
 const statusOptions: PlantingStatus[] = [
   "PLANNED",
@@ -45,6 +47,11 @@ type PlannerEvent = {
   dateEnd?: string | null;
   hasWarnings: boolean;
 };
+
+type StatusStyles = Record<
+  PlantingStatus,
+  { bar: { backgroundColor: string }; text: { color: string } }
+>;
 
 type PlannerFilters = {
   bedId: string | null;
@@ -189,11 +196,15 @@ const mapPlantingsToPlannerEvents = (
 type PlannerEventRowProps = {
   item: PlannerEvent;
   onPress: (event: PlannerEvent) => void;
+  styles: ReturnType<typeof makeStyles>;
+  statusStyles: StatusStyles;
 };
 
 const PlannerEventRow = memo(function PlannerEventRow({
   item,
   onPress,
+  styles,
+  statusStyles,
 }: PlannerEventRowProps) {
   const {
     data: vegetable,
@@ -239,6 +250,9 @@ const PlannerEventRow = memo(function PlannerEventRow({
 
 export default function PlannerScreen() {
   const router = useRouter();
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
+  const statusStyles = getStatusStyles(theme);
   const [activeStatuses, setActiveStatuses] =
     useState<PlantingStatus[]>(statusOptions);
   const [activeBedId, setActiveBedId] = useState<string | null>(null);
@@ -351,377 +365,389 @@ export default function PlannerScreen() {
 
   if (isLoading && plantings.length === 0) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator />
-      </View>
+      <Screen>
+        <View style={styles.center}>
+          <ActivityIndicator />
+        </View>
+      </Screen>
     );
   }
 
   if (error && plantings.length === 0) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{String(getResponseError(error))}</Text>
-        <Pressable style={styles.secondaryButton} onPress={() => refetch()}>
-          <Text style={styles.secondaryButtonText}>Spróbuj ponownie</Text>
-        </Pressable>
-      </View>
+      <Screen>
+        <View style={styles.center}>
+          <Text style={styles.errorText}>
+            {String(getResponseError(error))}
+          </Text>
+          <Button mode="outlined" onPress={() => refetch()}>
+            Spróbuj ponownie
+          </Button>
+        </View>
+      </Screen>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.filtersSection}>
-        <View style={styles.segmentedRow}>
-          {viewModeOptions.map((mode) => {
-            const isActive = viewMode === mode;
-            return (
-              <Pressable
-                key={mode}
-                style={[
-                  styles.segmentedChip,
-                  isActive && styles.segmentedActive,
-                ]}
-                onPress={() => setViewMode(mode)}
-              >
-                <Text
+    <Screen>
+      <View style={styles.container}>
+        <View style={styles.filtersSection}>
+          <View style={styles.segmentedRow}>
+            {viewModeOptions.map((mode) => {
+              const isActive = viewMode === mode;
+              return (
+                <Pressable
+                  key={mode}
                   style={[
-                    styles.segmentedText,
-                    isActive && styles.segmentedTextActive,
+                    styles.segmentedChip,
+                    isActive && styles.segmentedActive,
                   ]}
+                  onPress={() => setViewMode(mode)}
                 >
-                  {mode === "ALL" ? "Wszystko" : "Zbiory"}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                  <Text
+                    style={[
+                      styles.segmentedText,
+                      isActive && styles.segmentedTextActive,
+                    ]}
+                  >
+                    {mode === "ALL" ? "Wszystko" : "Zbiory"}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
-        <View style={styles.segmentedRow}>
-          {timeframeOptions.map((option) => {
-            const isActive = timeframe === option;
-            return (
-              <Pressable
-                key={option}
-                style={[
-                  styles.segmentedChip,
-                  isActive && styles.segmentedActive,
-                ]}
-                onPress={() => setTimeframe(option)}
-              >
-                <Text
+          <View style={styles.segmentedRow}>
+            {timeframeOptions.map((option) => {
+              const isActive = timeframe === option;
+              return (
+                <Pressable
+                  key={option}
                   style={[
-                    styles.segmentedText,
-                    isActive && styles.segmentedTextActive,
+                    styles.segmentedChip,
+                    isActive && styles.segmentedActive,
                   ]}
+                  onPress={() => setTimeframe(option)}
                 >
-                  {option === "THIS_MONTH"
-                    ? "Ten miesiąc"
-                    : "Nadchodzące 30 dni"}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                  <Text
+                    style={[
+                      styles.segmentedText,
+                      isActive && styles.segmentedTextActive,
+                    ]}
+                  >
+                    {option === "THIS_MONTH"
+                      ? "Ten miesiąc"
+                      : "Nadchodzące 30 dni"}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
-        <Text style={styles.filtersTitle}>Grządka</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-        >
-          <Pressable
-            style={[styles.filterChip, !activeBedId && styles.filterChipActive]}
-            onPress={() => setActiveBedId(null)}
+          <Text style={styles.filtersTitle}>Grządka</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
           >
-            <Text
+            <Pressable
               style={[
-                styles.filterChipText,
-                !activeBedId && styles.filterChipTextActive,
+                styles.filterChip,
+                !activeBedId && styles.filterChipActive,
               ]}
+              onPress={() => setActiveBedId(null)}
             >
-              Wszystkie
-            </Text>
-          </Pressable>
-          {beds.map((bed) => {
-            const isActive = activeBedId === bed.id;
-            return (
-              <Pressable
-                key={bed.id}
-                style={[styles.filterChip, isActive && styles.filterChipActive]}
-                onPress={() => setActiveBedId(bed.id)}
+              <Text
+                style={[
+                  styles.filterChipText,
+                  !activeBedId && styles.filterChipTextActive,
+                ]}
               >
-                <Text
+                Wszystkie
+              </Text>
+            </Pressable>
+            {beds.map((bed) => {
+              const isActive = activeBedId === bed.id;
+              return (
+                <Pressable
+                  key={bed.id}
                   style={[
-                    styles.filterChipText,
-                    isActive && styles.filterChipTextActive,
+                    styles.filterChip,
+                    isActive && styles.filterChipActive,
                   ]}
+                  onPress={() => setActiveBedId(bed.id)}
                 >
-                  {truncateLabel(bed.name, 18)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      isActive && styles.filterChipTextActive,
+                    ]}
+                  >
+                    {truncateLabel(bed.name, 18)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
 
-        <Text style={styles.filtersTitle}>Status upraw</Text>
-        <View style={styles.filterRow}>
-          {statusOptions.map((status) => {
-            const isActive = activeStatuses.includes(status);
-            return (
-              <Pressable
-                key={status}
-                style={[styles.filterChip, isActive && styles.filterChipActive]}
-                onPress={() => toggleStatus(status)}
-              >
-                <Text
+          <Text style={styles.filtersTitle}>Status upraw</Text>
+          <View style={styles.filterRow}>
+            {statusOptions.map((status) => {
+              const isActive = activeStatuses.includes(status);
+              return (
+                <Pressable
+                  key={status}
                   style={[
-                    styles.filterChipText,
-                    isActive && styles.filterChipTextActive,
+                    styles.filterChip,
+                    isActive && styles.filterChipActive,
                   ]}
+                  onPress={() => toggleStatus(status)}
                 >
-                  {status}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      isActive && styles.filterChipTextActive,
+                    ]}
+                  >
+                    {status}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
-        {hasActiveFilters ? (
-          <Pressable style={styles.clearFiltersButton} onPress={resetFilters}>
-            <Text style={styles.clearFiltersText}>Wyczyść filtry</Text>
-          </Pressable>
-        ) : null}
-      </View>
-
-      {events.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>Brak zaplanowanych prac</Text>
           {hasActiveFilters ? (
             <Pressable style={styles.clearFiltersButton} onPress={resetFilters}>
               <Text style={styles.clearFiltersText}>Wyczyść filtry</Text>
             </Pressable>
           ) : null}
         </View>
-      ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <PlannerEventRow item={item} onPress={handleOpenPlanting} />
-          )}
-          renderSectionHeader={({ section }) => (
-            <Text style={styles.sectionHeader}>{section.title}</Text>
-          )}
-          contentContainerStyle={styles.listContent}
-          stickySectionHeadersEnabled={false}
-        />
-      )}
-    </View>
+
+        {events.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>Brak zaplanowanych prac</Text>
+            {hasActiveFilters ? (
+              <Pressable
+                style={styles.clearFiltersButton}
+                onPress={resetFilters}
+              >
+                <Text style={styles.clearFiltersText}>Wyczyść filtry</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : (
+          <SectionList
+            sections={sections}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <PlannerEventRow
+                item={item}
+                onPress={handleOpenPlanting}
+                styles={styles}
+                statusStyles={statusStyles}
+              />
+            )}
+            renderSectionHeader={({ section }) => (
+              <Text style={styles.sectionHeader}>{section.title}</Text>
+            )}
+            contentContainerStyle={styles.listContent}
+            stickySectionHeadersEnabled={false}
+          />
+        )}
+      </View>
+    </Screen>
   );
 }
 
-const statusStyles: Record<
-  PlantingStatus,
-  { bar: { backgroundColor: string }; text: { color: string } }
-> = {
+const getStatusStyles = (theme: MD3Theme): StatusStyles => ({
   PLANNED: {
-    bar: { backgroundColor: "#9ca3af" },
-    text: { color: "#6b7280" },
+    bar: { backgroundColor: theme.colors.outline },
+    text: { color: theme.colors.onSurfaceVariant },
   },
   ACTIVE: {
-    bar: { backgroundColor: "#16a34a" },
-    text: { color: "#16a34a" },
+    bar: { backgroundColor: theme.colors.primary },
+    text: { color: theme.colors.primary },
   },
   HARVESTING: {
-    bar: { backgroundColor: "#f59e0b" },
-    text: { color: "#f59e0b" },
+    bar: { backgroundColor: theme.colors.tertiary },
+    text: { color: theme.colors.tertiary },
   },
   FINISHED: {
-    bar: { backgroundColor: "#93c5fd" },
-    text: { color: "#60a5fa" },
+    bar: { backgroundColor: theme.colors.secondary },
+    text: { color: theme.colors.secondary },
   },
   CANCELLED: {
-    bar: { backgroundColor: "#cbd5f5" },
-    text: { color: "#94a3b8" },
-  },
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-    backgroundColor: "#fff",
-  },
-  errorText: {
-    color: "#ef4444",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  secondaryButtonText: {
-    color: "#111827",
-    fontWeight: "600",
-  },
-  filtersSection: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
-  },
-  segmentedRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 12,
-  },
-  segmentedChip: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  segmentedActive: {
-    backgroundColor: "#111827",
-    borderColor: "#111827",
-  },
-  segmentedText: {
-    fontSize: 12,
-    color: "#111827",
-  },
-  segmentedTextActive: {
-    color: "#fff",
-  },
-  filtersTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
-    color: "#111827",
-  },
-  filterRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    paddingBottom: 8,
-  },
-  filterChip: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  filterChipActive: {
-    backgroundColor: "#111827",
-    borderColor: "#111827",
-  },
-  filterChipText: {
-    fontSize: 12,
-    color: "#111827",
-  },
-  filterChipTextActive: {
-    color: "#fff",
-  },
-  listContent: {
-    padding: 16,
-    paddingBottom: 24,
-  },
-  sectionHeader: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6b7280",
-    marginBottom: 8,
-    marginTop: 8,
-  },
-  eventRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 12,
-    marginBottom: 10,
-    overflow: "hidden",
-  },
-  statusBar: {
-    width: 4,
-    alignSelf: "stretch",
-    borderRadius: 2,
-    marginRight: 10,
-  },
-  eventMain: {
-    flex: 1,
-    marginRight: 12,
-  },
-  eventTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  eventTitleCancelled: {
-    color: "#9ca3af",
-    textDecorationLine: "line-through",
-  },
-  eventSubtitle: {
-    fontSize: 12,
-    color: "#6b7280",
-    marginTop: 2,
-  },
-  eventMeta: {
-    alignItems: "flex-end",
-  },
-  eventType: {
-    fontSize: 12,
-    color: "#111827",
-  },
-  eventStatus: {
-    fontSize: 11,
-    marginTop: 2,
-    fontWeight: "600",
-  },
-  eventDate: {
-    fontSize: 11,
-    color: "#6b7280",
-    marginTop: 2,
-  },
-  warningIcon: {
-    marginTop: 4,
-    fontSize: 14,
-  },
-  emptyState: {
-    padding: 24,
-    alignItems: "center",
-  },
-  emptyText: {
-    color: "#6b7280",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  clearFiltersButton: {
-    alignSelf: "flex-start",
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  clearFiltersText: {
-    fontSize: 12,
-    color: "#111827",
-    fontWeight: "600",
+    bar: { backgroundColor: theme.colors.error },
+    text: { color: theme.colors.error },
   },
 });
+
+const makeStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    center: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 24,
+    },
+    errorText: {
+      color: theme.colors.error,
+      marginBottom: 12,
+      textAlign: "center",
+    },
+    filtersSection: {
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.outlineVariant,
+    },
+    segmentedRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      marginBottom: 12,
+    },
+    segmentedChip: {
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    segmentedActive: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    segmentedText: {
+      fontSize: 12,
+      color: theme.colors.onSurface,
+    },
+    segmentedTextActive: {
+      color: theme.colors.onPrimary,
+    },
+    filtersTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      marginBottom: 8,
+      color: theme.colors.onSurface,
+    },
+    filterRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      paddingBottom: 8,
+    },
+    filterChip: {
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    filterChipActive: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    filterChipText: {
+      fontSize: 12,
+      color: theme.colors.onSurface,
+    },
+    filterChipTextActive: {
+      color: theme.colors.onPrimary,
+    },
+    listContent: {
+      padding: 16,
+      paddingBottom: 24,
+    },
+    sectionHeader: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.colors.onSurfaceVariant,
+      marginBottom: 8,
+      marginTop: 8,
+    },
+    eventRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+      borderRadius: 12,
+      marginBottom: 10,
+      overflow: "hidden",
+      backgroundColor: theme.colors.surface,
+    },
+    statusBar: {
+      width: 4,
+      alignSelf: "stretch",
+      borderRadius: 2,
+      marginRight: 10,
+    },
+    eventMain: {
+      flex: 1,
+      marginRight: 12,
+    },
+    eventTitle: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: theme.colors.onSurface,
+    },
+    eventTitleCancelled: {
+      color: theme.colors.onSurfaceVariant,
+      textDecorationLine: "line-through",
+    },
+    eventSubtitle: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+      marginTop: 2,
+    },
+    eventMeta: {
+      alignItems: "flex-end",
+    },
+    eventType: {
+      fontSize: 12,
+      color: theme.colors.onSurface,
+    },
+    eventStatus: {
+      fontSize: 11,
+      marginTop: 2,
+      fontWeight: "600",
+    },
+    eventDate: {
+      fontSize: 11,
+      color: theme.colors.onSurfaceVariant,
+      marginTop: 2,
+    },
+    warningIcon: {
+      marginTop: 4,
+      fontSize: 14,
+      color: theme.colors.error,
+    },
+    emptyState: {
+      padding: 24,
+      alignItems: "center",
+    },
+    emptyText: {
+      color: theme.colors.onSurfaceVariant,
+      marginBottom: 12,
+      textAlign: "center",
+    },
+    clearFiltersButton: {
+      alignSelf: "flex-start",
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    clearFiltersText: {
+      fontSize: 12,
+      color: theme.colors.onSurface,
+      fontWeight: "600",
+    },
+  });

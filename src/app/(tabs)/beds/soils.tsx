@@ -2,6 +2,7 @@ import { getResponseError } from "@/src/api/axios";
 import { Soil } from "@/src/api/queries/soils/types";
 import { useGetSoils } from "@/src/api/queries/soils/useGetSoils";
 import { setSelectedSoil } from "@/src/app/(tabs)/beds/_state/soilSelectionStore";
+import { Screen } from "@/src/components/Screen";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -10,12 +11,14 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
+import { Button, MD3Theme, TextInput, useTheme } from "react-native-paper";
 
 export default function SoilPickerScreen() {
   const router = useRouter();
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -43,12 +46,16 @@ export default function SoilPickerScreen() {
 
   if (error && soils.length === 0) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{String(getResponseError(error))}</Text>
-        <Pressable style={styles.secondaryButton} onPress={() => refetch()}>
-          <Text style={styles.secondaryButtonText}>Spróbuj ponownie</Text>
-        </Pressable>
-      </View>
+      <Screen>
+        <View style={styles.center}>
+          <Text style={styles.errorText}>
+            {String(getResponseError(error))}
+          </Text>
+          <Button mode="outlined" onPress={() => refetch()}>
+            Spróbuj ponownie
+          </Button>
+        </View>
+      </Screen>
     );
   }
 
@@ -68,131 +75,120 @@ export default function SoilPickerScreen() {
   );
 
   return (
-    <FlatList
-      data={soils}
-      renderItem={renderItem}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.listContent}
-      ListHeaderComponent={
-        <View style={styles.header}>
-          <Text style={styles.title}>Wybierz glebę</Text>
-          <TextInput
-            style={styles.searchInput}
-            value={searchInput}
-            onChangeText={setSearchInput}
-            placeholder="Szukaj gleby"
-          />
-          {isLoading ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator />
-            </View>
-          ) : null}
-        </View>
-      }
-      ListFooterComponent={
-        hasNextPage ? (
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() => fetchNextPage()}
-            disabled={isFetchingNextPage}
-          >
-            {isFetchingNextPage ? (
-              <ActivityIndicator />
-            ) : (
-              <Text style={styles.secondaryButtonText}>Wczytaj więcej</Text>
-            )}
-          </Pressable>
-        ) : (
-          <View style={styles.footerSpace} />
-        )
-      }
-      onEndReached={() => {
-        if (hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      }}
-      onEndReachedThreshold={0.4}
-      ListEmptyComponent={
-        !isLoading ? (
-          <View style={styles.center}>
-            <Text style={styles.emptyTitle}>Brak gleb</Text>
+    <Screen>
+      <FlatList
+        data={soils}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <Text style={styles.title}>Wybierz glebę</Text>
+            <TextInput
+              style={styles.searchInput}
+              value={searchInput}
+              onChangeText={setSearchInput}
+              placeholder="Szukaj gleby"
+            />
+            {isLoading ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator />
+              </View>
+            ) : null}
           </View>
-        ) : null
-      }
-    />
+        }
+        ListFooterComponent={
+          hasNextPage ? (
+            <Button
+              mode="outlined"
+              onPress={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+              style={styles.secondaryButton}
+            >
+              {isFetchingNextPage ? "Ładowanie..." : "Wczytaj więcej"}
+            </Button>
+          ) : (
+            <View style={styles.footerSpace} />
+          )
+        }
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) {
+            fetchNextPage();
+          }
+        }}
+        onEndReachedThreshold={0.4}
+        ListEmptyComponent={
+          !isLoading ? (
+            <View style={styles.center}>
+              <Text style={styles.emptyTitle}>Brak gleb</Text>
+            </View>
+          ) : null
+        }
+      />
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  listContent: {
-    paddingBottom: 24,
-    backgroundColor: "#fff",
-  },
-  header: {
-    padding: 16,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  row: {
-    borderTopWidth: 1,
-    borderColor: "#e5e7eb",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  rowTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  rowSubtitle: {
-    fontSize: 13,
-    color: "#6b7280",
-    marginTop: 4,
-  },
-  loadingRow: {
-    alignItems: "center",
-  },
-  secondaryButton: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    alignItems: "center",
-  },
-  secondaryButtonText: {
-    color: "#111827",
-    fontWeight: "600",
-  },
-  footerSpace: {
-    height: 24,
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-    backgroundColor: "#fff",
-  },
-  errorText: {
-    fontSize: 14,
-    color: "#dc2626",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
+const makeStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    listContent: {
+      paddingBottom: 24,
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      padding: 16,
+      gap: 12,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: theme.colors.onBackground,
+    },
+    searchInput: {
+      borderRadius: 10,
+    },
+    row: {
+      borderTopWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    rowTitle: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: theme.colors.onSurface,
+    },
+    rowSubtitle: {
+      fontSize: 13,
+      color: theme.colors.onSurfaceVariant,
+      marginTop: 4,
+    },
+    loadingRow: {
+      alignItems: "center",
+    },
+    secondaryButton: {
+      marginHorizontal: 16,
+      marginTop: 16,
+    },
+    footerSpace: {
+      height: 24,
+    },
+    center: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 24,
+      gap: 8,
+    },
+    errorText: {
+      fontSize: 14,
+      color: theme.colors.error,
+      marginBottom: 12,
+      textAlign: "center",
+    },
+    emptyTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.colors.onBackground,
+    },
+  });

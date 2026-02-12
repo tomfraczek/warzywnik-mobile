@@ -1,19 +1,17 @@
+import { Screen } from "@/src/components/Screen";
 import { useSignUp, useSSO } from "@clerk/clerk-expo";
 import * as AuthSession from "expo-auth-session";
 import { Link, useRouter } from "expo-router";
 import * as React from "react";
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Button, MD3Theme, TextInput, useTheme } from "react-native-paper";
 
 export default function SignUpScreen() {
   const { isLoaded, signUp, setActive } = useSignUp();
   const { startSSOFlow } = useSSO();
   const router = useRouter();
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
 
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -44,7 +42,7 @@ export default function SignUpScreen() {
 
       if (createdSessionId) {
         setActive!({ session: createdSessionId });
-        router.replace("/home");
+        router.replace("/(tabs)/home");
       } else {
         // Obsłuż dalsze kroki jeśli potrzebne
         if (signIn) {
@@ -69,7 +67,7 @@ export default function SignUpScreen() {
 
       if (signUpAttempt.status === "complete") {
         await setActive({ session: signUpAttempt.createdSessionId });
-        router.replace("/home");
+        router.replace("/(tabs)/home");
       } else {
         console.error(JSON.stringify(signUpAttempt, null, 2));
       }
@@ -80,118 +78,97 @@ export default function SignUpScreen() {
 
   if (pendingVerification) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Verify your email</Text>
-        <TextInput
-          style={styles.input}
-          value={code}
-          placeholder="Enter your verification code"
-          onChangeText={(code) => setCode(code)}
-        />
-        <TouchableOpacity style={styles.button} onPress={onVerifyPress}>
-          <Text style={styles.buttonText}>Verify</Text>
-        </TouchableOpacity>
-      </View>
+      <Screen>
+        <View style={styles.container}>
+          <Text style={styles.title}>Verify your email</Text>
+          <TextInput
+            style={styles.input}
+            value={code}
+            placeholder="Enter your verification code"
+            onChangeText={(code) => setCode(code)}
+          />
+          <Button mode="contained" onPress={onVerifyPress}>
+            Verify
+          </Button>
+        </View>
+      </Screen>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Sign up</Text>
+    <Screen>
+      <View style={styles.container}>
+        <Text style={styles.title}>Sign up</Text>
 
-      <TouchableOpacity
-        style={styles.googleButton}
-        onPress={onGoogleSignUpPress}
-      >
-        <Text style={styles.googleButtonText}>Continue with Google</Text>
-      </TouchableOpacity>
+        <Button mode="outlined" onPress={onGoogleSignUpPress}>
+          Continue with Google
+        </Button>
 
-      <Text style={styles.orText}>or</Text>
+        <Text style={styles.orText}>or</Text>
 
-      <TextInput
-        style={styles.input}
-        autoCapitalize="none"
-        value={emailAddress}
-        placeholder="Enter email"
-        onChangeText={(email) => setEmailAddress(email)}
-      />
-      <TextInput
-        style={styles.input}
-        value={password}
-        placeholder="Enter password"
-        secureTextEntry={true}
-        onChangeText={(password) => setPassword(password)}
-      />
-      <TouchableOpacity style={styles.button} onPress={onSignUpPress}>
-        <Text style={styles.buttonText}>Continue</Text>
-      </TouchableOpacity>
-      <View style={styles.footer}>
-        <Text>Already have an account?</Text>
-        <Link href="../sign-in">
-          <Text style={styles.link}>Sign in</Text>
-        </Link>
+        <TextInput
+          style={styles.input}
+          autoCapitalize="none"
+          value={emailAddress}
+          placeholder="Enter email"
+          onChangeText={(email) => setEmailAddress(email)}
+        />
+        <TextInput
+          style={styles.input}
+          value={password}
+          placeholder="Enter password"
+          secureTextEntry={true}
+          onChangeText={(password) => setPassword(password)}
+        />
+        <Button mode="contained" onPress={onSignUpPress}>
+          Continue
+        </Button>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Already have an account?</Text>
+          <Link href="../sign-in">
+            <Text style={styles.link}>Sign in</Text>
+          </Link>
+        </View>
       </View>
-    </View>
+    </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 24,
-    marginBottom: 24,
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  input: {
-    height: 48,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: "#3b82f6",
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  buttonText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 4,
-  },
-  link: {
-    marginLeft: 4,
-    color: "#3b82f6",
-    fontWeight: "500",
-  },
-  googleButton: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  googleButtonText: {
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  orText: {
-    textAlign: "center",
-    marginBottom: 16,
-    color: "#999",
-  },
-});
+const makeStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      justifyContent: "center",
+      padding: 24,
+      gap: 12,
+    },
+    title: {
+      fontSize: 24,
+      marginBottom: 12,
+      textAlign: "center",
+      fontWeight: "600",
+      color: theme.colors.onBackground,
+    },
+    input: {
+      marginBottom: 4,
+    },
+    footer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: 4,
+      marginTop: 8,
+    },
+    footerText: {
+      color: theme.colors.onSurfaceVariant,
+    },
+    link: {
+      marginLeft: 4,
+      color: theme.colors.primary,
+      fontWeight: "500",
+    },
+    orText: {
+      textAlign: "center",
+      marginVertical: 4,
+      color: theme.colors.onSurfaceVariant,
+    },
+  });
