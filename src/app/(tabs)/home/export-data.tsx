@@ -89,10 +89,17 @@ export default function ExportDataScreen() {
     setIsExporting(true);
 
     try {
+      const documentDirectory = (FileSystem as any).documentDirectory as
+        | string
+        | null
+        | undefined;
+      const cacheDirectory = (FileSystem as any).cacheDirectory as
+        | string
+        | null
+        | undefined;
       const dateLabel = new Date().toISOString().slice(0, 10);
       const fileName = `warzywnik-export-${dateLabel}.${format}`;
-      const directory =
-        FileSystem.documentDirectory ?? FileSystem.cacheDirectory ?? null;
+      const directory = documentDirectory ?? cacheDirectory ?? null;
       if (!directory) {
         setSnackbar({
           visible: true,
@@ -104,12 +111,10 @@ export default function ExportDataScreen() {
       const fileUri = `${directory}${fileName}`;
 
       const content =
-        format === "json"
-          ? JSON.stringify(exportPayload, null, 2)
-          : csvContent;
+        format === "json" ? JSON.stringify(exportPayload, null, 2) : csvContent;
 
       await FileSystem.writeAsStringAsync(fileUri, content, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: "utf8",
       });
 
       setLastExportUri(fileUri);

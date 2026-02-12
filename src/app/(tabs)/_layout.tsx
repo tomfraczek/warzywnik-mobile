@@ -1,9 +1,10 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { MD3Theme, useTheme } from "react-native-paper";
 
 export default function TabsLayout() {
   const theme = useTheme<MD3Theme>();
+  const router = useRouter();
 
   return (
     <Tabs
@@ -58,6 +59,12 @@ export default function TabsLayout() {
               size={size}
             />
           ),
+        }}
+        listeners={{
+          tabPress: (event) => {
+            event.preventDefault();
+            router.replace("/(tabs)/education");
+          },
         }}
       />
     </Tabs>

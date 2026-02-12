@@ -79,7 +79,7 @@ export default function SignInScreen() {
   };
 
   return (
-    <Screen>
+    <Screen safeAreaEdges={["top", "left", "right"]}>
       <View style={styles.container}>
         <Text style={styles.title}>Sign in</Text>
 

@@ -42,7 +42,7 @@ export default function EducationScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   return (
-    <Screen>
+    <Screen safeAreaEdges={["top", "left", "right"]}>
       <View style={styles.container}>
         <Text style={styles.title}>Edukacja</Text>
         <View style={styles.list}>

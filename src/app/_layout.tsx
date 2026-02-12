@@ -17,30 +17,51 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { clientPersister, queryClient } from "../api/queryClient";
 import { SettingsProvider, useSettings } from "../context/SettingsProvider";
 
-const lightTheme = {
+export const lightTheme = {
   ...MD3LightTheme,
   colors: {
     ...MD3LightTheme.colors,
 
-    // GŁÓWNE
-    primary: "#C6A75E", // złoto
-    secondary: "#A8893D", // ciemniejsze złoto
-    tertiary: "#E5C97A", // jaśniejsze złoto
+    // Primary brand (botanical green)
+    primary: "#2F6B4F",
+    onPrimary: "#FFFFFF",
 
-    // TŁA
-    background: "#F5F3EF", // bardzo jasny beż / off-white
+    // Secondary (sage/leaf)
+    secondary: "#7DAA8A",
+    onSecondary: "#0F241A",
+
+    // Tertiary (warm sun accent)
+    tertiary: "#E2B458",
+    onTertiary: "#1A1406",
+
+    // Backgrounds / surfaces (soft, garden-like)
+    background: "#F3F7F3",
+    onBackground: "#1B1F1C",
+
     surface: "#FFFFFF",
+    onSurface: "#1B1F1C",
 
-    // TEKST
-    onPrimary: "#111111",
-    onSecondary: "#111111",
-    onTertiary: "#111111",
-    onBackground: "#121212",
-    onSurface: "#121212",
+    surfaceVariant: "#E6EFE7",
+    onSurfaceVariant: "#33443A",
 
-    // SYSTEM
-    error: "#C0392B",
-    outline: "#D6D0C4",
+    // Borders / dividers
+    outline: "#C9D7CC",
+    outlineVariant: "#DDE7DF",
+
+    // Utility
+    error: "#C43D2F",
+    onError: "#FFFFFF",
+
+    // Optional: subtle elevation overlay for cards (Paper uses it in some components)
+    elevation: {
+      ...MD3LightTheme.colors.elevation,
+      level0: "transparent",
+      level1: "#F7FAF7",
+      level2: "#F2F7F3",
+      level3: "#EDF4EE",
+      level4: "#E8F1EA",
+      level5: "#E3EEE6",
+    },
   },
 };
 

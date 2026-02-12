@@ -365,7 +365,7 @@ export default function PlannerScreen() {
 
   if (isLoading && plantings.length === 0) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["top", "left", "right"]}>
         <View style={styles.center}>
           <ActivityIndicator />
         </View>
@@ -375,7 +375,7 @@ export default function PlannerScreen() {
 
   if (error && plantings.length === 0) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["top", "left", "right"]}>
         <View style={styles.center}>
           <Text style={styles.errorText}>
             {String(getResponseError(error))}
@@ -389,7 +389,7 @@ export default function PlannerScreen() {
   }
 
   return (
-    <Screen>
+    <Screen safeAreaEdges={["top", "left", "right"]}>
       <View style={styles.container}>
         <View style={styles.filtersSection}>
           <View style={styles.segmentedRow}>

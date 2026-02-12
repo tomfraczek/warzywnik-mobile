@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter, useSegments } from "expo-router";
 import { ReactNode, useCallback } from "react";
 import { StyleSheet, View } from "react-native";
 import { Appbar, MD3Theme, useTheme } from "react-native-paper";
@@ -20,6 +20,23 @@ export default function CustomHeader({
   const theme = useTheme<MD3Theme>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const segments = useSegments();
+
+  type TabRootRoute =
+    | "/(tabs)/home"
+    | "/(tabs)/beds"
+    | "/(tabs)/planner"
+    | "/(tabs)/education";
+
+  const tabSegment = segments[0] === "(tabs)" ? segments[1] : null;
+  const fallbackRoute: TabRootRoute =
+    tabSegment === "beds"
+      ? "/(tabs)/beds"
+      : tabSegment === "planner"
+        ? "/(tabs)/planner"
+        : tabSegment === "education"
+          ? "/(tabs)/education"
+          : "/(tabs)/home";
 
   const handleBack = useCallback(() => {
     if (backRoute) {
@@ -31,8 +48,8 @@ export default function CustomHeader({
       return;
     }
 
-    router.replace("/(tabs)/home");
-  }, [backRoute, router]);
+    router.replace(fallbackRoute);
+  }, [backRoute, fallbackRoute, router]);
 
   const shouldShowBack = showBack ?? router.canGoBack();
 
@@ -43,7 +60,6 @@ export default function CustomHeader({
         styles.container,
         {
           backgroundColor: theme.colors.surface,
-          borderBottomColor: theme.colors.outline,
         },
       ]}
     >
@@ -65,9 +81,7 @@ export default function CustomHeader({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
+  container: {},
   rightAction: {
     marginRight: 4,
   },

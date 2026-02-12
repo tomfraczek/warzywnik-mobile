@@ -96,7 +96,7 @@ export default function SignUpScreen() {
   }
 
   return (
-    <Screen>
+    <Screen safeAreaEdges={["top", "left", "right"]}>
       <View style={styles.container}>
         <Text style={styles.title}>Sign up</Text>
 

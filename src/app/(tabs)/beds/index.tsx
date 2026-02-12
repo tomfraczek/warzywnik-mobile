@@ -92,7 +92,7 @@ export default function BedsListScreen() {
 
   if (error && beds.length === 0) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["top", "left", "right"]}>
         <View style={styles.center}>
           <Text style={styles.errorText}>
             {String(getResponseError(error))}
@@ -107,7 +107,7 @@ export default function BedsListScreen() {
 
   if (!isLoading && beds.length === 0) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["top", "left", "right"]}>
         <View style={styles.center}>
           <Text style={styles.emptyTitle}>Nie masz jeszcze grządek</Text>
           <Text style={styles.emptySubtitle}>Dodaj pierwszą grządkę</Text>
@@ -123,7 +123,7 @@ export default function BedsListScreen() {
   }
 
   return (
-    <Screen>
+    <Screen safeAreaEdges={["top", "left", "right"]}>
       <FlatList
         data={beds}
         renderItem={renderItem}
