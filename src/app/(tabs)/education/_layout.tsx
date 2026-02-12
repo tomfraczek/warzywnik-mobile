@@ -1,5 +1,15 @@
 import CustomHeader from "@/src/components/navigation/CustomHeader";
-import { Stack } from "expo-router";
+import { Stack, useLocalSearchParams } from "expo-router";
+
+function ArticleDetailsHeader() {
+  const { fromHome } = useLocalSearchParams<{ fromHome?: string }>();
+  return (
+    <CustomHeader
+      title="Artykuł"
+      backRoute={fromHome ? "/(tabs)/home" : undefined}
+    />
+  );
+}
 
 export default function EducationLayout() {
   return (
@@ -15,6 +25,10 @@ export default function EducationLayout() {
         options={{ title: "Edukacja", headerShown: false }}
       />
       <Stack.Screen name="articles/index" options={{ title: "Artykuły" }} />
+      <Stack.Screen
+        name="articles/[id]"
+        options={{ header: () => <ArticleDetailsHeader /> }}
+      />
       <Stack.Screen name="[slug]" options={{ title: "Artykuł" }} />
       <Stack.Screen name="vegetables/index" options={{ title: "Warzywa" }} />
       <Stack.Screen name="vegetables/[id]" options={{ title: "Warzywo" }} />

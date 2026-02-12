@@ -50,6 +50,7 @@ export default function TabsLayout() {
         name="education"
         options={{
           title: "Edukacja",
+          unmountOnBlur: true,
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons
               name="book-open"

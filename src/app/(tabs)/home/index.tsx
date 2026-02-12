@@ -14,7 +14,8 @@ import {
   Text,
   View,
 } from "react-native";
-import { Button, IconButton, MD3Theme, useTheme } from "react-native-paper";
+import { Button, MD3Theme, useTheme } from "react-native-paper";
+import { HomeSearchBar } from "./_components/HomeSearchBar";
 
 const ADVICE_LIMIT = 3;
 const CANDIDATE_LIMIT = 10;
@@ -240,19 +241,14 @@ export default function HomeScreen() {
   return (
     <Screen safeAreaEdges={["top", "left", "right"]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <View>
+        <View style={styles.topSection}>
+          <HomeSearchBar />
+          <View style={styles.titleBlock}>
             <Text style={styles.title}>Warzywnik</Text>
             <Text style={styles.subtitle}>
               Dziś: {now.toLocaleDateString()}
             </Text>
           </View>
-          <IconButton
-            icon="account-circle"
-            size={28}
-            onPress={() => router.push("/(tabs)/home/settings")}
-            accessibilityLabel="Ustawienia profilu"
-          />
         </View>
 
         {isLoading ? (
@@ -281,8 +277,8 @@ export default function HomeScreen() {
                     style={styles.tipCard}
                     onPress={() =>
                       router.push({
-                        pathname: "/(tabs)/education/[slug]",
-                        params: { slug: article.slug },
+                        pathname: "/(tabs)/education/articles/[id]",
+                        params: { id: article.id, fromHome: "1" },
                       })
                     }
                   >
@@ -371,11 +367,12 @@ const makeStyles = (theme: MD3Theme) =>
       padding: 20,
       paddingBottom: 32,
     },
-    header: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 16,
+    topSection: {
+      gap: 16,
+      marginBottom: 8,
+    },
+    titleBlock: {
+      gap: 4,
     },
     title: {
       fontSize: 24,

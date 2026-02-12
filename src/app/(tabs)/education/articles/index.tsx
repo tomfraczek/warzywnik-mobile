@@ -124,8 +124,8 @@ export default function ArticlesIndexScreen() {
         style={styles.card}
         onPress={() =>
           router.push({
-            pathname: "/(tabs)/education/[slug]",
-            params: { slug: item.slug },
+            pathname: "/(tabs)/education/articles/[id]",
+            params: { id: item.id },
           })
         }
       >
@@ -451,8 +451,8 @@ import {
         style={styles.card}
         onPress={() =>
           router.push({
-            pathname: "/(tabs)/education/[slug]",
-            params: { slug: item.slug },
+              pathname: "/(tabs)/education/articles/[id]",
+              params: { id: item.id },
           })
         }
       >
