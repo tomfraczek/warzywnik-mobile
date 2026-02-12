@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
-import { useCallback } from "react";
-import { StyleSheet } from "react-native";
+import { ReactNode, useCallback } from "react";
+import { StyleSheet, View } from "react-native";
 import { Appbar, MD3Theme, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -8,12 +8,14 @@ type CustomHeaderProps = {
   title?: string;
   showBack?: boolean;
   backRoute?: "/(tabs)/home";
+  rightAction?: ReactNode;
 };
 
 export default function CustomHeader({
   title,
   showBack,
   backRoute,
+  rightAction,
 }: CustomHeaderProps) {
   const theme = useTheme<MD3Theme>();
   const insets = useSafeAreaInsets();
@@ -55,6 +57,9 @@ export default function CustomHeader({
         title={title ?? ""}
         titleStyle={{ color: theme.colors.onSurface }}
       />
+      {rightAction ? (
+        <View style={styles.rightAction}>{rightAction}</View>
+      ) : null}
     </Appbar.Header>
   );
 }
@@ -62,5 +67,8 @@ export default function CustomHeader({
 const styles = StyleSheet.create({
   container: {
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  rightAction: {
+    marginRight: 4,
   },
 });

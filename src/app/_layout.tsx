@@ -15,8 +15,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { clientPersister, queryClient } from "../api/queryClient";
-import { LanguageRegionProvider } from "../context/LanguageRegionProvider";
-import { ThemeModeProvider, useThemeMode } from "../context/ThemeModeProvider";
+import { SettingsProvider, useSettings } from "../context/SettingsProvider";
 
 const lightTheme = {
   ...MD3LightTheme,
@@ -134,7 +133,7 @@ function AuthBootstrapGate() {
 
 function RootLayoutContent() {
   const systemColorScheme = useColorScheme();
-  const { themeMode } = useThemeMode();
+  const { themeMode } = useSettings();
 
   const resolvedSystemScheme = systemColorScheme === "dark" ? "dark" : "light";
 
@@ -172,10 +171,8 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   return (
-    <ThemeModeProvider>
-      <LanguageRegionProvider>
-        <RootLayoutContent />
-      </LanguageRegionProvider>
-    </ThemeModeProvider>
+    <SettingsProvider>
+      <RootLayoutContent />
+    </SettingsProvider>
   );
 }

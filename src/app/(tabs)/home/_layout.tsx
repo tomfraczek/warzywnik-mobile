@@ -20,7 +20,15 @@ export default function HomeLayout() {
       />
       <Stack.Screen
         name="profile-edit"
-        options={{ title: "Edycja profilu", headerBackTitle: "Ustawienia" }}
+        options={{ headerShown: false, title: "Edycja profilu" }}
+      />
+      <Stack.Screen
+        name="export-data"
+        options={{ title: "Eksport danych", headerBackTitle: "Ustawienia" }}
+      />
+      <Stack.Screen
+        name="delete-account"
+        options={{ title: "Usuń konto", headerBackTitle: "Ustawienia" }}
       />
     </Stack>
   );

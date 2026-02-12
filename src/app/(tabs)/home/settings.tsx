@@ -1,12 +1,16 @@
 import { clientPersister, queryClient } from "@/src/api/queryClient";
 import { Screen } from "@/src/components/Screen";
+import { getAvatarSource } from "@/src/constants/avatars";
 import {
+  AreaUnit,
   LanguagePreference,
-  useLanguageRegion,
-} from "@/src/context/LanguageRegionProvider";
-import { ThemeMode, useThemeMode } from "@/src/context/ThemeModeProvider";
+  PrecipitationUnit,
+  StoredLocation,
+  TemperatureUnit,
+  ThemeMode,
+  useSettings,
+} from "@/src/context/SettingsProvider";
 import { useClerk, useUser } from "@clerk/clerk-expo";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -23,21 +27,15 @@ import {
   Avatar,
   Button,
   Divider,
+  Icon,
   MD3Theme,
   Menu,
   SegmentedButtons,
+  Snackbar,
   Surface,
   TextInput,
   useTheme,
 } from "react-native-paper";
-
-const LOCATION_STORAGE_KEY = "locationPreference";
-
-type StoredLocation = {
-  label: string;
-  lat: number;
-  lon: number;
-};
 
 type NominatimResult = {
   place_id: number;
@@ -46,29 +44,33 @@ type NominatimResult = {
   lon: string;
 };
 
-const profileFields = [
-  { label: "Nazwa użytkownika", value: "warzywnik.ogrodnik" },
-  { label: "Imię", value: "Anna" },
-  { label: "Email", value: "anna@example.com" },
-];
-
 export default function HomeSettingsScreen() {
   const router = useRouter();
   const { signOut } = useClerk();
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
-  const { themeMode, setThemeMode } = useThemeMode();
-  const { languagePreference, setLanguagePreference } = useLanguageRegion();
+  const {
+    themeMode,
+    setThemeMode,
+    languagePreference,
+    setLanguagePreference,
+    location,
+    setLocationPreference,
+    units,
+    setUnits,
+    profile,
+  } = useSettings();
   const { user, isLoaded } = useUser();
-  const [locationQuery, setLocationQuery] = useState("");
+  const [locationQuery, setLocationQuery] = useState(location?.label ?? "");
   const [locationResults, setLocationResults] = useState<NominatimResult[]>([]);
   const [languageMenuVisible, setLanguageMenuVisible] = useState(false);
   const [selectedLocationLabel, setSelectedLocationLabel] = useState<
     string | null
-  >(null);
+  >(location?.label ?? null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const emailLabel =
     user?.primaryEmailAddress?.emailAddress ??
     user?.emailAddresses?.[0]?.emailAddress ??
@@ -89,34 +91,12 @@ export default function HomeSettingsScreen() {
     return headers;
   }, [languagePreference]);
 
-  const persistLocation = useCallback(async (location: StoredLocation) => {
-    try {
-      await AsyncStorage.setItem(
-        LOCATION_STORAGE_KEY,
-        JSON.stringify(location),
-      );
-    } catch (error) {
-      console.error("Failed to save location", error);
-    }
-  }, []);
-
-  const loadStoredLocation = useCallback(async () => {
-    try {
-      const value = await AsyncStorage.getItem(LOCATION_STORAGE_KEY);
-      if (!value) return;
-      const parsed = JSON.parse(value) as StoredLocation;
-      if (parsed?.label) {
-        setLocationQuery(parsed.label);
-        setSelectedLocationLabel(parsed.label);
-      }
-    } catch (error) {
-      console.error("Failed to load stored location", error);
-    }
-  }, []);
-
   useEffect(() => {
-    loadStoredLocation();
-  }, [loadStoredLocation]);
+    if (location?.label) {
+      setLocationQuery(location.label);
+      setSelectedLocationLabel(location.label);
+    }
+  }, [location?.label]);
 
   const fetchSearchResults = useCallback(
     async (query: string) => {
@@ -176,9 +156,9 @@ export default function HomeSettingsScreen() {
       setSelectedLocationLabel(result.display_name);
       setLocationResults([]);
       setLocationError(null);
-      persistLocation(location);
+      setLocationPreference(location);
     },
-    [persistLocation],
+    [setLocationPreference],
   );
 
   const handleUseCurrentLocation = useCallback(async () => {
@@ -214,14 +194,14 @@ export default function HomeSettingsScreen() {
       setLocationQuery(label);
       setSelectedLocationLabel(label);
       setLocationResults([]);
-      persistLocation(location);
+      setLocationPreference(location);
     } catch (error) {
       console.error("Using current location failed", error);
       setLocationError("Nie udało się pobrać lokalizacji.");
     } finally {
       setIsLocating(false);
     }
-  }, [nominatumHeaders, persistLocation]);
+  }, [nominatumHeaders, setLocationPreference]);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -233,6 +213,17 @@ export default function HomeSettingsScreen() {
       console.error("Sign out failed", error);
     }
   }, [router, signOut]);
+
+  const handleSubscriptionPlaceholder = useCallback(() => {
+    setSnackbarMessage("Wkrótce");
+  }, []);
+
+  const avatarSource = getAvatarSource(profile.avatarId);
+  const profileName = profile.name.trim() || "Nie ustawiono";
+  const profileFields = [
+    { label: "Imię", value: profileName },
+    { label: "Email", value: emailLabel },
+  ];
 
   return (
     <Screen>
@@ -252,7 +243,15 @@ export default function HomeSettingsScreen() {
               accessibilityLabel="Avatar użytkownika"
               style={styles.avatarPressable}
             >
-              <Avatar.Icon size={84} icon="account" style={styles.avatar} />
+              {avatarSource ? (
+                <Avatar.Image
+                  size={84}
+                  source={avatarSource}
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <Avatar.Icon size={84} icon="account" style={styles.avatar} />
+              )}
             </Pressable>
             <Text style={styles.avatarEmail}>{emailLabel}</Text>
           </View>
@@ -390,11 +389,110 @@ export default function HomeSettingsScreen() {
 
           <Surface style={styles.section} elevation={0}>
             <Text style={styles.sectionTitle}>Jednostki</Text>
-            <Text style={styles.placeholder}>TODO</Text>
+            <Text style={styles.sectionSubtitle}>Temperatura</Text>
+            <SegmentedButtons
+              value={units.temperature}
+              onValueChange={(value) =>
+                setUnits({ temperature: value as TemperatureUnit })
+              }
+              buttons={[
+                { value: "celsius", label: "°C" },
+                { value: "fahrenheit", label: "°F" },
+              ]}
+              style={styles.segmentedButtons}
+            />
+            <Text style={[styles.sectionSubtitle, styles.unitSpacing]}>
+              Opady
+            </Text>
+            <SegmentedButtons
+              value={units.precipitation}
+              onValueChange={(value) =>
+                setUnits({ precipitation: value as PrecipitationUnit })
+              }
+              buttons={[
+                { value: "mm", label: "mm" },
+                { value: "in", label: "in" },
+              ]}
+              style={styles.segmentedButtons}
+            />
+            <Text style={[styles.sectionSubtitle, styles.unitSpacing]}>
+              Powierzchnia
+            </Text>
+            <SegmentedButtons
+              value={units.area}
+              onValueChange={(value) => setUnits({ area: value as AreaUnit })}
+              buttons={[
+                { value: "m2", label: "m²" },
+                { value: "ft2", label: "ft²" },
+              ]}
+              style={styles.segmentedButtons}
+            />
           </Surface>
           <Surface style={styles.section} elevation={0}>
-            <Text style={styles.sectionTitle}>Powiadomienia</Text>
-            <Text style={styles.placeholder}>TODO</Text>
+            <Text style={styles.sectionTitle}>Subskrypcja</Text>
+            <Pressable
+              onPress={handleSubscriptionPlaceholder}
+              style={styles.row}
+            >
+              <Text style={styles.rowLabel}>Plan</Text>
+              <View style={styles.rowValue}>
+                <Text style={styles.rowValueText}>Free</Text>
+                <Icon
+                  source="chevron-right"
+                  size={20}
+                  color={theme.colors.onSurfaceVariant}
+                />
+              </View>
+            </Pressable>
+            <Divider style={styles.rowDivider} />
+            <Pressable
+              onPress={handleSubscriptionPlaceholder}
+              style={styles.row}
+            >
+              <Text style={styles.rowLabel}>Status</Text>
+              <View style={styles.rowValue}>
+                <Text style={styles.rowValueText}>Aktywny</Text>
+                <Icon
+                  source="chevron-right"
+                  size={20}
+                  color={theme.colors.onSurfaceVariant}
+                />
+              </View>
+            </Pressable>
+            <Button
+              mode="outlined"
+              onPress={handleSubscriptionPlaceholder}
+              style={styles.subscriptionButton}
+            >
+              Zarządzaj subskrypcją
+            </Button>
+          </Surface>
+
+          <Surface style={styles.section} elevation={0}>
+            <Text style={styles.sectionTitle}>Dane</Text>
+            <Pressable
+              onPress={() => router.push("/(tabs)/home/export-data")}
+              style={styles.row}
+            >
+              <Text style={styles.rowLabel}>Eksport danych</Text>
+              <Icon
+                source="chevron-right"
+                size={20}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </Pressable>
+            <Divider style={styles.rowDivider} />
+            <Pressable
+              onPress={() => router.push("/(tabs)/home/delete-account")}
+              style={styles.row}
+            >
+              <Text style={styles.rowLabel}>Usuń konto</Text>
+              <Icon
+                source="chevron-right"
+                size={20}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </Pressable>
           </Surface>
 
           <Button
@@ -407,6 +505,13 @@ export default function HomeSettingsScreen() {
           </Button>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Snackbar
+        visible={!!snackbarMessage}
+        onDismiss={() => setSnackbarMessage(null)}
+        duration={3000}
+      >
+        {snackbarMessage}
+      </Snackbar>
     </Screen>
   );
 }
@@ -434,6 +539,11 @@ const makeStyles = (theme: MD3Theme) =>
       borderRadius: 999,
     },
     avatar: {
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+    },
+    avatarImage: {
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.outline,
@@ -470,6 +580,9 @@ const makeStyles = (theme: MD3Theme) =>
     },
     segmentedButtons: {
       alignSelf: "flex-start",
+    },
+    unitSpacing: {
+      marginTop: 12,
     },
     selectInput: {
       backgroundColor: theme.colors.surface,
@@ -532,6 +645,34 @@ const makeStyles = (theme: MD3Theme) =>
     placeholder: {
       fontSize: 13,
       color: theme.colors.onSurfaceVariant,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 10,
+    },
+    rowLabel: {
+      fontSize: 13,
+      color: theme.colors.onSurface,
+      fontWeight: "500",
+    },
+    rowValue: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    rowValueText: {
+      fontSize: 13,
+      color: theme.colors.onSurfaceVariant,
+    },
+    rowDivider: {
+      backgroundColor: theme.colors.outline,
+      height: StyleSheet.hairlineWidth,
+    },
+    subscriptionButton: {
+      marginTop: 12,
+      alignSelf: "flex-start",
     },
     signOutButton: {
       marginTop: 16,
