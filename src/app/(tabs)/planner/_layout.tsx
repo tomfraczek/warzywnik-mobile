@@ -10,7 +10,10 @@ export default function PlannerLayout() {
         ),
       }}
     >
-      <Stack.Screen name="index" options={{ title: "Planer" }} />
+      <Stack.Screen
+        name="index"
+        options={{ title: "Planer", headerShown: false }}
+      />
       <Stack.Screen name="calendar" options={{ title: "Kalendarz" }} />
     </Stack>
   );

@@ -5,6 +5,7 @@ import { ClerkProvider, useAuth, useClerk } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import { useColorScheme } from "react-native";
 import {
@@ -14,6 +15,7 @@ import {
 } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { clientPersister, queryClient } from "../api/queryClient";
+import { LanguageRegionProvider } from "../context/LanguageRegionProvider";
 import { ThemeModeProvider, useThemeMode } from "../context/ThemeModeProvider";
 
 const lightTheme = {
@@ -148,6 +150,10 @@ function RootLayoutContent() {
   return (
     <SafeAreaProvider>
       <PaperProvider theme={theme}>
+        <StatusBar
+          style={theme.dark ? "light" : "dark"}
+          backgroundColor={theme.colors.background}
+        />
         <PersistQueryClientProvider
           client={queryClient}
           persistOptions={{ persister: clientPersister }}
@@ -167,7 +173,9 @@ function RootLayoutContent() {
 export default function RootLayout() {
   return (
     <ThemeModeProvider>
-      <RootLayoutContent />
+      <LanguageRegionProvider>
+        <RootLayoutContent />
+      </LanguageRegionProvider>
     </ThemeModeProvider>
   );
 }

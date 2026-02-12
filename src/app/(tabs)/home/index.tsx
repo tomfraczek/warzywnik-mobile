@@ -2,9 +2,7 @@ import { Article, ArticleListItem } from "@/src/api/queries/articles/types";
 import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
 import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
-import { clientPersister, queryClient } from "@/src/api/queryClient";
 import { Screen } from "@/src/components/Screen";
-import { useClerk } from "@clerk/clerk-expo";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -16,13 +14,7 @@ import {
   Text,
   View,
 } from "react-native";
-import {
-  Button,
-  IconButton,
-  MD3Theme,
-  Menu,
-  useTheme,
-} from "react-native-paper";
+import { Button, IconButton, MD3Theme, useTheme } from "react-native-paper";
 
 const ADVICE_LIMIT = 3;
 const CANDIDATE_LIMIT = 10;
@@ -128,10 +120,8 @@ const scoreArticle = (
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { signOut } = useClerk();
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
-  const [menuVisible, setMenuVisible] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -247,18 +237,6 @@ export default function HomeScreen() {
     articlesMonthQuery.isLoading ||
     articlesFallbackQuery.isLoading;
 
-  const handleSignOut = async () => {
-    try {
-      setMenuVisible(false);
-      await signOut();
-      queryClient.clear();
-      await clientPersister.removeClient();
-      router.replace("/");
-    } catch (error) {
-      console.error("Sign out failed", error);
-    }
-  };
-
   return (
     <Screen safeAreaEdges={["top", "left", "right"]}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -269,27 +247,12 @@ export default function HomeScreen() {
               Dziś: {now.toLocaleDateString()}
             </Text>
           </View>
-          <Menu
-            visible={menuVisible}
-            onDismiss={() => setMenuVisible(false)}
-            anchor={
-              <IconButton
-                icon="account-circle"
-                size={28}
-                onPress={() => setMenuVisible(true)}
-                accessibilityLabel="Menu użytkownika"
-              />
-            }
-          >
-            <Menu.Item
-              onPress={() => {
-                setMenuVisible(false);
-                router.push("/(tabs)/home/settings");
-              }}
-              title="Ustawienia"
-            />
-            <Menu.Item onPress={handleSignOut} title="Wyloguj" />
-          </Menu>
+          <IconButton
+            icon="account-circle"
+            size={28}
+            onPress={() => router.push("/(tabs)/home/settings")}
+            accessibilityLabel="Ustawienia profilu"
+          />
         </View>
 
         {isLoading ? (

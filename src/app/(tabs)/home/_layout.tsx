@@ -18,6 +18,10 @@ export default function HomeLayout() {
         name="settings"
         options={{ title: "Ustawienia", headerBackTitle: "Home" }}
       />
+      <Stack.Screen
+        name="profile-edit"
+        options={{ title: "Edycja profilu", headerBackTitle: "Ustawienia" }}
+      />
     </Stack>
   );
 }
