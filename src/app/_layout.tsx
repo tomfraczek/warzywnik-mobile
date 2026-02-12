@@ -14,23 +14,32 @@ import {
 } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { clientPersister, queryClient } from "../api/queryClient";
+import { ThemeModeProvider, useThemeMode } from "../context/ThemeModeProvider";
 
 const lightTheme = {
   ...MD3LightTheme,
   colors: {
     ...MD3LightTheme.colors,
-    primary: "#4C7A5A",
-    secondary: "#A3B18A",
-    tertiary: "#E9C46A",
-    background: "#F4F6F3",
+
+    // GŁÓWNE
+    primary: "#C6A75E", // złoto
+    secondary: "#A8893D", // ciemniejsze złoto
+    tertiary: "#E5C97A", // jaśniejsze złoto
+
+    // TŁA
+    background: "#F5F3EF", // bardzo jasny beż / off-white
     surface: "#FFFFFF",
-    error: "#E63946",
-    onPrimary: "#FFFFFF",
-    onSecondary: "#1E1E1E",
-    onTertiary: "#1E1E1E",
-    onBackground: "#2B2B2B",
-    onSurface: "#2B2B2B",
-    outline: "#D6DAD5",
+
+    // TEKST
+    onPrimary: "#111111",
+    onSecondary: "#111111",
+    onTertiary: "#111111",
+    onBackground: "#121212",
+    onSurface: "#121212",
+
+    // SYSTEM
+    error: "#C0392B",
+    outline: "#D6D0C4",
   },
 };
 
@@ -38,18 +47,26 @@ const darkTheme = {
   ...MD3DarkTheme,
   colors: {
     ...MD3DarkTheme.colors,
-    primary: "#6B9C7C",
-    secondary: "#B9C6A3",
-    tertiary: "#F0D58A",
-    background: "#121212",
-    surface: "#1A1A1A",
+
+    // GŁÓWNE
+    primary: "#D4AF37", // złoto (bardziej wyraziste)
+    secondary: "#C6A75E",
+    tertiary: "#E6C878",
+
+    // TŁA
+    background: "#0F0F10", // głęboka czerń
+    surface: "#1A1A1C", // jaśniejszy czarny / grafit
+
+    // TEKST
+    onPrimary: "#111111",
+    onSecondary: "#111111",
+    onTertiary: "#111111",
+    onBackground: "#EAEAEA",
+    onSurface: "#EAEAEA",
+
+    // SYSTEM
     error: "#FF6B6B",
-    onPrimary: "#0B1F14",
-    onSecondary: "#0E160F",
-    onTertiary: "#2A2008",
-    onBackground: "#E6E6E6",
-    onSurface: "#E6E6E6",
-    outline: "#3A3A3A",
+    outline: "#2A2A2D",
   },
 };
 
@@ -113,9 +130,20 @@ function AuthBootstrapGate() {
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === "dark" ? darkTheme : lightTheme;
+function RootLayoutContent() {
+  const systemColorScheme = useColorScheme();
+  const { themeMode } = useThemeMode();
+
+  const resolvedSystemScheme = systemColorScheme === "dark" ? "dark" : "light";
+
+  const theme =
+    themeMode === "system"
+      ? resolvedSystemScheme === "dark"
+        ? darkTheme
+        : lightTheme
+      : themeMode === "dark"
+        ? darkTheme
+        : lightTheme;
 
   return (
     <SafeAreaProvider>
@@ -133,5 +161,13 @@ export default function RootLayout() {
         </PersistQueryClientProvider>
       </PaperProvider>
     </SafeAreaProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ThemeModeProvider>
+      <RootLayoutContent />
+    </ThemeModeProvider>
   );
 }
