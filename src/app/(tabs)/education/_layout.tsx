@@ -1,8 +1,15 @@
+import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { Stack } from "expo-router";
 
 export default function EducationLayout() {
   return (
-    <Stack>
+    <Stack
+      screenOptions={{
+        header: ({ options }) => (
+          <CustomHeader title={options.title?.toString()} />
+        ),
+      }}
+    >
       <Stack.Screen name="index" options={{ title: "Edukacja" }} />
       <Stack.Screen name="articles/index" options={{ title: "Artykuły" }} />
       <Stack.Screen name="[slug]" options={{ title: "Artykuł" }} />

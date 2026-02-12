@@ -1,9 +1,23 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
+import { MD3Theme, useTheme } from "react-native-paper";
 
 export default function TabsLayout() {
+  const theme = useTheme<MD3Theme>();
+
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.outline,
+        },
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor:
+          theme.colors.onSurfaceVariant ?? theme.colors.secondary,
+      }}
+    >
       <Tabs.Screen
         name="home"
         options={{

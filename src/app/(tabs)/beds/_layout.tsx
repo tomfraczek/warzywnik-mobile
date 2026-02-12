@@ -1,8 +1,15 @@
+import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { Stack } from "expo-router";
 
 export default function BedsLayout() {
   return (
-    <Stack>
+    <Stack
+      screenOptions={{
+        header: ({ options }) => (
+          <CustomHeader title={options.title?.toString()} />
+        ),
+      }}
+    >
       <Stack.Screen name="index" options={{ title: "Grządki" }} />
       <Stack.Screen name="new" options={{ title: "Nowa grządka" }} />
       <Stack.Screen name="[bedId]" options={{ title: "Szczegóły" }} />
