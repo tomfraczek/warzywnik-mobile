@@ -1,4 +1,5 @@
 import { getResponseError } from "@/src/api/axios";
+import { useGetBed } from "@/src/api/queries/beds/useGetBed";
 import { Warning } from "@/src/api/queries/plantings/types";
 import { useCreatePlanting } from "@/src/api/queries/plantings/useCreatePlanting";
 import { PlantingForm } from "@/src/app/(tabs)/beds/_components/PlantingForm";
@@ -22,6 +23,7 @@ export default function PlantingCreateScreen() {
   const [values, setValues] = useState<PlantingFormValues>(
     createEmptyPlantingFormValues(),
   );
+  const { data: bed } = useGetBed(resolvedBedId ?? null);
   const [warningsVisible, setWarningsVisible] = useState(false);
   const [warnings, setWarnings] = useState<Warning[]>([]);
   const createPlanting = useCreatePlanting();
@@ -51,12 +53,36 @@ export default function PlantingCreateScreen() {
     }
 
     try {
+      if (__DEV__) {
+        console.log("[Planting][create][bed]", {
+          id: bed?.id ?? null,
+          soilId: bed?.soilId ?? bed?.soil?.id ?? null,
+          depthCm: bed?.depthCm ?? null,
+          soilTestingEnabled: bed?.soilTestingEnabled ?? null,
+          measuredPh: bed?.measuredPh ?? null,
+          measuredN: bed?.measuredN ?? null,
+          measuredP: bed?.measuredP ?? null,
+          measuredK: bed?.measuredK ?? null,
+        });
+      }
       const payload = buildCreatePlantingPayload(resolvedBedId, values);
+      if (__DEV__) {
+        console.log("[Planting payload][create]", payload);
+      }
       const response = await createPlanting.mutateAsync(payload);
+      if (__DEV__) {
+        console.log("[Planting][create][response]", response);
+      }
       const responseWarnings =
         response && typeof response === "object" && "warnings" in response
           ? ((response as { warnings?: Warning[] | null }).warnings ?? [])
           : [];
+      if (__DEV__) {
+        console.log("[Planting warnings][create]", {
+          count: responseWarnings.length,
+          codes: responseWarnings.map((warning) => warning.code),
+        });
+      }
       if (responseWarnings.length > 0) {
         setWarnings(responseWarnings);
         setWarningsVisible(true);
@@ -64,6 +90,9 @@ export default function PlantingCreateScreen() {
       }
       router.replace(`/(tabs)/beds/${resolvedBedId}`);
     } catch (err) {
+      if (__DEV__) {
+        console.log("[Planting][create][error]", err);
+      }
       Alert.alert("Błąd", String(getResponseError(err)));
     }
   };
@@ -88,13 +117,16 @@ export default function PlantingCreateScreen() {
       <WarningsModal
         visible={warningsVisible}
         warnings={warnings}
-        onClose={() => {
+        onIgnore={() => {
           setWarningsVisible(false);
           if (resolvedBedId) {
             router.replace(`/(tabs)/beds/${resolvedBedId}`);
           } else {
             router.back();
           }
+        }}
+        onCancel={() => {
+          setWarningsVisible(false);
         }}
       />
     </>

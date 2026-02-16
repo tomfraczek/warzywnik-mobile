@@ -90,6 +90,12 @@ export default function PlantingEditScreen() {
         response && typeof response === "object" && "warnings" in response
           ? ((response as { warnings?: Warning[] | null }).warnings ?? [])
           : [];
+      if (__DEV__) {
+        console.log("[Planting warnings][update]", {
+          count: responseWarnings.length,
+          codes: responseWarnings.map((warning) => warning.code),
+        });
+      }
       if (responseWarnings.length > 0) {
         setWarnings(responseWarnings);
         setWarningsVisible(true);
@@ -147,7 +153,7 @@ export default function PlantingEditScreen() {
       <WarningsModal
         visible={warningsVisible}
         warnings={warnings}
-        onClose={() => {
+        onIgnore={() => {
           setWarningsVisible(false);
           if (resolvedBedId && resolvedPlantingId) {
             router.replace(
@@ -156,6 +162,9 @@ export default function PlantingEditScreen() {
           } else {
             router.back();
           }
+        }}
+        onCancel={() => {
+          setWarningsVisible(false);
         }}
       />
     </>

@@ -5,7 +5,7 @@ export type PlantingStatus =
   | "FINISHED"
   | "CANCELLED";
 
-export type WarningSeverity = "INFO" | "WARNING" | "ERROR";
+export type WarningSeverity = "INFO" | "WARNING" | "CRITICAL";
 
 export type Warning = {
   code: string;
@@ -13,6 +13,7 @@ export type Warning = {
   title: string;
   message: string;
   hint?: string | null;
+  details?: Record<string, unknown> | null;
 };
 
 export type PlantingVegetable = {
@@ -33,7 +34,7 @@ export type Planting = {
   actualStartDate?: string | null;
   harvestStartDate?: string | null;
   harvestEndDate?: string | null;
-  warnings?: Warning[] | null;
+  warnings: Warning[];
   notes?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -52,5 +53,5 @@ export type UpdatePlantingDto = Partial<Omit<CreatePlantingDto, "bedId">>;
 
 export type PlantingMutationResponse = {
   planting: Planting;
-  warnings?: Warning[] | null;
+  warnings: Warning[];
 };

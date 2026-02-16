@@ -66,7 +66,22 @@ export default function BedEditScreen() {
       return;
     }
     try {
-      await updateBed.mutateAsync(payload);
+      if (__DEV__) {
+        console.log("[Bed payload][update]", payload);
+      }
+      const response = await updateBed.mutateAsync(payload);
+      if (__DEV__) {
+        console.log("[Bed saved][update]", {
+          id: response?.id ?? null,
+          soilId: response?.soilId ?? response?.soil?.id ?? null,
+          depthCm: response?.depthCm ?? null,
+          soilTestingEnabled: response?.soilTestingEnabled ?? null,
+          measuredPh: response?.measuredPh ?? null,
+          measuredN: response?.measuredN ?? null,
+          measuredP: response?.measuredP ?? null,
+          measuredK: response?.measuredK ?? null,
+        });
+      }
       router.replace(`/(tabs)/beds/${resolvedBedId}`);
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));

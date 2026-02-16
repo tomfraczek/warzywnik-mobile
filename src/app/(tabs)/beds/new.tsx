@@ -43,7 +43,22 @@ export default function BedCreateScreen() {
 
     try {
       const payload = buildCreateBedPayload(values);
-      await createBed.mutateAsync(payload);
+      if (__DEV__) {
+        console.log("[Bed payload][create]", payload);
+      }
+      const response = await createBed.mutateAsync(payload);
+      if (__DEV__) {
+        console.log("[Bed saved][create]", {
+          id: response?.id ?? null,
+          soilId: response?.soilId ?? response?.soil?.id ?? null,
+          depthCm: response?.depthCm ?? null,
+          soilTestingEnabled: response?.soilTestingEnabled ?? null,
+          measuredPh: response?.measuredPh ?? null,
+          measuredN: response?.measuredN ?? null,
+          measuredP: response?.measuredP ?? null,
+          measuredK: response?.measuredK ?? null,
+        });
+      }
       router.replace("/(tabs)/beds");
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));

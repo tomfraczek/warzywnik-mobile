@@ -1,25 +1,26 @@
 import {
   CreatePlantingDto,
   Planting,
-  PlantingStatus,
   UpdatePlantingDto,
 } from "@/src/api/queries/plantings/types";
+
+export type AllowedPlantingStatus = "PLANNED" | "ACTIVE";
 
 export type PlantingFormValues = {
   vegetableId: string | null;
   vegetableName: string | null;
   plannedStartDate: string;
   actualStartDate: string;
-  status: PlantingStatus;
+  status: AllowedPlantingStatus;
   notes: string;
 };
 
-export const plantingStatusOptions: PlantingStatus[] = [
-  "PLANNED",
-  "ACTIVE",
-  "HARVESTING",
-  "FINISHED",
-  "CANCELLED",
+export const plantingStatusOptions: Array<{
+  value: AllowedPlantingStatus;
+  label: string;
+}> = [
+  { value: "PLANNED", label: "Planowana" },
+  { value: "ACTIVE", label: "Aktywna" },
 ];
 
 export const createEmptyPlantingFormValues = (): PlantingFormValues => ({
@@ -38,7 +39,7 @@ export const plantingToFormValues = (
   vegetableName: planting.vegetable?.name ?? planting.vegetableName ?? "",
   plannedStartDate: planting.plannedStartDate ?? "",
   actualStartDate: planting.actualStartDate ?? "",
-  status: planting.status ?? "PLANNED",
+  status: planting.status === "ACTIVE" ? "ACTIVE" : "PLANNED",
   notes: planting.notes ?? "",
 });
 

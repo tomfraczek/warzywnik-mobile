@@ -51,7 +51,16 @@ restClient.interceptors.response.use(
     if (status === 401 || status === 403) {
       authErrorHandler?.(status);
     }
-    console.error("API error:", err?.response?.data || err.message);
+    if (__DEV__) {
+      console.error("API error:", {
+        status,
+        url: err?.config?.url,
+        method: err?.config?.method,
+        data: err?.response?.data || err.message,
+      });
+    } else {
+      console.error("API error:", err?.response?.data || err.message);
+    }
     return Promise.reject(err);
   },
 );

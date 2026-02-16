@@ -166,13 +166,13 @@ function PlantingFormComponent({
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Status</Text>
         <View style={styles.statusRow}>
-          {plantingStatusOptions.map((status) => {
-            const isActive = values.status === status;
+          {plantingStatusOptions.map((statusOption) => {
+            const isActive = values.status === statusOption.value;
             return (
               <Pressable
-                key={status}
+                key={statusOption.value}
                 style={[styles.statusChip, isActive && styles.statusChipActive]}
-                onPress={() => onChange({ status })}
+                onPress={() => onChange({ status: statusOption.value })}
               >
                 <Text
                   style={[
@@ -180,7 +180,7 @@ function PlantingFormComponent({
                     isActive && styles.statusChipTextActive,
                   ]}
                 >
-                  {status}
+                  {statusOption.label}
                 </Text>
               </Pressable>
             );
