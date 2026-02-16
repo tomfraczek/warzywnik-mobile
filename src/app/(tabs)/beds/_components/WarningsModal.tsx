@@ -13,6 +13,23 @@ type WarningsModalProps = {
 
 type WarningSeverity = Warning["severity"];
 
+const escapeRegExp = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const interpolateWarningText = (
+  text: string | null | undefined,
+  details?: Record<string, unknown> | null,
+) => {
+  if (!text || !details) return text ?? "";
+  return Object.entries(details).reduce((acc, [key, value]) => {
+    const safeKey = escapeRegExp(key);
+    return acc.replace(
+      new RegExp(`\\{${safeKey}\\}`, "g"),
+      value == null ? "" : String(value),
+    );
+  }, text);
+};
+
 function WarningsModalComponent({
   visible,
   warnings,
@@ -65,11 +82,17 @@ function WarningsModalComponent({
                       color={getSeverityColor(warning.severity)}
                     />
                   </View>
-                  <Text style={styles.cardTitle}>{warning.title}</Text>
+                  <Text style={styles.cardTitle}>
+                    {interpolateWarningText(warning.title, warning.details)}
+                  </Text>
                 </View>
-                <Text style={styles.cardMessage}>{warning.message}</Text>
+                <Text style={styles.cardMessage}>
+                  {interpolateWarningText(warning.message, warning.details)}
+                </Text>
                 {warning.hint ? (
-                  <Text style={styles.cardHint}>{warning.hint}</Text>
+                  <Text style={styles.cardHint}>
+                    {interpolateWarningText(warning.hint, warning.details)}
+                  </Text>
                 ) : null}
               </View>
             ))}
