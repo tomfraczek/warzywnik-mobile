@@ -33,12 +33,18 @@ export type ProfileSettings = {
   avatarId: AvatarId | null;
 };
 
+export type PushNotificationsSettings = {
+  enabled: boolean;
+  deviceId: string | null;
+};
+
 export type AppSettings = {
   themeMode: ThemeMode;
   languagePreference: LanguagePreference;
   units: UnitsSettings;
   location: StoredLocation | null;
   profile: ProfileSettings;
+  pushNotifications: PushNotificationsSettings;
 };
 
 type SettingsContextValue = AppSettings & {
@@ -47,6 +53,7 @@ type SettingsContextValue = AppSettings & {
   setUnits: (units: Partial<UnitsSettings>) => void;
   setLocationPreference: (location: StoredLocation | null) => void;
   setProfile: (profile: Partial<ProfileSettings>) => void;
+  setPushNotifications: (patch: Partial<PushNotificationsSettings>) => void;
   isReady: boolean;
 };
 
@@ -64,6 +71,10 @@ const defaultSettings: AppSettings = {
   profile: {
     name: "",
     avatarId: null,
+  },
+  pushNotifications: {
+    enabled: false,
+    deviceId: null,
   },
 };
 
@@ -97,6 +108,9 @@ const parseSettings = (raw: string | null): AppSettings => {
       | undefined;
     const profileCandidate = parsed.profile as ProfileSettings | undefined;
     const unitsCandidate = parsed.units as UnitsSettings | undefined;
+    const pushCandidate = parsed.pushNotifications as
+      | PushNotificationsSettings
+      | undefined;
 
     return {
       themeMode: isThemeMode(parsed.themeMode)
@@ -132,6 +146,16 @@ const parseSettings = (raw: string | null): AppSettings => {
           typeof profileCandidate?.avatarId === "string"
             ? (profileCandidate.avatarId as AvatarId)
             : defaultSettings.profile.avatarId,
+      },
+      pushNotifications: {
+        enabled:
+          typeof pushCandidate?.enabled === "boolean"
+            ? pushCandidate.enabled
+            : defaultSettings.pushNotifications.enabled,
+        deviceId:
+          typeof pushCandidate?.deviceId === "string"
+            ? pushCandidate.deviceId
+            : defaultSettings.pushNotifications.deviceId,
       },
     };
   } catch (error) {
@@ -234,6 +258,19 @@ export function SettingsProvider({ children }: PropsWithChildren) {
     [updateSettings],
   );
 
+  const setPushNotifications = useCallback(
+    (patch: Partial<PushNotificationsSettings>) => {
+      updateSettings((prev) => ({
+        ...prev,
+        pushNotifications: {
+          ...prev.pushNotifications,
+          ...patch,
+        },
+      }));
+    },
+    [updateSettings],
+  );
+
   const value = useMemo(
     () => ({
       ...settings,
@@ -242,6 +279,7 @@ export function SettingsProvider({ children }: PropsWithChildren) {
       setUnits,
       setLocationPreference,
       setProfile,
+      setPushNotifications,
       isReady,
     }),
     [
@@ -251,6 +289,7 @@ export function SettingsProvider({ children }: PropsWithChildren) {
       setUnits,
       setLocationPreference,
       setProfile,
+      setPushNotifications,
       isReady,
     ],
   );

@@ -27,6 +27,10 @@ export default function HomeLayout() {
         options={{ title: "Eksport danych", headerBackTitle: "Ustawienia" }}
       />
       <Stack.Screen
+        name="reminders"
+        options={{ title: "Zadania", headerBackTitle: "Ustawienia" }}
+      />
+      <Stack.Screen
         name="delete-account"
         options={{ title: "Usuń konto", headerBackTitle: "Ustawienia" }}
       />

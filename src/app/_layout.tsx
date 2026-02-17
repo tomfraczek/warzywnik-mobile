@@ -1,9 +1,14 @@
 // app/_layout.tsx (albo odpowiedni RootLayout w Twoim projekcie)
 
-import { setAuthErrorHandler, setAuthTokenProvider } from "@/src/api/axios";
+import {
+  restClient,
+  setAuthErrorHandler,
+  setAuthTokenProvider,
+} from "@/src/api/axios";
 import { ClerkProvider, useAuth, useClerk } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import * as Notifications from "expo-notifications";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
@@ -12,6 +17,7 @@ import {
   MD3DarkTheme,
   MD3LightTheme,
   Provider as PaperProvider,
+  Snackbar,
 } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { clientPersister, queryClient } from "../api/queryClient";
@@ -155,6 +161,11 @@ function AuthBootstrapGate() {
 function RootLayoutContent() {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettings();
+  const router = useRouter();
+  const [notificationBanner, setNotificationBanner] = useState<{
+    visible: boolean;
+    message: string;
+  }>({ visible: false, message: "" });
 
   const resolvedSystemScheme = systemColorScheme === "dark" ? "dark" : "light";
 
@@ -166,6 +177,59 @@ function RootLayoutContent() {
       : themeMode === "dark"
         ? darkTheme
         : lightTheme;
+
+  useEffect(() => {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: false,
+        shouldShowBanner: false,
+        shouldShowList: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      }),
+    });
+
+    const receiveSub = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        const title = notification.request.content.title ?? "";
+        const body = notification.request.content.body ?? "";
+        const message = [title, body].filter(Boolean).join(" — ").trim();
+        if (message.length > 0) {
+          setNotificationBanner({ visible: true, message });
+        }
+      },
+    );
+
+    const responseSub = Notifications.addNotificationResponseReceivedListener(
+      async (response) => {
+        const data = response.notification.request.content.data ?? {};
+        const plantingId =
+          typeof data.plantingId === "string" ? data.plantingId : null;
+        const bedId = typeof data.bedId === "string" ? data.bedId : null;
+
+        if (!plantingId) return;
+
+        let resolvedBedId = bedId;
+        if (!resolvedBedId) {
+          try {
+            const result = await restClient.get(`/plantings/${plantingId}`);
+            resolvedBedId = result.data?.bedId ?? null;
+          } catch (error) {
+            console.error("Failed to resolve bedId for notification", error);
+          }
+        }
+
+        if (resolvedBedId) {
+          router.push(`/(tabs)/beds/${resolvedBedId}/plantings/${plantingId}`);
+        }
+      },
+    );
+
+    return () => {
+      receiveSub.remove();
+      responseSub.remove();
+    };
+  }, [router]);
 
   return (
     <SafeAreaProvider>
@@ -185,6 +249,15 @@ function RootLayoutContent() {
             <AuthBootstrapGate />
           </ClerkProvider>
         </PersistQueryClientProvider>
+        <Snackbar
+          visible={notificationBanner.visible}
+          onDismiss={() =>
+            setNotificationBanner({ visible: false, message: "" })
+          }
+          duration={3000}
+        >
+          {notificationBanner.message}
+        </Snackbar>
       </PaperProvider>
     </SafeAreaProvider>
   );

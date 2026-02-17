@@ -1,3 +1,5 @@
+import { useDisableDevice } from "@/src/api/queries/devices/useDisableDevice";
+import { useRegisterDevice } from "@/src/api/queries/devices/useRegisterDevice";
 import { clientPersister, queryClient } from "@/src/api/queryClient";
 import { Screen } from "@/src/components/Screen";
 import { getAvatarSource } from "@/src/constants/avatars";
@@ -10,12 +12,17 @@ import {
   ThemeMode,
   useSettings,
 } from "@/src/context/SettingsProvider";
+import {
+  getExpoPushToken,
+  requestPushPermissions,
+} from "@/src/utils/notifications";
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -33,6 +40,7 @@ import {
   SegmentedButtons,
   Snackbar,
   Surface,
+  Switch,
   TextInput,
   useTheme,
 } from "react-native-paper";
@@ -59,6 +67,8 @@ export default function HomeSettingsScreen() {
     units,
     setUnits,
     profile,
+    pushNotifications,
+    setPushNotifications,
   } = useSettings();
   const { user, isLoaded } = useUser();
   const [locationQuery, setLocationQuery] = useState(location?.label ?? "");
@@ -71,6 +81,10 @@ export default function HomeSettingsScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [isPushSaving, setIsPushSaving] = useState(false);
+  const [pushPermissionDenied, setPushPermissionDenied] = useState(false);
+  const registerDevice = useRegisterDevice();
+  const disableDevice = useDisableDevice();
   const emailLabel =
     user?.primaryEmailAddress?.emailAddress ??
     user?.emailAddresses?.[0]?.emailAddress ??
@@ -217,6 +231,69 @@ export default function HomeSettingsScreen() {
   const handleSubscriptionPlaceholder = useCallback(() => {
     setSnackbarMessage("Wkrótce");
   }, []);
+
+  const handleOpenSettings = useCallback(() => {
+    Linking.openSettings().catch(() => {
+      setSnackbarMessage("Nie udało się otworzyć ustawień urządzenia.");
+    });
+  }, []);
+
+  const handleTogglePush = useCallback(
+    async (nextValue: boolean) => {
+      if (isPushSaving) return;
+      setIsPushSaving(true);
+
+      try {
+        if (nextValue) {
+          const permission = await requestPushPermissions();
+          if (!permission.granted) {
+            setPushPermissionDenied(true);
+            setPushNotifications({ enabled: false });
+            setSnackbarMessage(
+              "Brak zgody na powiadomienia. Włącz je w ustawieniach systemu.",
+            );
+            return;
+          }
+
+          setPushPermissionDenied(false);
+
+          const expoPushToken = await getExpoPushToken();
+          const device = await registerDevice.mutateAsync({
+            expoPushToken,
+            platform: Platform.OS,
+          });
+          setPushNotifications({
+            enabled: true,
+            deviceId: device.id ?? null,
+          });
+          setSnackbarMessage("Powiadomienia włączone.");
+          return;
+        }
+
+        if (pushNotifications.deviceId) {
+          await disableDevice.mutateAsync({
+            deviceId: pushNotifications.deviceId,
+          });
+        }
+        setPushNotifications({ enabled: false });
+        setSnackbarMessage("Powiadomienia wyłączone.");
+      } catch (error) {
+        console.error("Push notifications toggle failed", error);
+        setPushNotifications({ enabled: pushNotifications.enabled });
+        setSnackbarMessage("Nie udało się zaktualizować powiadomień.");
+      } finally {
+        setIsPushSaving(false);
+      }
+    },
+    [
+      disableDevice,
+      isPushSaving,
+      pushNotifications.deviceId,
+      pushNotifications.enabled,
+      registerDevice,
+      setPushNotifications,
+    ],
+  );
 
   const avatarSource = getAvatarSource(profile.avatarId);
   const profileName = profile.name.trim() || "Nie ustawiono";
@@ -469,7 +546,44 @@ export default function HomeSettingsScreen() {
           </Surface>
 
           <Surface style={styles.section} elevation={0}>
+            <Text style={styles.sectionTitle}>Powiadomienia</Text>
+            <View
+              style={styles.row}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: pushNotifications.enabled }}
+            >
+              <Text style={styles.rowLabel}>Powiadomienia push</Text>
+              <Switch
+                value={pushNotifications.enabled}
+                onValueChange={handleTogglePush}
+                disabled={isPushSaving}
+              />
+            </View>
+            {pushPermissionDenied ? (
+              <Button
+                mode="text"
+                onPress={handleOpenSettings}
+                style={styles.inlineAction}
+              >
+                Otwórz ustawienia systemu
+              </Button>
+            ) : null}
+          </Surface>
+
+          <Surface style={styles.section} elevation={0}>
             <Text style={styles.sectionTitle}>Dane</Text>
+            <Pressable
+              onPress={() => router.push("/(tabs)/home/reminders")}
+              style={styles.row}
+            >
+              <Text style={styles.rowLabel}>Zadania</Text>
+              <Icon
+                source="chevron-right"
+                size={20}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </Pressable>
+            <Divider style={styles.rowDivider} />
             <Pressable
               onPress={() => router.push("/(tabs)/home/export-data")}
               style={styles.row}
@@ -673,6 +787,11 @@ const makeStyles = (theme: MD3Theme) =>
     subscriptionButton: {
       marginTop: 12,
       alignSelf: "flex-start",
+    },
+    inlineAction: {
+      alignSelf: "flex-start",
+      paddingHorizontal: 0,
+      marginTop: 4,
     },
     signOutButton: {
       marginTop: 16,

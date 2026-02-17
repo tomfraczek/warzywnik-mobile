@@ -4,22 +4,32 @@ import { MD3Theme, useTheme } from "react-native-paper";
 type SectionBlockProps = {
   title: string;
   text?: string | null;
-  items?: string[] | null;
+  items?: string[] | string | null;
+};
+
+const normalizeItems = (items?: string[] | string | null) => {
+  if (!items) return [];
+  if (Array.isArray(items)) return items.filter(Boolean);
+  return items
+    .split(/\r?\n|•|\u2022|\-/g)
+    .map((item) => item.trim())
+    .filter(Boolean);
 };
 
 export function SectionBlock({ title, text, items }: SectionBlockProps) {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
+  const resolvedItems = normalizeItems(items);
 
-  if (!text && (!items || items.length === 0)) return null;
+  if (!text && resolvedItems.length === 0) return null;
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
       {text ? <Text style={styles.text}>{text}</Text> : null}
-      {items && items.length > 0 ? (
+      {resolvedItems.length > 0 ? (
         <View style={styles.list}>
-          {items.map((item, index) => (
+          {resolvedItems.map((item, index) => (
             <Text key={`${item}-${index}`} style={styles.listItem}>
               • {item}
             </Text>

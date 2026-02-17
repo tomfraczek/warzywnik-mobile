@@ -6,7 +6,7 @@ import { Planting } from "@/src/api/queries/plantings/types";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,14 @@ import {
   Text,
   View,
 } from "react-native";
+import {
+  Button,
+  IconButton,
+  MD3Theme,
+  Modal,
+  Portal,
+  useTheme,
+} from "react-native-paper";
 
 const getSoilLabel = (bed: Bed) =>
   bed.soil?.name ?? (bed as any)?.soilName ?? "Brak wybranej gleby";
@@ -58,6 +66,7 @@ const PlantingRow = memo(function PlantingRow({
 });
 
 export default function BedDetailsScreen() {
+  const theme = useTheme<MD3Theme>();
   const { bedId } = useLocalSearchParams<{ bedId?: string | string[] }>();
   const resolvedBedId = Array.isArray(bedId) ? bedId[0] : bedId;
   const router = useRouter();
@@ -80,6 +89,15 @@ export default function BedDetailsScreen() {
   const plantings = useMemo(
     () => plantingPages?.pages.flatMap((page) => page.items) ?? [],
     [plantingPages?.pages],
+  );
+  const [actionsVisible, setActionsVisible] = useState(false);
+  const activePlantings = useMemo(
+    () => plantings.filter((planting) => planting.status !== "CANCELLED"),
+    [plantings],
+  );
+  const cancelledPlantings = useMemo(
+    () => plantings.filter((planting) => planting.status === "CANCELLED"),
+    [plantings],
   );
 
   const dimensions = useMemo(() => {
@@ -133,10 +151,15 @@ export default function BedDetailsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>{bed.name}</Text>
-        {bed.locationLabel ? (
-          <Text style={styles.subtitle}>{bed.locationLabel}</Text>
-        ) : null}
+        <View style={styles.headerRow}>
+          <View style={styles.headerText}>
+            <Text style={styles.title}>{bed.name}</Text>
+            {bed.locationLabel ? (
+              <Text style={styles.subtitle}>{bed.locationLabel}</Text>
+            ) : null}
+          </View>
+          <IconButton icon="cog" onPress={() => setActionsVisible(true)} />
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -183,11 +206,11 @@ export default function BedDetailsScreen() {
           </Pressable>
         </View>
 
-        {isPlantingsLoading && plantings.length === 0 ? (
+        {isPlantingsLoading && activePlantings.length === 0 ? (
           <ActivityIndicator style={styles.inlineLoader} />
         ) : null}
 
-        {plantingsError && plantings.length === 0 ? (
+        {plantingsError && activePlantings.length === 0 ? (
           <View style={styles.inlineErrorBox}>
             <Text style={styles.errorText}>
               {String(getResponseError(plantingsError))}
@@ -201,11 +224,13 @@ export default function BedDetailsScreen() {
           </View>
         ) : null}
 
-        {!isPlantingsLoading && plantings.length === 0 && !plantingsError ? (
+        {!isPlantingsLoading &&
+        activePlantings.length === 0 &&
+        !plantingsError ? (
           <Text style={styles.valueText}>Brak upraw w tej grządce.</Text>
         ) : null}
 
-        {plantings.map((planting: Planting) => (
+        {activePlantings.map((planting: Planting) => (
           <PlantingRow
             key={planting.id}
             planting={planting}
@@ -230,17 +255,57 @@ export default function BedDetailsScreen() {
         ) : null}
       </View>
 
-      <View style={styles.actions}>
-        <Pressable
-          style={styles.primaryButton}
-          onPress={() => router.push(`/(tabs)/beds/${bed.id}/edit`)}
-        >
-          <Text style={styles.primaryButtonText}>Edytuj</Text>
-        </Pressable>
-        <Pressable style={styles.deleteButton} onPress={handleDelete}>
-          <Text style={styles.deleteButtonText}>Usuń</Text>
-        </Pressable>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Historia</Text>
+        {cancelledPlantings.length === 0 ? (
+          <Text style={styles.valueText}>Brak zakończonych upraw.</Text>
+        ) : (
+          cancelledPlantings.map((planting: Planting) => (
+            <PlantingRow
+              key={planting.id}
+              planting={planting}
+              onPress={() =>
+                router.push(`/(tabs)/beds/${bed.id}/plantings/${planting.id}`)
+              }
+            />
+          ))
+        )}
       </View>
+
+      <Portal>
+        <Modal
+          visible={actionsVisible}
+          onDismiss={() => setActionsVisible(false)}
+          contentContainerStyle={styles.modal}
+        >
+          <Text style={styles.modalTitle}>Akcje</Text>
+          <View style={styles.modalActionsColumn}>
+            <Button
+              mode="contained"
+              onPress={() => {
+                setActionsVisible(false);
+                router.push(`/(tabs)/beds/${bed.id}/edit`);
+              }}
+            >
+              Edytuj
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={() => {
+                setActionsVisible(false);
+                handleDelete();
+              }}
+              textColor={theme.colors.error}
+              style={styles.deleteButton}
+            >
+              Usuń
+            </Button>
+            <Button mode="text" onPress={() => setActionsVisible(false)}>
+              Zamknij
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
     </ScrollView>
   );
 }
@@ -253,6 +318,15 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 16,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerText: {
+    flex: 1,
+    paddingRight: 8,
   },
   title: {
     fontSize: 22,
@@ -332,30 +406,9 @@ const styles = StyleSheet.create({
     color: "#374151",
     marginBottom: 4,
   },
-  actions: {
-    marginTop: 4,
-  },
-  primaryButton: {
-    backgroundColor: "#111827",
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  primaryButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
   deleteButton: {
     borderWidth: 1,
     borderColor: "#ef4444",
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  deleteButtonText: {
-    color: "#ef4444",
-    fontWeight: "600",
   },
   center: {
     flex: 1,
@@ -380,5 +433,19 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: "#111827",
     fontWeight: "600",
+  },
+  modal: {
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  modalActionsColumn: {
+    gap: 10,
   },
 });
