@@ -1,5 +1,6 @@
 import { restClient } from "@/src/api/axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { reminderKeys } from "../reminders/reminderKeys";
 import { plantingDiseaseKeys } from "./plantingDiseaseKeys";
 import { PlantingDisease, UpdatePlantingDiseaseDto } from "./types";
 
@@ -39,6 +40,7 @@ export const useUpdatePlantingDisease = (plantingId: string | null) => {
             status: "all",
           }),
         });
+        queryClient.invalidateQueries({ queryKey: reminderKeys.all });
       }
     },
   });

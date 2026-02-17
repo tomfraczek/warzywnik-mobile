@@ -1,11 +1,6 @@
-import { restClient } from "@/src/api/axios";
+import { registerDevice } from "@/src/features/push/push";
 import { useMutation } from "@tanstack/react-query";
-import { Device, RegisterDeviceDto } from "./types";
-
-const registerDevice = async (payload: RegisterDeviceDto): Promise<Device> => {
-  const { data } = await restClient.post("/devices", payload);
-  return data;
-};
+import { RegisterDeviceDto } from "./types";
 
 export const useRegisterDevice = () => {
   return useMutation({

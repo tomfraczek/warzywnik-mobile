@@ -335,6 +335,12 @@ export default function PlantingDetailsScreen() {
                         </Chip>
                       ) : null}
                     </View>
+                    <Text style={styles.diseaseMeta}>
+                      Zaobserwowano: {formatDate(disease.observedAt)}
+                    </Text>
+                    {disease.notes ? (
+                      <Text style={styles.diseaseNotes}>{disease.notes}</Text>
+                    ) : null}
                   </View>
                   <IconButton
                     icon="chevron-right"
@@ -679,6 +685,14 @@ const makeStyles = (theme: MD3Theme) =>
     },
     severityChip: {
       height: 36,
+    },
+    diseaseMeta: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+    },
+    diseaseNotes: {
+      fontSize: 13,
+      color: theme.colors.onSurface,
     },
     diseaseActions: {
       flexDirection: "row",

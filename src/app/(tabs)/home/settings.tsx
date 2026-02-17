@@ -12,10 +12,7 @@ import {
   ThemeMode,
   useSettings,
 } from "@/src/context/SettingsProvider";
-import {
-  getExpoPushToken,
-  requestPushPermissions,
-} from "@/src/utils/notifications";
+import { getExpoToken, requestPermission } from "@/src/features/push/push";
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
@@ -245,10 +242,10 @@ export default function HomeSettingsScreen() {
 
       try {
         if (nextValue) {
-          const permission = await requestPushPermissions();
+          const permission = await requestPermission();
           if (!permission.granted) {
             setPushPermissionDenied(true);
-            setPushNotifications({ enabled: false });
+            setPushNotifications({ enabled: false, deviceId: null });
             setSnackbarMessage(
               "Brak zgody na powiadomienia. Włącz je w ustawieniach systemu.",
             );
@@ -257,7 +254,7 @@ export default function HomeSettingsScreen() {
 
           setPushPermissionDenied(false);
 
-          const expoPushToken = await getExpoPushToken();
+          const expoPushToken = await getExpoToken();
           const device = await registerDevice.mutateAsync({
             expoPushToken,
             platform: Platform.OS,
@@ -275,7 +272,7 @@ export default function HomeSettingsScreen() {
             deviceId: pushNotifications.deviceId,
           });
         }
-        setPushNotifications({ enabled: false });
+        setPushNotifications({ enabled: false, deviceId: null });
         setSnackbarMessage("Powiadomienia wyłączone.");
       } catch (error) {
         console.error("Push notifications toggle failed", error);
@@ -547,6 +544,9 @@ export default function HomeSettingsScreen() {
 
           <Surface style={styles.section} elevation={0}>
             <Text style={styles.sectionTitle}>Powiadomienia</Text>
+            <Text style={styles.sectionSubtitle}>
+              Otrzymuj przypomnienia o zadaniach i zdrowiu upraw.
+            </Text>
             <View
               style={styles.row}
               accessibilityRole="switch"

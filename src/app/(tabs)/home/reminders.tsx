@@ -1,124 +1,123 @@
 import { getResponseError } from "@/src/api/axios";
-import { useGetDisease } from "@/src/api/queries/diseases/useGetDisease";
-import { useGetPlanting } from "@/src/api/queries/plantings/useGetPlanting";
 import { Reminder } from "@/src/api/queries/reminders/types";
 import { useGetReminders } from "@/src/api/queries/reminders/useGetReminders";
 import { useUpdateReminder } from "@/src/api/queries/reminders/useUpdateReminder";
 import { Screen } from "@/src/components/Screen";
 import { useRouter } from "expo-router";
-import { memo, useCallback } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { Button, MD3Theme, Surface, useTheme } from "react-native-paper";
+import { Button, Card, MD3Theme, Snackbar, useTheme } from "react-native-paper";
 
-const formatReminderTitle = (reminder: Reminder) => {
-  if (reminder.type?.trim()) return reminder.type;
-  return "Zadanie";
+type ReminderContent = {
+  title: string;
+  description: string;
 };
 
-const getPayloadString = (
-  payload: Record<string, unknown> | null | undefined,
-  key: string,
-) => {
-  const value = payload?.[key];
-  return typeof value === "string" ? value : null;
+const reminderTypeLabels: Record<string, ReminderContent> = {
+  DISEASE_CHECK: {
+    title: "Sprawdź chorobę w uprawie",
+    description: "Skontroluj objawy i stan rośliny.",
+  },
+  DISEASE_TREATMENT: {
+    title: "Zastosuj leczenie choroby",
+    description: "Wykonaj zalecane działania ochronne.",
+  },
 };
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
+const getPlantingIdFromPayload = (payload?: Record<string, unknown> | null) => {
+  const raw = payload?.plantingId;
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "number") return String(raw);
+  return null;
 };
 
-const ReminderRow = memo(function ReminderRow({
-  reminder,
-  onDone,
-  onSkip,
-}: {
-  reminder: Reminder;
-  onDone: () => void;
-  onSkip: () => void;
-}) {
-  const router = useRouter();
-  const theme = useTheme<MD3Theme>();
-  const styles = makeStyles(theme);
-  const plantingId = getPayloadString(reminder.payload, "plantingId") ?? null;
-  const diseaseId = getPayloadString(reminder.payload, "diseaseId") ?? null;
-  const { data: planting } = useGetPlanting(plantingId ?? null);
-  const { data: disease } = useGetDisease(diseaseId ?? null);
-  const handlePress = () => {
-    if (planting?.bedId && plantingId) {
-      router.push(`/(tabs)/beds/${planting.bedId}/plantings/${plantingId}`);
-    }
+const getReminderContent = (reminder: Reminder): ReminderContent => {
+  if (reminder.type && reminderTypeLabels[reminder.type]) {
+    return reminderTypeLabels[reminder.type];
+  }
+  return {
+    title: "Zadanie w ogrodzie",
+    description: "Sprawdź szczegóły i wykonaj czynność.",
   };
-
-  const plantingLabel =
-    planting?.vegetableName ?? planting?.name ?? (plantingId ? "Uprawa" : "");
-  const diseaseLabel = disease?.name ?? (diseaseId ? "Choroba" : "");
-
-  return (
-    <Surface style={styles.card} elevation={0}>
-      <Pressable
-        onPress={handlePress}
-        disabled={!planting?.bedId || !plantingId}
-      >
-        <Text style={styles.cardTitle}>{formatReminderTitle(reminder)}</Text>
-        {diseaseLabel || plantingLabel ? (
-          <Text style={styles.cardSubtitle}>
-            {diseaseLabel}
-            {diseaseLabel && plantingLabel ? " • " : ""}
-            {plantingLabel}
-          </Text>
-        ) : null}
-        {reminder.scheduledAt ? (
-          <Text style={styles.cardMeta}>
-            {formatDateTime(reminder.scheduledAt)}
-          </Text>
-        ) : null}
-      </Pressable>
-      <View style={styles.cardActions}>
-        <Button mode="outlined" onPress={onSkip} style={styles.actionButton}>
-          Pomiń
-        </Button>
-        <Button mode="contained" onPress={onDone} style={styles.actionButton}>
-          Zrobione
-        </Button>
-      </View>
-    </Surface>
-  );
-});
+};
 
 export default function RemindersScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
+  const router = useRouter();
   const remindersQuery = useGetReminders({
     status: "pending",
     page: 1,
     limit: 50,
   });
   const updateReminder = useUpdateReminder();
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const handleUpdate = useCallback(
-    async (reminder: Reminder, status: "done" | "skipped") => {
-      try {
-        await updateReminder.mutateAsync({
-          id: reminder.id,
-          payload: { status },
-        });
-      } catch (error) {
-        Alert.alert("Błąd", String(getResponseError(error)));
-      }
-    },
-    [updateReminder],
+  const reminders = useMemo(
+    () => remindersQuery.data ?? [],
+    [remindersQuery.data],
   );
+
+  const handleUpdate = async (id: string, status: "done" | "skipped") => {
+    if (updatingId) return;
+    setUpdatingId(id);
+    try {
+      await updateReminder.mutateAsync({ id, payload: { status } });
+      setSnackbarMessage(
+        status === "done" ? "Oznaczono jako zrobione." : "Pominięto zadanie.",
+      );
+    } catch (error) {
+      setSnackbarMessage(String(getResponseError(error)));
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const renderItem = ({ item }: { item: Reminder }) => {
+    const content = getReminderContent(item);
+    const plantingId = getPlantingIdFromPayload(item.payload ?? null);
+    return (
+      <Card style={styles.card} mode="outlined">
+        <Pressable
+          onPress={() => {
+            if (plantingId) {
+              router.push(`/plantings/${plantingId}`);
+            }
+          }}
+        >
+          <Card.Content>
+            <Text style={styles.cardTitle}>{content.title}</Text>
+            <Text style={styles.cardSubtitle}>{content.description}</Text>
+          </Card.Content>
+        </Pressable>
+        <Card.Actions style={styles.cardActions}>
+          <Button
+            mode="outlined"
+            onPress={() => handleUpdate(item.id, "done")}
+            loading={updatingId === item.id && updateReminder.isPending}
+            disabled={updateReminder.isPending}
+          >
+            Zrobione
+          </Button>
+          <Button
+            mode="text"
+            onPress={() => handleUpdate(item.id, "skipped")}
+            disabled={updateReminder.isPending}
+          >
+            Pomiń
+          </Button>
+        </Card.Actions>
+      </Card>
+    );
+  };
 
   if (remindersQuery.isLoading) {
     return (
@@ -130,7 +129,7 @@ export default function RemindersScreen() {
     );
   }
 
-  if (remindersQuery.error) {
+  if (remindersQuery.error && reminders.length === 0) {
     return (
       <Screen>
         <View style={styles.center}>
@@ -145,30 +144,33 @@ export default function RemindersScreen() {
     );
   }
 
-  const reminders = remindersQuery.data ?? [];
+  if (!remindersQuery.isLoading && reminders.length === 0) {
+    return (
+      <Screen>
+        <View style={styles.center}>
+          <Text style={styles.emptyTitle}>Brak zadań</Text>
+          <Text style={styles.emptySubtitle}>Wszystko zrobione na dziś.</Text>
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
       <FlatList
         data={reminders}
         keyExtractor={(item) => item.id}
+        renderItem={renderItem}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>Brak oczekujących zadań</Text>
-            <Text style={styles.emptySubtitle}>
-              Wróć później, gdy pojawią się nowe przypomnienia.
-            </Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <ReminderRow
-            reminder={item}
-            onDone={() => handleUpdate(item, "done")}
-            onSkip={() => handleUpdate(item, "skipped")}
-          />
-        )}
+        ListHeaderComponent={<Text style={styles.title}>Zadania</Text>}
       />
+      <Snackbar
+        visible={!!snackbarMessage}
+        onDismiss={() => setSnackbarMessage(null)}
+        duration={3000}
+      >
+        {snackbarMessage}
+      </Snackbar>
     </Screen>
   );
 }
@@ -177,63 +179,56 @@ const makeStyles = (theme: MD3Theme) =>
   StyleSheet.create({
     listContent: {
       padding: 16,
-      paddingBottom: 24,
-      backgroundColor: theme.colors.background,
+      paddingBottom: 32,
       gap: 12,
     },
+    title: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: theme.colors.onBackground,
+      marginBottom: 8,
+    },
     card: {
-      padding: 14,
       borderRadius: 12,
-      borderWidth: 1,
       borderColor: theme.colors.outline,
       backgroundColor: theme.colors.surface,
-      gap: 6,
     },
     cardTitle: {
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: "600",
       color: theme.colors.onSurface,
+      marginBottom: 4,
     },
     cardSubtitle: {
       fontSize: 13,
       color: theme.colors.onSurfaceVariant,
     },
-    cardMeta: {
-      fontSize: 12,
-      color: theme.colors.onSurfaceVariant,
-    },
     cardActions: {
-      flexDirection: "row",
-      gap: 10,
-      marginTop: 10,
-    },
-    actionButton: {
-      flex: 1,
+      justifyContent: "flex-end",
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingBottom: 12,
     },
     center: {
       flex: 1,
-      alignItems: "center",
       justifyContent: "center",
+      alignItems: "center",
       padding: 24,
     },
     errorText: {
+      fontSize: 14,
       color: theme.colors.error,
       marginBottom: 12,
       textAlign: "center",
-    },
-    emptyState: {
-      padding: 24,
-      alignItems: "center",
-      gap: 6,
     },
     emptyTitle: {
       fontSize: 16,
       fontWeight: "600",
       color: theme.colors.onSurface,
+      marginBottom: 4,
     },
     emptySubtitle: {
       fontSize: 13,
       color: theme.colors.onSurfaceVariant,
-      textAlign: "center",
     },
   });

@@ -1,17 +1,13 @@
 // app/_layout.tsx (albo odpowiedni RootLayout w Twoim projekcie)
 
-import {
-  restClient,
-  setAuthErrorHandler,
-  setAuthTokenProvider,
-} from "@/src/api/axios";
+import { setAuthErrorHandler, setAuthTokenProvider } from "@/src/api/axios";
 import { ClerkProvider, useAuth, useClerk } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import * as Notifications from "expo-notifications";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useColorScheme } from "react-native";
 import {
   MD3DarkTheme,
@@ -166,6 +162,7 @@ function RootLayoutContent() {
     visible: boolean;
     message: string;
   }>({ visible: false, message: "" });
+  const lastHandledNotificationId = useRef<string | null>(null);
 
   const resolvedSystemScheme = systemColorScheme === "dark" ? "dark" : "light";
 
@@ -177,6 +174,25 @@ function RootLayoutContent() {
       : themeMode === "dark"
         ? darkTheme
         : lightTheme;
+
+  const handleNotificationNavigation = useCallback(
+    (data?: Record<string, unknown> | null, id?: string) => {
+      if (id && lastHandledNotificationId.current === id) return;
+      const raw = data?.plantingId;
+      const plantingId =
+        typeof raw === "string"
+          ? raw
+          : typeof raw === "number"
+            ? String(raw)
+            : null;
+      if (!plantingId) return;
+      if (id) {
+        lastHandledNotificationId.current = id;
+      }
+      router.push(`/plantings/${plantingId}`);
+    },
+    [router],
+  );
 
   useEffect(() => {
     Notifications.setNotificationHandler({
@@ -201,35 +217,31 @@ function RootLayoutContent() {
     );
 
     const responseSub = Notifications.addNotificationResponseReceivedListener(
-      async (response) => {
-        const data = response.notification.request.content.data ?? {};
-        const plantingId =
-          typeof data.plantingId === "string" ? data.plantingId : null;
-        const bedId = typeof data.bedId === "string" ? data.bedId : null;
-
-        if (!plantingId) return;
-
-        let resolvedBedId = bedId;
-        if (!resolvedBedId) {
-          try {
-            const result = await restClient.get(`/plantings/${plantingId}`);
-            resolvedBedId = result.data?.bedId ?? null;
-          } catch (error) {
-            console.error("Failed to resolve bedId for notification", error);
-          }
-        }
-
-        if (resolvedBedId) {
-          router.push(`/(tabs)/beds/${resolvedBedId}/plantings/${plantingId}`);
-        }
+      (response) => {
+        const data = response.notification.request.content.data as Record<
+          string,
+          unknown
+        > | null;
+        const id = response.notification.request.identifier;
+        handleNotificationNavigation(data, id);
       },
     );
+
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      const data = response.notification.request.content.data as Record<
+        string,
+        unknown
+      > | null;
+      const id = response.notification.request.identifier;
+      handleNotificationNavigation(data, id);
+    });
 
     return () => {
       receiveSub.remove();
       responseSub.remove();
     };
-  }, [router]);
+  }, [handleNotificationNavigation]);
 
   return (
     <SafeAreaProvider>
