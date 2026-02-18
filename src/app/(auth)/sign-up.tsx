@@ -3,7 +3,7 @@ import { useSignUp, useSSO } from "@clerk/clerk-expo";
 import * as AuthSession from "expo-auth-session";
 import { Link, useRouter } from "expo-router";
 import * as React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { Button, MD3Theme, TextInput, useTheme } from "react-native-paper";
 
 export default function SignUpScreen() {
@@ -12,6 +12,10 @@ export default function SignUpScreen() {
   const router = useRouter();
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
+  const redirectUrl = AuthSession.makeRedirectUri({
+    scheme: "warzywnikmobile",
+    path: "oauth-native-callback",
+  });
 
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -34,22 +38,31 @@ export default function SignUpScreen() {
     if (!isLoaded) return;
 
     try {
-      const { createdSessionId, setActive, signIn, signUp } =
-        await startSSOFlow({
-          strategy: "oauth_google",
-          redirectUrl: AuthSession.makeRedirectUri(),
-        });
+      const {
+        createdSessionId,
+        setActive: setActiveFromSSO,
+        signIn: ssoSignIn,
+        signUp: ssoSignUp,
+      } = await startSSOFlow({
+        strategy: "oauth_google",
+        redirectUrl,
+      });
 
       if (createdSessionId) {
-        setActive!({ session: createdSessionId });
+        await (setActiveFromSSO ?? setActive)!({ session: createdSessionId });
         router.replace("/(tabs)/home");
       } else {
-        // Obsłuż dalsze kroki jeśli potrzebne
-        if (signIn) {
-          console.log("SignIn status:", signIn.status);
-        }
-        if (signUp) {
-          console.log("SignUp status:", signUp.status);
+        const signInStatus = ssoSignIn?.status;
+        const signUpStatus = ssoSignUp?.status;
+        if (
+          signInStatus === "needs_identifier" ||
+          signUpStatus === "missing_requirements"
+        ) {
+          Alert.alert(
+            "Dokończ logowanie",
+            "To konto wymaga dodatkowych informacji. Spróbuj ponownie.",
+          );
+          return;
         }
       }
     } catch (err) {

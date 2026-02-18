@@ -4,7 +4,7 @@ import * as AuthSession from "expo-auth-session";
 import { Link, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { Button, MD3Theme, TextInput, useTheme } from "react-native-paper";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -15,6 +15,10 @@ export default function SignInScreen() {
   const { startSSOFlow } = useSSO();
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
+  const redirectUrl = AuthSession.makeRedirectUri({
+    scheme: "warzywnikmobile",
+    path: "oauth-native-callback",
+  });
 
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -43,34 +47,38 @@ export default function SignInScreen() {
     if (!isLoaded) return;
 
     try {
-      const { createdSessionId, setActive, signIn, signUp } =
-        await startSSOFlow({
-          strategy: "oauth_google",
-          redirectUrl: AuthSession.makeRedirectUri(),
-        });
+      const {
+        createdSessionId,
+        setActive: setActiveFromSSO,
+        signIn: ssoSignIn,
+        signUp: ssoSignUp,
+      } = await startSSOFlow({
+        strategy: "oauth_google",
+        redirectUrl,
+      });
 
       if (createdSessionId) {
-        setActive!({ session: createdSessionId });
+        await (setActiveFromSSO ?? setActive)!({ session: createdSessionId });
         router.replace("/(tabs)/home");
       } else {
-        // Sprawdź czy mamy obiekt signIn czy signUp
-        if (signIn) {
-          // Obsłuż dalsze kroki logowania
-          if (signIn.status === "needs_second_factor") {
-            // Przekieruj do ekranu MFA
-            // router.push("/mfa");
-          } else if (signIn.status === "needs_identifier") {
-            // Może potrzebować dodatkowych informacji
-            console.log("Potrzebne dodatkowe informacje");
-          }
+        const signInStatus = ssoSignIn?.status;
+        const signUpStatus = ssoSignUp?.status;
+        if (
+          signInStatus === "needs_identifier" ||
+          signUpStatus === "missing_requirements"
+        ) {
+          Alert.alert(
+            "Dokończ logowanie",
+            "To konto wymaga dodatkowych informacji. Spróbuj ponownie lub załóż konto.",
+          );
+          return;
         }
-
-        if (signUp) {
-          // Obsłuż dalsze kroki rejestracji
-          if (signUp.status === "missing_requirements") {
-            // Może potrzebować weryfikacji email/telefonu
-            console.log("Brakujące wymagania rejestracji");
-          }
+        if (signInStatus === "needs_second_factor") {
+          Alert.alert(
+            "Wymagany drugi składnik",
+            "Dokończ logowanie z użyciem dodatkowej weryfikacji.",
+          );
+          return;
         }
       }
     } catch (err) {

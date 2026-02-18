@@ -197,9 +197,9 @@ function RootLayoutContent() {
   useEffect(() => {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
-        shouldShowAlert: false,
-        shouldShowBanner: false,
-        shouldShowList: false,
+        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
         shouldPlaySound: false,
         shouldSetBadge: false,
       }),

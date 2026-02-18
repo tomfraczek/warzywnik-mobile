@@ -17,21 +17,29 @@ const ensureAndroidChannel = async () => {
   if (Platform.OS !== "android") return;
   await Notifications.setNotificationChannelAsync("default", {
     name: "default",
-    importance: Notifications.AndroidImportance.DEFAULT,
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: "#FF231F7C",
   });
 };
 
 const getExpoProjectId = () =>
   Constants.easConfig?.projectId ??
   Constants.expoConfig?.extra?.eas?.projectId ??
-  Constants.expoConfig?.extra?.projectId;
+  Constants.expoConfig?.extra?.projectId ??
+  process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
 
 export const getExpoToken = async () => {
   await ensureAndroidChannel();
   const projectId = getExpoProjectId();
-  const tokenResponse = await Notifications.getExpoPushTokenAsync(
-    projectId ? { projectId } : undefined,
-  );
+  if (!projectId) {
+    throw new Error(
+      "Missing Expo projectId. Set extra.eas.projectId in app.json or EXPO_PUBLIC_EAS_PROJECT_ID.",
+    );
+  }
+  const tokenResponse = await Notifications.getExpoPushTokenAsync({
+    projectId,
+  });
   return tokenResponse.data;
 };
 

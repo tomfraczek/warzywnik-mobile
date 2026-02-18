@@ -226,7 +226,7 @@ export default function PlantingDetailsScreen() {
       setObservedAt(null);
       setSearchQuery("");
       setReportStatus("suspected");
-      setSnackbarMessage("Dodano chorobę. Utworzono zadania kontrolne.");
+      setSnackbarMessage("Dodano chorobę.");
     } catch {
       Alert.alert("Błąd", "Wybrana choroba jest już zgłoszona dla tej uprawy.");
     }
@@ -338,6 +338,16 @@ export default function PlantingDetailsScreen() {
                     <Text style={styles.diseaseMeta}>
                       Zaobserwowano: {formatDate(disease.observedAt)}
                     </Text>
+                    {disease.nextCheckAt ? (
+                      <Text style={styles.diseaseMeta}>
+                        Kolejna kontrola: {formatDate(disease.nextCheckAt)}
+                      </Text>
+                    ) : null}
+                    {disease.status === "resolved" ? (
+                      <Text style={styles.diseaseMeta}>
+                        Przypomnienia zostały zatrzymane.
+                      </Text>
+                    ) : null}
                     {disease.notes ? (
                       <Text style={styles.diseaseNotes}>{disease.notes}</Text>
                     ) : null}

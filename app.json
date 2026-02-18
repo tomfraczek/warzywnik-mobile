@@ -22,8 +22,12 @@
       "edgeToEdgeEnabled": true,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "googleServicesFile": "./google-services.json",
+      "package": "com.tomfraczek.warzywnikmobile"
     },
     "web": {
       "bundler": "metro",
@@ -45,6 +49,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3b663025-9d35-4d45-b07a-f6df30789049"
+      }
+    },
+    "owner": "tomfraczek"
   }
 }

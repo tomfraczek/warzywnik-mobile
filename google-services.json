@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "334407033266",
+    "project_id": "gardenly-d0232",
+    "storage_bucket": "gardenly-d0232.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:334407033266:android:3c353dab4384049212c4ab",
+        "android_client_info": {
+          "package_name": "com.tomfraczek.warzywnikmobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7ZueKSPAXKXY-1LNi8dwwPkQs1cLR3xI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

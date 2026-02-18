@@ -7,6 +7,8 @@ export type PlantingDisease = {
   plantingId?: string | null;
   diseaseId?: string | null;
   status: PlantingDiseaseStatus;
+  nextCheckAt?: string | null;
+  reminderCount?: number | null;
   severity?: DiseaseSeverity | null;
   observedAt?: string | null;
   notes?: string | null;
