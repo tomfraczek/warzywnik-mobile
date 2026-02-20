@@ -1,12 +1,22 @@
 import { getResponseError } from "@/src/api/axios";
+import {
+  ActionTemplate,
+  CreateBedActionTaskItemDto,
+  HarvestPromptItem,
+} from "@/src/api/queries/beds/harvestTypes";
 import { Bed } from "@/src/api/queries/beds/types";
+import { useCreateBedActionTasksBulk } from "@/src/api/queries/beds/useCreateBedActionTasksBulk";
 import { useDeleteBed } from "@/src/api/queries/beds/useDeleteBed";
 import { useGetBed } from "@/src/api/queries/beds/useGetBed";
+import { useGetBedHarvestPrompts } from "@/src/api/queries/beds/useGetBedHarvestPrompts";
 import { Planting } from "@/src/api/queries/plantings/types";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
+import { usePostHarvestConfirmation } from "@/src/api/queries/plantings/usePostHarvestConfirmation";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
+import { HarvestConfirmationModal } from "@/src/app/(tabs)/beds/_components/HarvestConfirmationModal";
+import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostHarvestActionsModal";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -22,6 +32,7 @@ import {
   MD3Theme,
   Modal,
   Portal,
+  Snackbar,
   useTheme,
 } from "react-native-paper";
 
@@ -75,6 +86,8 @@ export default function BedDetailsScreen() {
   const router = useRouter();
   const { data, isLoading, error, refetch } = useGetBed(resolvedBedId ?? null);
   const deleteBed = useDeleteBed();
+  const { data: harvestPromptsResponse, refetch: refetchHarvestPrompts } =
+    useGetBedHarvestPrompts(resolvedBedId ?? null);
   const {
     data: plantingPages,
     isLoading: isPlantingsLoading,
@@ -94,6 +107,46 @@ export default function BedDetailsScreen() {
     [plantingPages?.pages],
   );
   const [actionsVisible, setActionsVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [promptQueue, setPromptQueue] = useState<HarvestPromptItem[]>([]);
+  const [lastPromptSignature, setLastPromptSignature] = useState("");
+  const [postHarvestModalVisible, setPostHarvestModalVisible] = useState(false);
+
+  const [postHarvestActions, setPostHarvestActions] = useState<
+    ActionTemplate[]
+  >([]);
+
+  const harvestPrompts = useMemo(
+    () => harvestPromptsResponse?.items ?? [],
+    [harvestPromptsResponse?.items],
+  );
+  const harvestPromptSignature = useMemo(
+    () =>
+      harvestPrompts
+        .map((item) => `${item.plantingId}:${item.title}`)
+        .join("|"),
+    [harvestPrompts],
+  );
+
+  useEffect(() => {
+    if (harvestPromptSignature === lastPromptSignature) {
+      return;
+    }
+
+    setPromptQueue(harvestPrompts);
+    setLastPromptSignature(harvestPromptSignature);
+  }, [harvestPrompts, harvestPromptSignature, lastPromptSignature]);
+
+  const activeHarvestPrompt = promptQueue[0] ?? null;
+  const confirmationMutation = usePostHarvestConfirmation(
+    activeHarvestPrompt?.plantingId ?? null,
+  );
+  const createBedActionTasksBulk = useCreateBedActionTasksBulk(
+    resolvedBedId ?? null,
+  );
+
+  const harvestConfirmationVisible =
+    !!activeHarvestPrompt && !postHarvestModalVisible;
   const activePlantings = useMemo(
     () => plantings.filter((planting) => planting.status !== "CANCELLED"),
     [plantings],
@@ -102,6 +155,53 @@ export default function BedDetailsScreen() {
     () => plantings.filter((planting) => planting.status === "CANCELLED"),
     [plantings],
   );
+
+  const isReadyForHarvest = harvestPrompts.length > 0;
+
+  const handleHarvestNo = async () => {
+    if (!activeHarvestPrompt) return;
+
+    try {
+      await confirmationMutation.mutateAsync({ answer: "no" });
+      setPromptQueue((prev) => prev.slice(1));
+      await refetchHarvestPrompts();
+    } catch (err) {
+      Alert.alert("Błąd", String(getResponseError(err)));
+    }
+  };
+
+  const handleHarvestYes = async () => {
+    if (!activeHarvestPrompt) return;
+
+    try {
+      const response = await confirmationMutation.mutateAsync({
+        answer: "yes",
+      });
+      setPromptQueue((prev) => prev.slice(1));
+      setPostHarvestActions(response.postHarvestActions ?? []);
+      setPostHarvestModalVisible(true);
+    } catch (err) {
+      Alert.alert("Błąd", String(getResponseError(err)));
+    }
+  };
+
+  const handleCreatePostHarvestTasks = async (
+    tasks: CreateBedActionTaskItemDto[],
+  ) => {
+    if (!resolvedBedId) return;
+
+    try {
+      await createBedActionTasksBulk.mutateAsync({
+        items: tasks,
+      });
+      setPostHarvestModalVisible(false);
+      setPostHarvestActions([]);
+      setSnackbarMessage("Dodano zadania po zbiorach");
+      await refetchHarvestPrompts();
+    } catch (err) {
+      Alert.alert("Błąd", String(getResponseError(err)));
+    }
+  };
 
   const dimensions = useMemo(() => {
     if (!bed) return null;
@@ -156,7 +256,10 @@ export default function BedDetailsScreen() {
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <View style={styles.headerText}>
-            <Text style={styles.title}>{bed.name}</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>{bed.name}</Text>
+              {isReadyForHarvest ? <View style={styles.harvestDot} /> : null}
+            </View>
             {bed.locationLabel ? (
               <Text style={styles.subtitle}>{bed.locationLabel}</Text>
             ) : null}
@@ -200,7 +303,10 @@ export default function BedDetailsScreen() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Uprawy</Text>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>Uprawy</Text>
+            {isReadyForHarvest ? <View style={styles.harvestDotSmall} /> : null}
+          </View>
           <Pressable
             style={styles.linkButton}
             onPress={() => router.push(`/(tabs)/beds/${bed.id}/plantings/new`)}
@@ -258,6 +364,22 @@ export default function BedDetailsScreen() {
         ) : null}
       </View>
 
+      {isReadyForHarvest ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Gotowe do zbioru</Text>
+          {harvestPrompts.map((prompt) => (
+            <Pressable
+              key={prompt.plantingId}
+              onPress={() => setPromptQueue([prompt])}
+              style={styles.harvestPromptRow}
+            >
+              <Text style={styles.harvestPromptTitle}>{prompt.title}</Text>
+              <Text style={styles.harvestPromptMeta}>Wymaga potwierdzenia</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Historia</Text>
         {cancelledPlantings.length === 0 ? (
@@ -309,6 +431,33 @@ export default function BedDetailsScreen() {
           </View>
         </Modal>
       </Portal>
+
+      <HarvestConfirmationModal
+        visible={harvestConfirmationVisible}
+        plantingTitle={activeHarvestPrompt?.title ?? ""}
+        isSubmitting={confirmationMutation.isPending}
+        onNo={handleHarvestNo}
+        onYes={handleHarvestYes}
+      />
+
+      <PostHarvestActionsModal
+        visible={postHarvestModalVisible}
+        actions={postHarvestActions}
+        isSubmitting={createBedActionTasksBulk.isPending}
+        onCancel={() => {
+          setPostHarvestModalVisible(false);
+          setPostHarvestActions([]);
+        }}
+        onSubmit={handleCreatePostHarvestTasks}
+      />
+
+      <Snackbar
+        visible={!!snackbarMessage}
+        onDismiss={() => setSnackbarMessage(null)}
+        duration={2400}
+      >
+        {snackbarMessage}
+      </Snackbar>
     </ScrollView>
   );
 }
@@ -332,10 +481,21 @@ const makeStyles = (theme: MD3Theme) =>
       flex: 1,
       paddingRight: 8,
     },
+    titleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
     title: {
       fontSize: 22,
       fontWeight: "700",
       color: theme.colors.onBackground,
+    },
+    harvestDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 999,
+      backgroundColor: theme.colors.error,
     },
     subtitle: {
       fontSize: 14,
@@ -356,11 +516,23 @@ const makeStyles = (theme: MD3Theme) =>
       justifyContent: "space-between",
       marginBottom: 8,
     },
+    sectionTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
     sectionTitle: {
       fontSize: 15,
       fontWeight: "600",
       marginBottom: 8,
       color: theme.colors.onSurface,
+    },
+    harvestDotSmall: {
+      width: 8,
+      height: 8,
+      borderRadius: 999,
+      marginBottom: 8,
+      backgroundColor: theme.colors.error,
     },
     linkButton: {
       paddingHorizontal: 8,
@@ -405,6 +577,21 @@ const makeStyles = (theme: MD3Theme) =>
     plantingStatus: {
       fontSize: 11,
       color: theme.colors.primary,
+    },
+    harvestPromptRow: {
+      borderTopWidth: 1,
+      borderColor: theme.colors.outline,
+      paddingVertical: 10,
+    },
+    harvestPromptTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.colors.onSurface,
+    },
+    harvestPromptMeta: {
+      marginTop: 4,
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
     },
     metrics: {
       marginTop: 8,
