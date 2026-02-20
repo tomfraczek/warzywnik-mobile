@@ -3,11 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { diseaseOccurrenceKeys } from "./diseaseOccurrenceKeys";
 import { DiseaseOccurrence, DiseaseOccurrenceListParams } from "./types";
 
-const getBedDiseaseOccurrences = async (
+const getPlantingDiseaseOccurrences = async (
   params: DiseaseOccurrenceListParams,
 ): Promise<DiseaseOccurrence[]> => {
   const { data } = await restClient.get(
-    `/beds/${params.bedId}/disease-occurrences`,
+    `/plantings/${params.plantingId}/disease-occurrences`,
     {
       params: {
         status: params.status,
@@ -17,14 +17,19 @@ const getBedDiseaseOccurrences = async (
   return data;
 };
 
-export const useGetBedDiseaseOccurrences = (bedId: string | null) => {
-  const params = bedId ? { bedId } : null;
+export const useGetPlantingDiseaseOccurrences = (
+  plantingId: string | null,
+  status?: DiseaseOccurrenceListParams["status"],
+) => {
+  const params = plantingId ? { plantingId, status } : null;
   return useQuery({
     queryKey: params
       ? diseaseOccurrenceKeys.list(params)
-      : diseaseOccurrenceKeys.list({ bedId: "unknown" }),
+      : diseaseOccurrenceKeys.list({ plantingId: "unknown" }),
     queryFn: () =>
-      getBedDiseaseOccurrences(params as DiseaseOccurrenceListParams),
-    enabled: Boolean(bedId),
+      getPlantingDiseaseOccurrences(params as DiseaseOccurrenceListParams),
+    enabled: Boolean(plantingId),
   });
 };
+
+export const useGetBedDiseaseOccurrences = useGetPlantingDiseaseOccurrences;

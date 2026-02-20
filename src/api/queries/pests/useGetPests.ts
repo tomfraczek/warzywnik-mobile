@@ -1,26 +1,41 @@
 import { restClient } from "@/src/api/axios";
-import { parsePaginatedResponse } from "@/src/api/queries/pagination";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { PestListParams, pestKeys } from "./pestKeys";
-import { PestListItem } from "./types";
+import { ListPestsResponse, Pest } from "./types";
 
-const getPests = async (params: PestListParams, pageParam: number) => {
+const getPests = async (params: PestListParams): Promise<ListPestsResponse> => {
+  const page = params.page ?? 1;
   const limit = params.limit ?? 20;
   const { data } = await restClient.get("/pests", {
     params: {
-      page: pageParam,
+      page,
       limit,
       q: params.q?.trim() || undefined,
     },
   });
-  return parsePaginatedResponse<PestListItem>(data, pageParam, limit);
+  const items = (
+    Array.isArray(data)
+      ? data
+      : (data?.items ?? data?.data ?? data?.results ?? [])
+  ) as Pest[];
+  const total =
+    data?.total ??
+    data?.meta?.total ??
+    data?.pagination?.total ??
+    data?.pageMeta?.total ??
+    items.length;
+
+  return {
+    items,
+    page,
+    limit,
+    total,
+  };
 };
 
 export const useGetPests = (params: PestListParams = {}) => {
-  return useInfiniteQuery({
+  return useQuery({
     queryKey: pestKeys.list(params),
-    queryFn: ({ pageParam = 1 }) => getPests(params, pageParam as number),
-    getNextPageParam: (lastPage) => lastPage.nextPage,
-    initialPageParam: 1,
+    queryFn: () => getPests(params),
   });
 };

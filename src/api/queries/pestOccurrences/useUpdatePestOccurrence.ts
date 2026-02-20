@@ -11,14 +11,20 @@ const updatePestOccurrence = async (
   return data;
 };
 
-export const useUpdatePestOccurrence = (id: string) => {
+export const useUpdatePestOccurrence = (id?: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: UpdatePestOccurrenceDto) =>
-      updatePestOccurrence(id, payload),
-    onSuccess: () => {
+    mutationFn: ({
+      id: mutationId,
+      payload,
+    }: {
+      id?: string;
+      payload: UpdatePestOccurrenceDto;
+    }) => updatePestOccurrence((mutationId ?? id) as string, payload),
+    onSuccess: (_, variables) => {
+      const targetId = (variables.id ?? id) as string;
       queryClient.invalidateQueries({
-        queryKey: pestOccurrenceKeys.detail(id),
+        queryKey: pestOccurrenceKeys.detail(targetId),
       });
       queryClient.invalidateQueries({ queryKey: pestOccurrenceKeys.all });
     },

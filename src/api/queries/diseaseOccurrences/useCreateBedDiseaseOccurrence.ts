@@ -3,29 +3,39 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { diseaseOccurrenceKeys } from "./diseaseOccurrenceKeys";
 import { CreateDiseaseOccurrenceDto, DiseaseOccurrence } from "./types";
 
-const createBedDiseaseOccurrence = async (
-  bedId: string,
+const createPlantingDiseaseOccurrence = async (
+  plantingId: string,
   payload: CreateDiseaseOccurrenceDto,
 ): Promise<DiseaseOccurrence> => {
   const { data } = await restClient.post(
-    `/beds/${bedId}/disease-occurrences`,
+    `/plantings/${plantingId}/disease-occurrences`,
     payload,
   );
   return data;
 };
 
-export const useCreateBedDiseaseOccurrence = (bedId: string | null) => {
+export const useCreatePlantingDiseaseOccurrence = (
+  plantingId: string | null,
+) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateDiseaseOccurrenceDto) =>
-      createBedDiseaseOccurrence(bedId as string, payload),
+      createPlantingDiseaseOccurrence(plantingId as string, payload),
     onSuccess: () => {
-      if (bedId) {
+      if (plantingId) {
         queryClient.invalidateQueries({
-          queryKey: diseaseOccurrenceKeys.list({ bedId }),
+          queryKey: diseaseOccurrenceKeys.list({
+            plantingId,
+            status: "active",
+          }),
+        });
+        queryClient.invalidateQueries({
+          queryKey: diseaseOccurrenceKeys.list({ plantingId, status: "all" }),
         });
       }
       queryClient.invalidateQueries({ queryKey: diseaseOccurrenceKeys.all });
     },
   });
 };
+
+export const useCreateBedDiseaseOccurrence = useCreatePlantingDiseaseOccurrence;

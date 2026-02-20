@@ -7,13 +7,15 @@ const deletePestOccurrence = async (id: string) => {
   return data;
 };
 
-export const useDeletePestOccurrence = (id: string) => {
+export const useDeletePestOccurrence = (id?: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => deletePestOccurrence(id),
-    onSuccess: () => {
+    mutationFn: (mutationId?: string) =>
+      deletePestOccurrence((mutationId ?? id) as string),
+    onSuccess: (_, mutationId) => {
+      const targetId = (mutationId ?? id) as string;
       queryClient.invalidateQueries({
-        queryKey: pestOccurrenceKeys.detail(id),
+        queryKey: pestOccurrenceKeys.detail(targetId),
       });
       queryClient.invalidateQueries({ queryKey: pestOccurrenceKeys.all });
     },

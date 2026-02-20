@@ -3,29 +3,34 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { pestOccurrenceKeys } from "./pestOccurrenceKeys";
 import { CreatePestOccurrenceDto, PestOccurrence } from "./types";
 
-const createBedPestOccurrence = async (
-  bedId: string,
+const createPlantingPestOccurrence = async (
+  plantingId: string,
   payload: CreatePestOccurrenceDto,
 ): Promise<PestOccurrence> => {
   const { data } = await restClient.post(
-    `/beds/${bedId}/pest-occurrences`,
+    `/plantings/${plantingId}/pest-occurrences`,
     payload,
   );
   return data;
 };
 
-export const useCreateBedPestOccurrence = (bedId: string | null) => {
+export const useCreatePlantingPestOccurrence = (plantingId: string | null) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreatePestOccurrenceDto) =>
-      createBedPestOccurrence(bedId as string, payload),
+      createPlantingPestOccurrence(plantingId as string, payload),
     onSuccess: () => {
-      if (bedId) {
+      if (plantingId) {
         queryClient.invalidateQueries({
-          queryKey: pestOccurrenceKeys.list({ bedId }),
+          queryKey: pestOccurrenceKeys.list({ plantingId, status: "active" }),
+        });
+        queryClient.invalidateQueries({
+          queryKey: pestOccurrenceKeys.list({ plantingId, status: "all" }),
         });
       }
       queryClient.invalidateQueries({ queryKey: pestOccurrenceKeys.all });
     },
   });
 };
+
+export const useCreateBedPestOccurrence = useCreatePlantingPestOccurrence;

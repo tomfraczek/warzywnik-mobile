@@ -1,15 +1,18 @@
 export type Pest = {
   id: string;
+  slug?: string | null;
   name: string;
   description?: string | null;
-  symptoms?: string[] | null;
-  treatment?: string[] | null;
-  prevention?: string[] | null;
-  affectedPlants?: string[] | null;
+  symptoms?: string | string[] | null;
+  treatment?: string | string[] | null;
+  prevention?: string | string[] | null;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
-export type PestListItem = {
-  id: string;
-  name: string;
-  description?: string | null;
+export type ListPestsResponse = {
+  items: Pest[];
+  page: number;
+  limit: number;
+  total: number;
 };

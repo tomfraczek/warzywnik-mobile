@@ -7,13 +7,15 @@ const deleteDiseaseOccurrence = async (id: string) => {
   return data;
 };
 
-export const useDeleteDiseaseOccurrence = (id: string) => {
+export const useDeleteDiseaseOccurrence = (id?: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => deleteDiseaseOccurrence(id),
-    onSuccess: () => {
+    mutationFn: (mutationId?: string) =>
+      deleteDiseaseOccurrence((mutationId ?? id) as string),
+    onSuccess: (_, mutationId) => {
+      const targetId = (mutationId ?? id) as string;
       queryClient.invalidateQueries({
-        queryKey: diseaseOccurrenceKeys.detail(id),
+        queryKey: diseaseOccurrenceKeys.detail(targetId),
       });
       queryClient.invalidateQueries({ queryKey: diseaseOccurrenceKeys.all });
     },

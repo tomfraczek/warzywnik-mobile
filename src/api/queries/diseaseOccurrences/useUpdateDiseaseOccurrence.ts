@@ -14,14 +14,20 @@ const updateDiseaseOccurrence = async (
   return data;
 };
 
-export const useUpdateDiseaseOccurrence = (id: string) => {
+export const useUpdateDiseaseOccurrence = (id?: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: UpdateDiseaseOccurrenceDto) =>
-      updateDiseaseOccurrence(id, payload),
-    onSuccess: () => {
+    mutationFn: ({
+      id: mutationId,
+      payload,
+    }: {
+      id?: string;
+      payload: UpdateDiseaseOccurrenceDto;
+    }) => updateDiseaseOccurrence((mutationId ?? id) as string, payload),
+    onSuccess: (_, variables) => {
+      const targetId = (variables.id ?? id) as string;
       queryClient.invalidateQueries({
-        queryKey: diseaseOccurrenceKeys.detail(id),
+        queryKey: diseaseOccurrenceKeys.detail(targetId),
       });
       queryClient.invalidateQueries({ queryKey: diseaseOccurrenceKeys.all });
     },

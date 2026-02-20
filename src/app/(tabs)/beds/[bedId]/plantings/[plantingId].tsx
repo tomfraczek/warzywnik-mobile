@@ -1,3 +1,5 @@
+export { default } from "./PlantingDetailsScreen";
+/*
 import { getResponseError } from "@/src/api/axios";
 import { useSearchDiseases } from "@/src/api/queries/diseases/useSearchDiseases";
 import {
@@ -775,3 +777,5 @@ const makeStyles = (theme: MD3Theme) =>
       alignSelf: "flex-start",
     },
   });
+
+*/

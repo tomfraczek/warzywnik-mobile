@@ -1,4 +1,5 @@
 export type PestListParams = {
+  page?: number;
   q?: string;
   limit?: number;
 };

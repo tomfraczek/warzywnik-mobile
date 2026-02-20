@@ -2,14 +2,14 @@ export type PestOccurrenceStatus = "suspected" | "confirmed" | "resolved";
 
 export type PestOccurrence = {
   id: string;
-  bedId?: string | null;
+  plantingId: string;
   pestId?: string | null;
   status: PestOccurrenceStatus;
   nextCheckAt?: string | null;
-  reminderCount?: number | null;
+  reminderCount?: number;
   notes?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
   pest?: {
     id: string;
     slug?: string | null;
@@ -18,13 +18,13 @@ export type PestOccurrence = {
 };
 
 export type PestOccurrenceListParams = {
-  bedId: string;
+  plantingId: string;
   status?: "active" | "resolved" | "all";
 };
 
 export type CreatePestOccurrenceDto = {
   pestId: string;
-  status: "suspected" | "confirmed";
+  status?: PestOccurrenceStatus;
   notes?: string | null;
 };
 

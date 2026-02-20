@@ -18,31 +18,24 @@ import { useDebouncedValue } from "../_components/useDebouncedValue";
 export default function PestsIndexScreen() {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
   const debouncedQuery = useDebouncedValue(query, 300);
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
 
-  const {
-    data,
-    isLoading,
-    error,
-    refetch,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useGetPests({
+  const { data, isLoading, error, refetch } = useGetPests({
+    page,
     q: debouncedQuery.trim() ? debouncedQuery : undefined,
     limit: 20,
   });
 
-  const items = useMemo(
-    () => data?.pages.flatMap((page) => page.items) ?? [],
-    [data?.pages],
-  );
+  const items = useMemo(() => data?.items ?? [], [data?.items]);
+  const total = data?.total ?? 0;
+  const hasNextPage = page * 20 < total;
 
   const handleLoadMore = () => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
+    if (hasNextPage && !isLoading) {
+      setPage((prev) => prev + 1);
     }
   };
 
@@ -82,7 +75,10 @@ export default function PestsIndexScreen() {
             <Text style={styles.searchLabel}>Szukaj</Text>
             <TextInput
               value={query}
-              onChangeText={setQuery}
+              onChangeText={(value) => {
+                setQuery(value);
+                setPage(1);
+              }}
               placeholder="Nazwa szkodnika"
               style={styles.searchInput}
             />
@@ -99,7 +95,7 @@ export default function PestsIndexScreen() {
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.4}
         ListFooterComponent={
-          isFetchingNextPage ? (
+          isLoading && page > 1 ? (
             <ActivityIndicator style={styles.footer} />
           ) : null
         }

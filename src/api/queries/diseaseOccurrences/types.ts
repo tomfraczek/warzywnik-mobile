@@ -1,15 +1,19 @@
 export type DiseaseOccurrenceStatus = "suspected" | "confirmed" | "resolved";
 
+export type DiseaseSeverity = "low" | "medium" | "high";
+
 export type DiseaseOccurrence = {
   id: string;
-  bedId?: string | null;
+  plantingId: string;
   diseaseId?: string | null;
   status: DiseaseOccurrenceStatus;
   nextCheckAt?: string | null;
-  reminderCount?: number | null;
+  reminderCount?: number;
+  severity?: DiseaseSeverity | null;
+  observedAt?: string | null;
   notes?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
   disease?: {
     id: string;
     slug?: string | null;
@@ -18,13 +22,15 @@ export type DiseaseOccurrence = {
 };
 
 export type DiseaseOccurrenceListParams = {
-  bedId: string;
+  plantingId: string;
   status?: "active" | "resolved" | "all";
 };
 
 export type CreateDiseaseOccurrenceDto = {
   diseaseId: string;
-  status: "suspected" | "confirmed";
+  status?: DiseaseOccurrenceStatus;
+  severity?: DiseaseSeverity | null;
+  observedAt?: string;
   notes?: string | null;
 };
 
