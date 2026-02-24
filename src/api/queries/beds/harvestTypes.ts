@@ -1,6 +1,7 @@
 export type HarvestConfirmationAnswer = "yes" | "no";
 
 export type ActionTemplate = {
+  actionTemplateId?: string;
   templateId?: string;
   id?: string;
   name: string;
@@ -21,11 +22,11 @@ export type BedHarvestPromptsResponse = {
 export type HarvestConfirmationResponse = {
   bedId: string;
   plantingId: string;
-  postHarvestActions: ActionTemplate[];
+  proposals: ActionTemplate[];
 };
 
 export type CreateBedActionTaskItemDto = {
-  templateId: string;
+  actionTemplateId: string;
   dueAt?: string;
 };
 

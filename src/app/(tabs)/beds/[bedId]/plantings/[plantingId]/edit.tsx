@@ -148,7 +148,6 @@ export default function PlantingEditScreen() {
             vegetableName: null,
           }))
         }
-        showActualStartDate
       />
       <WarningsModal
         visible={warningsVisible}

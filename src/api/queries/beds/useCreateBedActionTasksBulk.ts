@@ -11,10 +11,7 @@ const createSingleBedActionTask = async (
   bedId: string,
   item: CreateBedActionTaskItemDto,
 ) => {
-  const { data } = await restClient.post(
-    `/v1/beds/${bedId}/action-tasks`,
-    item,
-  );
+  const { data } = await restClient.post(`/beds/${bedId}/action-tasks`, item);
   return data;
 };
 
@@ -24,7 +21,7 @@ const createBedActionTasksBulk = async (
 ) => {
   try {
     const { data } = await restClient.post(
-      `/v1/beds/${bedId}/action-tasks/bulk`,
+      `/beds/${bedId}/action-tasks/bulk`,
       payload,
     );
     return data;
@@ -58,6 +55,9 @@ export const useCreateBedActionTasksBulk = (bedId: string | null) => {
     onSuccess: () => {
       if (!bedId) return;
       queryClient.invalidateQueries({ queryKey: ["bed-action-tasks", bedId] });
+      queryClient.invalidateQueries({
+        queryKey: ["action-tasks", "bed", bedId],
+      });
       queryClient.invalidateQueries({ queryKey: ["harvest-prompts", bedId] });
       queryClient.invalidateQueries({ queryKey: ["bed-details", bedId] });
       queryClient.invalidateQueries({ queryKey: ["bed", bedId] });

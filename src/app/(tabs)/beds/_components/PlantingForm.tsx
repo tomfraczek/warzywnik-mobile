@@ -24,7 +24,6 @@ type PlantingFormProps = {
   isSubmitting?: boolean;
   onPickVegetable: () => void;
   onClearVegetable?: () => void;
-  showActualStartDate?: boolean;
 };
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -50,19 +49,30 @@ function PlantingFormComponent({
   isSubmitting,
   onPickVegetable,
   onClearVegetable,
-  showActualStartDate,
 }: PlantingFormProps) {
-  const [plannedOpen, setPlannedOpen] = useState(false);
-  const [actualOpen, setActualOpen] = useState(false);
+  const [sowedOpen, setSowedOpen] = useState(false);
+  const [transplantedOpen, setTransplantedOpen] = useState(false);
+  const [harvestStartOpen, setHarvestStartOpen] = useState(false);
+  const [harvestEndOpen, setHarvestEndOpen] = useState(false);
 
-  const plannedDate = useMemo(
-    () => parseIsoDate(values.plannedStartDate),
-    [values.plannedStartDate],
+  const sowedDate = useMemo(
+    () => parseIsoDate(values.sowedAt),
+    [values.sowedAt],
   );
 
-  const actualDate = useMemo(
-    () => parseIsoDate(values.actualStartDate),
-    [values.actualStartDate],
+  const transplantedDate = useMemo(
+    () => parseIsoDate(values.transplantedAt),
+    [values.transplantedAt],
+  );
+
+  const harvestWindowStartDate = useMemo(
+    () => parseIsoDate(values.harvestWindowStart),
+    [values.harvestWindowStart],
+  );
+
+  const harvestWindowEndDate = useMemo(
+    () => parseIsoDate(values.harvestWindowEnd),
+    [values.harvestWindowEnd],
   );
 
   const {
@@ -96,18 +106,59 @@ function PlantingFormComponent({
           </Pressable>
         ) : null}
 
-        <Text style={styles.label}>Planowana data startu *</Text>
+        <Text style={styles.label}>Metoda startu *</Text>
+        <View style={styles.statusRow}>
+          <Pressable
+            style={[
+              styles.statusChip,
+              values.startMethod === "DIRECT_SOW" && styles.statusChipActive,
+            ]}
+            onPress={() => onChange({ startMethod: "DIRECT_SOW" })}
+          >
+            <Text
+              style={[
+                styles.statusChipText,
+                values.startMethod === "DIRECT_SOW" &&
+                  styles.statusChipTextActive,
+              ]}
+            >
+              Siew bezpośredni
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.statusChip,
+              values.startMethod === "TRANSPLANT" && styles.statusChipActive,
+            ]}
+            onPress={() => onChange({ startMethod: "TRANSPLANT" })}
+          >
+            <Text
+              style={[
+                styles.statusChipText,
+                values.startMethod === "TRANSPLANT" &&
+                  styles.statusChipTextActive,
+              ]}
+            >
+              Rozsada
+            </Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.label}>
+          Data siewu {values.startMethod === "DIRECT_SOW" ? "*" : ""}
+        </Text>
         <View style={styles.dateRow}>
           <View style={styles.dateField}>
             <PaperTextInput
               mode="outlined"
-              value={isoToDateOnly(values.plannedStartDate)}
+              value={isoToDateOnly(values.sowedAt)}
               placeholder="YYYY-MM-DD"
               editable={false}
               right={
                 <PaperTextInput.Icon
                   icon="calendar"
-                  onPress={() => setPlannedOpen(true)}
+                  onPress={() => setSowedOpen(true)}
                 />
               }
             />
@@ -117,50 +168,110 @@ function PlantingFormComponent({
         <DatePickerModal
           locale="pl"
           mode="single"
-          visible={plannedOpen}
-          date={plannedDate ?? new Date()}
-          onDismiss={() => setPlannedOpen(false)}
+          visible={sowedOpen}
+          date={sowedDate ?? new Date()}
+          onDismiss={() => setSowedOpen(false)}
           onConfirm={({ date }) => {
-            setPlannedOpen(false);
+            setSowedOpen(false);
             if (!date) return;
-            onChange({ plannedStartDate: date.toISOString() });
+            onChange({ sowedAt: date.toISOString() });
           }}
         />
 
-        {showActualStartDate ? (
-          <>
-            <Text style={styles.label}>Rzeczywista data startu</Text>
-            <View style={styles.dateRow}>
-              <View style={styles.dateField}>
-                <PaperTextInput
-                  mode="outlined"
-                  value={isoToDateOnly(values.actualStartDate)}
-                  placeholder="YYYY-MM-DD"
-                  editable={false}
-                  right={
-                    <PaperTextInput.Icon
-                      icon="calendar"
-                      onPress={() => setActualOpen(true)}
-                    />
-                  }
+        <Text style={styles.label}>
+          Data przesadzenia {values.startMethod === "TRANSPLANT" ? "*" : ""}
+        </Text>
+        <View style={styles.dateRow}>
+          <View style={styles.dateField}>
+            <PaperTextInput
+              mode="outlined"
+              value={isoToDateOnly(values.transplantedAt)}
+              placeholder="YYYY-MM-DD"
+              editable={false}
+              right={
+                <PaperTextInput.Icon
+                  icon="calendar"
+                  onPress={() => setTransplantedOpen(true)}
                 />
-              </View>
-            </View>
-
-            <DatePickerModal
-              locale="pl"
-              mode="single"
-              visible={actualOpen}
-              date={actualDate ?? new Date()}
-              onDismiss={() => setActualOpen(false)}
-              onConfirm={({ date }) => {
-                setActualOpen(false);
-                if (!date) return;
-                onChange({ actualStartDate: date.toISOString() });
-              }}
+              }
             />
-          </>
-        ) : null}
+          </View>
+        </View>
+
+        <DatePickerModal
+          locale="pl"
+          mode="single"
+          visible={transplantedOpen}
+          date={transplantedDate ?? new Date()}
+          onDismiss={() => setTransplantedOpen(false)}
+          onConfirm={({ date }) => {
+            setTransplantedOpen(false);
+            if (!date) return;
+            onChange({ transplantedAt: date.toISOString() });
+          }}
+        />
+
+        <Text style={styles.label}>Początek okna zbioru (zalecane)</Text>
+        <View style={styles.dateRow}>
+          <View style={styles.dateField}>
+            <PaperTextInput
+              mode="outlined"
+              value={isoToDateOnly(values.harvestWindowStart)}
+              placeholder="YYYY-MM-DD"
+              editable={false}
+              right={
+                <PaperTextInput.Icon
+                  icon="calendar"
+                  onPress={() => setHarvestStartOpen(true)}
+                />
+              }
+            />
+          </View>
+        </View>
+
+        <DatePickerModal
+          locale="pl"
+          mode="single"
+          visible={harvestStartOpen}
+          date={harvestWindowStartDate ?? new Date()}
+          onDismiss={() => setHarvestStartOpen(false)}
+          onConfirm={({ date }) => {
+            setHarvestStartOpen(false);
+            if (!date) return;
+            onChange({ harvestWindowStart: date.toISOString() });
+          }}
+        />
+
+        <Text style={styles.label}>Koniec okna zbioru (zalecane)</Text>
+        <View style={styles.dateRow}>
+          <View style={styles.dateField}>
+            <PaperTextInput
+              mode="outlined"
+              value={isoToDateOnly(values.harvestWindowEnd)}
+              placeholder="YYYY-MM-DD"
+              editable={false}
+              right={
+                <PaperTextInput.Icon
+                  icon="calendar"
+                  onPress={() => setHarvestEndOpen(true)}
+                />
+              }
+            />
+          </View>
+        </View>
+
+        <DatePickerModal
+          locale="pl"
+          mode="single"
+          visible={harvestEndOpen}
+          date={harvestWindowEndDate ?? new Date()}
+          onDismiss={() => setHarvestEndOpen(false)}
+          onConfirm={({ date }) => {
+            setHarvestEndOpen(false);
+            if (!date) return;
+            onChange({ harvestWindowEnd: date.toISOString() });
+          }}
+        />
       </View>
 
       <View style={styles.section}>

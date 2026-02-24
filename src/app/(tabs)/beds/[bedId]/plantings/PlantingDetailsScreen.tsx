@@ -1,4 +1,7 @@
 import { getResponseError } from "@/src/api/axios";
+import { ActionTask } from "@/src/api/queries/actionTasks/types";
+import { useGetPlantingActionTasks } from "@/src/api/queries/actionTasks/useGetPlantingActionTasks";
+import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
 import {
   DiseaseOccurrence,
   DiseaseOccurrenceStatus,
@@ -55,6 +58,13 @@ const formatDate = (value?: string | null) => {
   return value.split("T")[0];
 };
 
+const sortTasksByDueAt = (tasks: ActionTask[]) =>
+  [...tasks].sort((a, b) => {
+    const aDue = a.dueAt ?? "9999-12-31";
+    const bDue = b.dueAt ?? "9999-12-31";
+    return aDue.localeCompare(bDue);
+  });
+
 const isoToDateOnly = (iso?: string | null) => {
   if (!iso) return "";
   const d = new Date(iso);
@@ -80,20 +90,31 @@ const getStatusLabel = (
 export default function PlantingDetailsScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
-  const { bedId, plantingId } = useLocalSearchParams<{
+  const { bedId, plantingId, actionTaskId } = useLocalSearchParams<{
     bedId?: string | string[];
     plantingId?: string | string[];
+    actionTaskId?: string | string[];
   }>();
   const resolvedBedId = Array.isArray(bedId) ? bedId[0] : bedId;
   const resolvedPlantingId = Array.isArray(plantingId)
     ? plantingId[0]
     : plantingId;
+  const highlightedActionTaskId = Array.isArray(actionTaskId)
+    ? actionTaskId[0]
+    : actionTaskId;
   const router = useRouter();
 
   const { data, isLoading, error, refetch } = useGetPlanting(
     resolvedPlantingId ?? null,
   );
   const deletePlanting = useDeletePlanting(resolvedBedId);
+  const {
+    data: plantingTasksResponse,
+    refetch: refetchPlantingTasks,
+    isLoading: isPlantingTasksLoading,
+    error: plantingTasksError,
+  } = useGetPlantingActionTasks(resolvedPlantingId ?? null, "planned");
+  const updateActionTask = useUpdateActionTask();
 
   const [problemsTab, setProblemsTab] = useState<"diseases" | "pests">(
     "diseases",
@@ -103,6 +124,7 @@ export default function PlantingDetailsScreen() {
   );
   const [actionsVisible, setActionsVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
 
   const diseaseOccurrencesQuery = useGetPlantingDiseaseOccurrences(
     resolvedPlantingId ?? null,
@@ -180,6 +202,10 @@ export default function PlantingDetailsScreen() {
   const diseaseOccurrences = (diseaseOccurrencesQuery.data ??
     []) as DiseaseOccurrence[];
   const pestOccurrences = (pestOccurrencesQuery.data ?? []) as PestOccurrence[];
+  const plantingTasks = useMemo(
+    () => sortTasksByDueAt(plantingTasksResponse?.items ?? []),
+    [plantingTasksResponse?.items],
+  );
 
   const vegetableName = isVegetableLoading
     ? "Ładowanie..."
@@ -206,6 +232,32 @@ export default function PlantingDetailsScreen() {
         },
       },
     ]);
+  };
+
+  const handleMarkTaskDone = async (taskId: string) => {
+    try {
+      await updateActionTask.mutateAsync({
+        id: taskId,
+        payload: { status: "done" },
+      });
+      setSnackbarMessage("Zadanie oznaczone jako wykonane.");
+      await refetchPlantingTasks();
+    } catch (err) {
+      Alert.alert("Błąd", String(getResponseError(err)));
+    }
+  };
+
+  const handleRescheduleTask = async (taskId: string, dueAt: string) => {
+    try {
+      await updateActionTask.mutateAsync({
+        id: taskId,
+        payload: { dueAt },
+      });
+      setSnackbarMessage("Termin zadania został zmieniony.");
+      await refetchPlantingTasks();
+    } catch (err) {
+      Alert.alert("Błąd", String(getResponseError(err)));
+    }
   };
 
   const resetDiseaseModal = () => {
@@ -397,11 +449,85 @@ export default function PlantingDetailsScreen() {
         <Surface style={styles.section} elevation={0}>
           <Text style={styles.sectionTitle}>Daty</Text>
           <Text style={styles.valueText}>
-            Planowana: {formatDate(planting.plannedStartDate)}
+            Metoda startu: {planting.startMethod ?? "Brak"}
           </Text>
           <Text style={styles.valueText}>
-            Rzeczywista: {formatDate(planting.actualStartDate)}
+            Data siewu: {formatDate(planting.sowedAt)}
           </Text>
+          <Text style={styles.valueText}>
+            Data przesadzenia: {formatDate(planting.transplantedAt)}
+          </Text>
+          <Text style={styles.valueText}>
+            Okno zbioru: {formatDate(planting.harvestWindowStart)} -{" "}
+            {formatDate(planting.harvestWindowEnd)}
+          </Text>
+        </Surface>
+
+        <Surface style={styles.section} elevation={0}>
+          <Text style={styles.sectionTitle}>Tasks to do</Text>
+          {isPlantingTasksLoading ? <ActivityIndicator /> : null}
+
+          {plantingTasksError ? (
+            <View>
+              <Text style={styles.errorText}>
+                {String(getResponseError(plantingTasksError))}
+              </Text>
+              <Button mode="outlined" onPress={() => refetchPlantingTasks()}>
+                Spróbuj ponownie
+              </Button>
+            </View>
+          ) : null}
+
+          {!isPlantingTasksLoading &&
+          !plantingTasksError &&
+          plantingTasks.length === 0 ? (
+            <Text style={styles.emptyText}>Brak zadań do wykonania.</Text>
+          ) : null}
+
+          {plantingTasks.map((task) => {
+            const isHighlighted = highlightedActionTaskId === task.id;
+
+            return (
+              <View
+                key={task.id}
+                style={[
+                  styles.taskRow,
+                  isHighlighted ? styles.taskRowHighlighted : null,
+                ]}
+              >
+                <View style={styles.taskMain}>
+                  <Text style={styles.taskTitle}>{task.title}</Text>
+                  {task.description ? (
+                    <Text style={styles.taskDescription}>
+                      {task.description}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.taskMeta}>
+                    Termin: {formatDate(task.dueAt)}
+                  </Text>
+                </View>
+
+                <View style={styles.taskActions}>
+                  <Button
+                    mode="outlined"
+                    compact
+                    onPress={() => setRescheduleTaskId(task.id)}
+                    disabled={updateActionTask.isPending}
+                  >
+                    Przełóż
+                  </Button>
+                  <Button
+                    mode="contained"
+                    compact
+                    onPress={() => handleMarkTaskDone(task.id)}
+                    disabled={updateActionTask.isPending}
+                  >
+                    Done
+                  </Button>
+                </View>
+              </View>
+            );
+          })}
         </Surface>
 
         <Surface style={styles.section} elevation={0}>
@@ -988,6 +1114,23 @@ export default function PlantingDetailsScreen() {
         }}
       />
 
+      <DatePickerModal
+        locale="pl"
+        mode="single"
+        visible={!!rescheduleTaskId}
+        date={new Date()}
+        onDismiss={() => setRescheduleTaskId(null)}
+        onConfirm={({ date }) => {
+          if (!rescheduleTaskId || !date) {
+            setRescheduleTaskId(null);
+            return;
+          }
+
+          handleRescheduleTask(rescheduleTaskId, date.toISOString());
+          setRescheduleTaskId(null);
+        }}
+      />
+
       <Snackbar
         visible={!!snackbarMessage}
         onDismiss={() => setSnackbarMessage(null)}
@@ -1183,5 +1326,37 @@ const makeStyles = (theme: MD3Theme) =>
     searchTitle: {
       fontSize: 13,
       color: theme.colors.onSurface,
+    },
+    taskRow: {
+      borderTopWidth: 1,
+      borderColor: theme.colors.outline,
+      paddingVertical: 10,
+      gap: 8,
+    },
+    taskRowHighlighted: {
+      backgroundColor: theme.colors.surfaceVariant,
+      borderRadius: 8,
+      paddingHorizontal: 8,
+    },
+    taskMain: {
+      gap: 4,
+    },
+    taskTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.colors.onSurface,
+    },
+    taskDescription: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+    },
+    taskMeta: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+    },
+    taskActions: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: 8,
     },
   });

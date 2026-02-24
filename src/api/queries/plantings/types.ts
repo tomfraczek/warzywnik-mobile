@@ -5,6 +5,8 @@ export type PlantingStatus =
   | "FINISHED"
   | "CANCELLED";
 
+export type PlantingStartMethod = "DIRECT_SOW" | "TRANSPLANT";
+
 export type WarningSeverity = "INFO" | "WARNING" | "CRITICAL";
 
 export type Warning = {
@@ -30,6 +32,11 @@ export type Planting = {
   name?: string | null;
   vegetableName?: string | null;
   status: PlantingStatus;
+  startMethod?: PlantingStartMethod;
+  sowedAt?: string | null;
+  transplantedAt?: string | null;
+  harvestWindowStart?: string | null;
+  harvestWindowEnd?: string | null;
   plannedStartDate: string;
   actualStartDate?: string | null;
   harvestStartDate?: string | null;
@@ -43,6 +50,11 @@ export type Planting = {
 export type CreatePlantingDto = {
   bedId: string;
   vegetableId: string;
+  startMethod: PlantingStartMethod;
+  sowedAt?: string | null;
+  transplantedAt?: string | null;
+  harvestWindowStart?: string | null;
+  harvestWindowEnd?: string | null;
   plannedStartDate: string;
   actualStartDate?: string | null;
   status?: PlantingStatus;

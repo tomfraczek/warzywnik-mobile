@@ -7,11 +7,13 @@ import {
   MD3Theme,
   Modal,
   Portal,
+  TextInput,
   useTheme,
 } from "react-native-paper";
+import { DatePickerModal } from "react-native-paper-dates";
 
 type TaskSelection = {
-  templateId: string;
+  actionTemplateId: string;
   dueAt?: string;
 };
 
@@ -24,7 +26,31 @@ type PostHarvestActionsModalProps = {
 };
 
 const resolveTemplateId = (action: ActionTemplate) =>
-  action.templateId ?? action.id ?? null;
+  action.actionTemplateId ?? action.templateId ?? action.id ?? null;
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+const toDateOnly = (value?: string | null) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+};
+
+const toDate = (value?: string | null) => {
+  if (!value) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+};
+
+const getDefaultDueDateIso = (offsetDays?: number | null) => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  if (typeof offsetDays === "number" && Number.isFinite(offsetDays)) {
+    date.setDate(date.getDate() + offsetDays);
+  }
+  return date.toISOString();
+};
 
 function PostHarvestActionsModalComponent({
   visible,
@@ -36,6 +62,10 @@ function PostHarvestActionsModalComponent({
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
+  const [dueAtByTemplateId, setDueAtByTemplateId] = useState<
+    Record<string, string>
+  >({});
+  const [pickerTemplateId, setPickerTemplateId] = useState<string | null>(null);
 
   const selectableActions = useMemo(
     () =>
@@ -63,6 +93,23 @@ function PostHarvestActionsModalComponent({
     );
 
     setSelectedIds(initialSelection);
+
+    // Initialize default due dates using offset from proposal.
+    const initialDueAt = selectableActions.reduce<Record<string, string>>(
+      (acc, action) => {
+        if (!action.resolvedTemplateId) {
+          return acc;
+        }
+
+        acc[action.resolvedTemplateId] = getDefaultDueDateIso(
+          action.defaultDueOffsetDays,
+        );
+        return acc;
+      },
+      {},
+    );
+
+    setDueAtByTemplateId(initialDueAt);
   }, [visible, selectableActions]);
 
   const selectedCount = useMemo(
@@ -125,7 +172,25 @@ function PostHarvestActionsModalComponent({
                         {action.description}
                       </Text>
                     ) : null}
-                    <Text style={styles.actionDueAt}>Termin: Dziś</Text>
+
+                    <Pressable
+                      onPress={() =>
+                        checked &&
+                        setPickerTemplateId(action.resolvedTemplateId)
+                      }
+                    >
+                      <TextInput
+                        mode="outlined"
+                        label="Termin"
+                        value={toDateOnly(
+                          dueAtByTemplateId[action.resolvedTemplateId],
+                        )}
+                        editable={false}
+                        disabled={!checked}
+                        right={<TextInput.Icon icon="calendar" />}
+                        style={styles.dueAtInput}
+                      />
+                    </Pressable>
                   </View>
                 </Pressable>
               );
@@ -152,7 +217,8 @@ function PostHarvestActionsModalComponent({
                     selectedIds[action.resolvedTemplateId],
                 )
                 .map((action) => ({
-                  templateId: action.resolvedTemplateId as string,
+                  actionTemplateId: action.resolvedTemplateId as string,
+                  dueAt: dueAtByTemplateId[action.resolvedTemplateId as string],
                 }));
 
               onSubmit(selection);
@@ -165,6 +231,30 @@ function PostHarvestActionsModalComponent({
           </Button>
         </View>
       </Modal>
+
+      <DatePickerModal
+        locale="pl"
+        mode="single"
+        visible={!!pickerTemplateId}
+        date={
+          pickerTemplateId
+            ? (toDate(dueAtByTemplateId[pickerTemplateId]) ?? new Date())
+            : new Date()
+        }
+        onDismiss={() => setPickerTemplateId(null)}
+        onConfirm={({ date }) => {
+          if (!pickerTemplateId || !date) {
+            setPickerTemplateId(null);
+            return;
+          }
+
+          setDueAtByTemplateId((prev) => ({
+            ...prev,
+            [pickerTemplateId]: date.toISOString(),
+          }));
+          setPickerTemplateId(null);
+        }}
+      />
     </Portal>
   );
 }
@@ -220,11 +310,9 @@ const makeStyles = (theme: MD3Theme) =>
       fontSize: 12,
       color: theme.colors.onSurfaceVariant,
     },
-    actionDueAt: {
-      marginTop: 6,
-      fontSize: 12,
-      color: theme.colors.primary,
-      fontWeight: "600",
+    dueAtInput: {
+      marginTop: 8,
+      backgroundColor: theme.colors.surface,
     },
     emptyText: {
       fontSize: 14,

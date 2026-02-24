@@ -14,14 +14,14 @@ const postHarvestConfirmation = async (
   payload: HarvestConfirmationPayload,
 ): Promise<HarvestConfirmationResponse> => {
   const { data } = await restClient.post(
-    `/v1/plantings/${plantingId}/harvest-confirmation`,
+    `/plantings/${plantingId}/harvest-confirmation`,
     payload,
   );
 
   return {
     bedId: data?.bedId,
     plantingId: data?.plantingId,
-    postHarvestActions: data?.postHarvestActions ?? [],
+    proposals: data?.proposals ?? data?.postHarvestActions ?? [],
   };
 };
 

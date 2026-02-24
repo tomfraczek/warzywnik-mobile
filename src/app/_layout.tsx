@@ -178,13 +178,54 @@ function RootLayoutContent() {
   const handleNotificationNavigation = useCallback(
     (data?: Record<string, unknown> | null, id?: string) => {
       if (id && lastHandledNotificationId.current === id) return;
-      const raw = data?.plantingId;
+
+      const kindRaw = data?.kind;
+      const kind = typeof kindRaw === "string" ? kindRaw : null;
+
+      const plantingRaw = data?.plantingId;
       const plantingId =
-        typeof raw === "string"
-          ? raw
-          : typeof raw === "number"
-            ? String(raw)
+        typeof plantingRaw === "string"
+          ? plantingRaw
+          : typeof plantingRaw === "number"
+            ? String(plantingRaw)
             : null;
+
+      const bedRaw = data?.bedId;
+      const bedId =
+        typeof bedRaw === "string"
+          ? bedRaw
+          : typeof bedRaw === "number"
+            ? String(bedRaw)
+            : null;
+
+      const actionTaskRaw = data?.actionTaskId;
+      const actionTaskId =
+        typeof actionTaskRaw === "string"
+          ? actionTaskRaw
+          : typeof actionTaskRaw === "number"
+            ? String(actionTaskRaw)
+            : null;
+
+      if (kind === "action") {
+        if (plantingId) {
+          const suffix = actionTaskId ? `?actionTaskId=${actionTaskId}` : "";
+          router.push(`/plantings/${plantingId}${suffix}`);
+          if (id) {
+            lastHandledNotificationId.current = id;
+          }
+          return;
+        }
+
+        if (bedId) {
+          const suffix = actionTaskId ? `?actionTaskId=${actionTaskId}` : "";
+          router.push(`/(tabs)/beds/${bedId}${suffix}`);
+          if (id) {
+            lastHandledNotificationId.current = id;
+          }
+          return;
+        }
+      }
+
       if (!plantingId) return;
       if (id) {
         lastHandledNotificationId.current = id;

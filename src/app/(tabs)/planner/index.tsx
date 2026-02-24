@@ -392,6 +392,13 @@ export default function PlannerScreen() {
     <Screen safeAreaEdges={["top", "left", "right"]}>
       <View style={styles.container}>
         <View style={styles.filtersSection}>
+          <Pressable
+            style={styles.calendarLinkButton}
+            onPress={() => router.push("/(tabs)/planner/calendar")}
+          >
+            <Text style={styles.calendarLinkText}>Otwórz kalendarz zadań</Text>
+          </Pressable>
+
           <View style={styles.segmentedRow}>
             {viewModeOptions.map((mode) => {
               const isActive = viewMode === mode;
@@ -748,6 +755,20 @@ const makeStyles = (theme: MD3Theme) =>
     clearFiltersText: {
       fontSize: 12,
       color: theme.colors.onSurface,
+      fontWeight: "600",
+    },
+    calendarLinkButton: {
+      alignSelf: "flex-start",
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      marginBottom: 10,
+    },
+    calendarLinkText: {
+      color: theme.colors.primary,
+      fontSize: 12,
       fontWeight: "600",
     },
   });

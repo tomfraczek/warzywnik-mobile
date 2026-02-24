@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BedHarvestPromptsResponse, HarvestPromptItem } from "./harvestTypes";
 
 const getBedHarvestPrompts = async (bedId: string) => {
-  const { data } = await restClient.get(`/v1/beds/${bedId}/harvest-prompts`);
+  const { data } = await restClient.get(`/beds/${bedId}/harvest-prompts`);
   const items = Array.isArray(data)
     ? data
     : ((data?.items ?? data?.data ?? []) as HarvestPromptItem[]);

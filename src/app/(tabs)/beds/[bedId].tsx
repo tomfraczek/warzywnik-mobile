@@ -1,4 +1,7 @@
 import { getResponseError } from "@/src/api/axios";
+import { ActionTask } from "@/src/api/queries/actionTasks/types";
+import { useGetBedActionTasks } from "@/src/api/queries/actionTasks/useGetBedActionTasks";
+import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
 import {
   ActionTemplate,
   CreateBedActionTaskItemDto,
@@ -35,14 +38,26 @@ import {
   Snackbar,
   useTheme,
 } from "react-native-paper";
+import { DatePickerModal } from "react-native-paper-dates";
 
 const getSoilLabel = (bed: Bed) =>
-  bed.soil?.name ?? (bed as any)?.soilName ?? "Brak wybranej gleby";
+  bed.soil?.name ??
+  ("soilName" in bed && typeof bed.soilName === "string"
+    ? bed.soilName
+    : null) ??
+  "Brak wybranej gleby";
 
 const formatDate = (value?: string | null) => {
   if (!value) return "Brak";
   return value.split("T")[0];
 };
+
+const sortTasksByDueAt = (tasks: ActionTask[]) =>
+  [...tasks].sort((a, b) => {
+    const aDue = a.dueAt ?? "9999-12-31";
+    const bDue = b.dueAt ?? "9999-12-31";
+    return aDue.localeCompare(bDue);
+  });
 
 type PlantingRowProps = {
   planting: Planting;
@@ -81,8 +96,14 @@ const PlantingRow = memo(function PlantingRow({
 export default function BedDetailsScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
-  const { bedId } = useLocalSearchParams<{ bedId?: string | string[] }>();
+  const { bedId, actionTaskId } = useLocalSearchParams<{
+    bedId?: string | string[];
+    actionTaskId?: string | string[];
+  }>();
   const resolvedBedId = Array.isArray(bedId) ? bedId[0] : bedId;
+  const highlightedActionTaskId = Array.isArray(actionTaskId)
+    ? actionTaskId[0]
+    : actionTaskId;
   const router = useRouter();
   const { data, isLoading, error, refetch } = useGetBed(resolvedBedId ?? null);
   const deleteBed = useDeleteBed();
@@ -100,6 +121,13 @@ export default function BedDetailsScreen() {
     { bedId: resolvedBedId ?? undefined, limit: 10 },
     { enabled: Boolean(resolvedBedId) },
   );
+  const {
+    data: bedTasksResponse,
+    refetch: refetchBedTasks,
+    isLoading: isBedTasksLoading,
+    error: bedTasksError,
+  } = useGetBedActionTasks(resolvedBedId ?? null, "planned");
+  const updateActionTask = useUpdateActionTask();
 
   const bed = data as Bed | undefined;
   const plantings = useMemo(
@@ -111,6 +139,7 @@ export default function BedDetailsScreen() {
   const [promptQueue, setPromptQueue] = useState<HarvestPromptItem[]>([]);
   const [lastPromptSignature, setLastPromptSignature] = useState("");
   const [postHarvestModalVisible, setPostHarvestModalVisible] = useState(false);
+  const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
 
   const [postHarvestActions, setPostHarvestActions] = useState<
     ActionTemplate[]
@@ -119,6 +148,10 @@ export default function BedDetailsScreen() {
   const harvestPrompts = useMemo(
     () => harvestPromptsResponse?.items ?? [],
     [harvestPromptsResponse?.items],
+  );
+  const bedTasks = useMemo(
+    () => sortTasksByDueAt(bedTasksResponse?.items ?? []),
+    [bedTasksResponse?.items],
   );
   const harvestPromptSignature = useMemo(
     () =>
@@ -156,7 +189,7 @@ export default function BedDetailsScreen() {
     [plantings],
   );
 
-  const isReadyForHarvest = harvestPrompts.length > 0;
+  const hasAttentionItems = harvestPrompts.length > 0 || bedTasks.length > 0;
 
   const handleHarvestNo = async () => {
     if (!activeHarvestPrompt) return;
@@ -178,7 +211,7 @@ export default function BedDetailsScreen() {
         answer: "yes",
       });
       setPromptQueue((prev) => prev.slice(1));
-      setPostHarvestActions(response.postHarvestActions ?? []);
+      setPostHarvestActions(response.proposals ?? []);
       setPostHarvestModalVisible(true);
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
@@ -198,6 +231,33 @@ export default function BedDetailsScreen() {
       setPostHarvestActions([]);
       setSnackbarMessage("Dodano zadania po zbiorach");
       await refetchHarvestPrompts();
+      await refetchBedTasks();
+    } catch (err) {
+      Alert.alert("Błąd", String(getResponseError(err)));
+    }
+  };
+
+  const handleMarkTaskDone = async (taskId: string) => {
+    try {
+      await updateActionTask.mutateAsync({
+        id: taskId,
+        payload: { status: "done" },
+      });
+      setSnackbarMessage("Zadanie oznaczone jako wykonane.");
+      await refetchBedTasks();
+    } catch (err) {
+      Alert.alert("Błąd", String(getResponseError(err)));
+    }
+  };
+
+  const handleRescheduleTask = async (taskId: string, dueAt: string) => {
+    try {
+      await updateActionTask.mutateAsync({
+        id: taskId,
+        payload: { dueAt },
+      });
+      setSnackbarMessage("Termin zadania został zmieniony.");
+      await refetchBedTasks();
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
     }
@@ -258,7 +318,7 @@ export default function BedDetailsScreen() {
           <View style={styles.headerText}>
             <View style={styles.titleRow}>
               <Text style={styles.title}>{bed.name}</Text>
-              {isReadyForHarvest ? <View style={styles.harvestDot} /> : null}
+              {hasAttentionItems ? <View style={styles.harvestDot} /> : null}
             </View>
             {bed.locationLabel ? (
               <Text style={styles.subtitle}>{bed.locationLabel}</Text>
@@ -305,7 +365,7 @@ export default function BedDetailsScreen() {
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionTitle}>Uprawy</Text>
-            {isReadyForHarvest ? <View style={styles.harvestDotSmall} /> : null}
+            {hasAttentionItems ? <View style={styles.harvestDotSmall} /> : null}
           </View>
           <Pressable
             style={styles.linkButton}
@@ -364,7 +424,7 @@ export default function BedDetailsScreen() {
         ) : null}
       </View>
 
-      {isReadyForHarvest ? (
+      {harvestPrompts.length > 0 ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Gotowe do zbioru</Text>
           {harvestPrompts.map((prompt) => (
@@ -379,6 +439,68 @@ export default function BedDetailsScreen() {
           ))}
         </View>
       ) : null}
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Tasks to do</Text>
+        {isBedTasksLoading ? <ActivityIndicator /> : null}
+
+        {bedTasksError ? (
+          <View style={styles.inlineErrorBox}>
+            <Text style={styles.errorText}>
+              {String(getResponseError(bedTasksError))}
+            </Text>
+            <Button mode="outlined" onPress={() => refetchBedTasks()}>
+              Spróbuj ponownie
+            </Button>
+          </View>
+        ) : null}
+
+        {!isBedTasksLoading && !bedTasksError && bedTasks.length === 0 ? (
+          <Text style={styles.valueText}>Brak zadań do wykonania.</Text>
+        ) : null}
+
+        {bedTasks.map((task) => {
+          const isHighlighted = highlightedActionTaskId === task.id;
+          return (
+            <View
+              key={task.id}
+              style={[
+                styles.taskRow,
+                isHighlighted ? styles.taskRowHighlighted : null,
+              ]}
+            >
+              <View style={styles.taskMain}>
+                <Text style={styles.taskTitle}>{task.title}</Text>
+                {task.description ? (
+                  <Text style={styles.taskDescription}>{task.description}</Text>
+                ) : null}
+                <Text style={styles.taskMeta}>
+                  Termin: {formatDate(task.dueAt)}
+                </Text>
+              </View>
+
+              <View style={styles.taskActions}>
+                <Button
+                  mode="outlined"
+                  compact
+                  onPress={() => setRescheduleTaskId(task.id)}
+                  disabled={updateActionTask.isPending}
+                >
+                  Przełóż
+                </Button>
+                <Button
+                  mode="contained"
+                  compact
+                  onPress={() => handleMarkTaskDone(task.id)}
+                  disabled={updateActionTask.isPending}
+                >
+                  Done
+                </Button>
+              </View>
+            </View>
+          );
+        })}
+      </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Historia</Text>
@@ -458,6 +580,23 @@ export default function BedDetailsScreen() {
       >
         {snackbarMessage}
       </Snackbar>
+
+      <DatePickerModal
+        locale="pl"
+        mode="single"
+        visible={!!rescheduleTaskId}
+        date={new Date()}
+        onDismiss={() => setRescheduleTaskId(null)}
+        onConfirm={({ date }) => {
+          if (!rescheduleTaskId || !date) {
+            setRescheduleTaskId(null);
+            return;
+          }
+
+          handleRescheduleTask(rescheduleTaskId, date.toISOString());
+          setRescheduleTaskId(null);
+        }}
+      />
     </ScrollView>
   );
 }
@@ -643,5 +782,37 @@ const makeStyles = (theme: MD3Theme) =>
     },
     modalActionsColumn: {
       gap: 10,
+    },
+    taskRow: {
+      borderTopWidth: 1,
+      borderColor: theme.colors.outline,
+      paddingVertical: 10,
+      gap: 8,
+    },
+    taskRowHighlighted: {
+      backgroundColor: theme.colors.surfaceVariant,
+      borderRadius: 8,
+      paddingHorizontal: 8,
+    },
+    taskMain: {
+      gap: 4,
+    },
+    taskTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.colors.onSurface,
+    },
+    taskDescription: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+    },
+    taskMeta: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+    },
+    taskActions: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: 8,
     },
   });
