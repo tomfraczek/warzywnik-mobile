@@ -1,4 +1,10 @@
+import { AuthFlowLoader } from "@/src/components/AuthFlowLoader";
 import { Screen } from "@/src/components/Screen";
+import {
+  beginSsoAuth,
+  endSsoAuth,
+  isSsoAuthInProgress,
+} from "@/src/features/push/authFlowState";
 import { useSignUp, useSSO } from "@clerk/clerk-expo";
 import * as AuthSession from "expo-auth-session";
 import { Link, useRouter } from "expo-router";
@@ -21,6 +27,9 @@ export default function SignUpScreen() {
   const [password, setPassword] = React.useState("");
   const [pendingVerification, setPendingVerification] = React.useState(false);
   const [code, setCode] = React.useState("");
+  const [isGoogleAuthLoading, setIsGoogleAuthLoading] = React.useState(
+    isSsoAuthInProgress(),
+  );
 
   const onSignUpPress = async () => {
     if (!isLoaded) return;
@@ -38,6 +47,8 @@ export default function SignUpScreen() {
     if (!isLoaded) return;
 
     try {
+      beginSsoAuth();
+      setIsGoogleAuthLoading(true);
       const {
         createdSessionId,
         setActive: setActiveFromSSO,
@@ -50,8 +61,11 @@ export default function SignUpScreen() {
 
       if (createdSessionId) {
         await (setActiveFromSSO ?? setActive)!({ session: createdSessionId });
+        endSsoAuth();
         router.replace("/(tabs)/home");
       } else {
+        endSsoAuth();
+        setIsGoogleAuthLoading(false);
         const signInStatus = ssoSignIn?.status;
         const signUpStatus = ssoSignUp?.status;
         if (
@@ -62,10 +76,24 @@ export default function SignUpScreen() {
             "Dokończ logowanie",
             "To konto wymaga dodatkowych informacji. Spróbuj ponownie.",
           );
+          router.replace("/(auth)");
           return;
         }
+
+        Alert.alert(
+          "Nie udało się zalogować",
+          "Wystąpił problem podczas logowania przez Google. Spróbuj ponownie.",
+        );
+        router.replace("/(auth)");
       }
     } catch (err) {
+      endSsoAuth();
+      setIsGoogleAuthLoading(false);
+      Alert.alert(
+        "Błąd logowania",
+        "Logowanie przez Google nie powiodło się. Spróbuj ponownie.",
+      );
+      router.replace("/(auth)");
       console.error(JSON.stringify(err, null, 2));
     }
   };
@@ -88,6 +116,19 @@ export default function SignUpScreen() {
       console.error(JSON.stringify(err, null, 2));
     }
   };
+
+  if (isGoogleAuthLoading) {
+    return (
+      <AuthFlowLoader
+        title="Logowanie przez Google"
+        subtitle="Ładujemy Twoje dane i zaraz przeniesiemy Cię do aplikacji."
+      />
+    );
+  }
+
+  const googleIcon = ({ color, size }: { color: string; size: number }) => (
+    <Text style={[styles.googleIcon, { color, fontSize: size }]}>G</Text>
+  );
 
   if (pendingVerification) {
     return (
@@ -113,7 +154,7 @@ export default function SignUpScreen() {
       <View style={styles.container}>
         <Text style={styles.title}>Sign up</Text>
 
-        <Button mode="outlined" onPress={onGoogleSignUpPress}>
+        <Button mode="outlined" onPress={onGoogleSignUpPress} icon={googleIcon}>
           Continue with Google
         </Button>
 
@@ -183,5 +224,9 @@ const makeStyles = (theme: MD3Theme) =>
       textAlign: "center",
       marginVertical: 4,
       color: theme.colors.onSurfaceVariant,
+    },
+    googleIcon: {
+      fontWeight: "700",
+      marginRight: 2,
     },
   });

@@ -1,6 +1,8 @@
 // app/_layout.tsx (albo odpowiedni RootLayout w Twoim projekcie)
 
 import { setAuthErrorHandler, setAuthTokenProvider } from "@/src/api/axios";
+import { AuthFlowLoader } from "@/src/components/AuthFlowLoader";
+import { isSsoAuthInProgress } from "@/src/features/push/authFlowState";
 import { ClerkProvider, useAuth, useClerk } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
@@ -136,8 +138,12 @@ function AuthBootstrapGate() {
     if (!isLoaded) return;
 
     const inAuthGroup = segments[0] === "(auth)";
+    const ssoInProgress = isSsoAuthInProgress();
 
     if (!isSignedIn) {
+      if (ssoInProgress) {
+        return;
+      }
       if (!inAuthGroup && pathname !== "/(auth)") {
         router.replace("/(auth)");
       }
@@ -149,7 +155,14 @@ function AuthBootstrapGate() {
     }
   }, [isLoaded, isSignedIn, segments, router, pathname]);
 
-  if (!ready) return null;
+  if (!ready || (!isSignedIn && isSsoAuthInProgress())) {
+    return (
+      <AuthFlowLoader
+        title="Logowanie"
+        subtitle="Trwa konfiguracja sesji, zaraz przejdziemy dalej."
+      />
+    );
+  }
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }
