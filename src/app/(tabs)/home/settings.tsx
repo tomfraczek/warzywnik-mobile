@@ -1,5 +1,10 @@
+import { getResponseError } from "@/src/api/axios";
 import { useDisableDevice } from "@/src/api/queries/devices/useDisableDevice";
 import { useRegisterDevice } from "@/src/api/queries/devices/useRegisterDevice";
+import { GeoSearchItem } from "@/src/api/queries/geo/types";
+import { useGeoReverse } from "@/src/api/queries/geo/useGeoReverse";
+import { useGeoSearch } from "@/src/api/queries/geo/useGeoSearch";
+import { useUpdateUserLocation } from "@/src/api/queries/geo/useUpdateUserLocation";
 import { clientPersister, queryClient } from "@/src/api/queryClient";
 import { Screen } from "@/src/components/Screen";
 import { getAvatarSource } from "@/src/constants/avatars";
@@ -16,7 +21,7 @@ import { getExpoToken, requestPermission } from "@/src/features/push/push";
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Linking,
@@ -42,11 +47,10 @@ import {
   useTheme,
 } from "react-native-paper";
 
-type NominatimResult = {
-  place_id: number;
-  display_name: string;
-  lat: string;
-  lon: string;
+type PendingDeviceLocation = {
+  lat: number;
+  lon: number;
+  accuracyM?: number;
 };
 
 export default function HomeSettingsScreen() {
@@ -69,19 +73,25 @@ export default function HomeSettingsScreen() {
   } = useSettings();
   const { user, isLoaded } = useUser();
   const [locationQuery, setLocationQuery] = useState(location?.label ?? "");
-  const [locationResults, setLocationResults] = useState<NominatimResult[]>([]);
+  const [debouncedLocationQuery, setDebouncedLocationQuery] = useState(
+    location?.label ?? "",
+  );
+  const [pendingDeviceLocation, setPendingDeviceLocation] =
+    useState<PendingDeviceLocation | null>(null);
   const [languageMenuVisible, setLanguageMenuVisible] = useState(false);
   const [selectedLocationLabel, setSelectedLocationLabel] = useState<
     string | null
   >(location?.label ?? null);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
+  const [locationPermissionDenied, setLocationPermissionDenied] =
+    useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [isPushSaving, setIsPushSaving] = useState(false);
   const [pushPermissionDenied, setPushPermissionDenied] = useState(false);
   const registerDevice = useRegisterDevice();
   const disableDevice = useDisableDevice();
+  const updateLocationPreference = useUpdateUserLocation();
   const emailLabel =
     user?.primaryEmailAddress?.emailAddress ??
     user?.emailAddresses?.[0]?.emailAddress ??
@@ -91,128 +101,194 @@ export default function HomeSettingsScreen() {
     pl: "Polski",
     en: "Angielski",
   };
+  const geoLanguage =
+    languagePreference === "system" ? undefined : languagePreference;
+  const trimmedDebouncedLocationQuery = debouncedLocationQuery.trim();
+  const shouldSearchManualLocation =
+    trimmedDebouncedLocationQuery.length >= 3 &&
+    (!selectedLocationLabel ||
+      trimmedDebouncedLocationQuery !== selectedLocationLabel);
 
-  const nominatumHeaders = useMemo(() => {
-    const headers: Record<string, string> = {
-      "User-Agent": "warzywnik-mobile",
-    };
-    if (languagePreference !== "system") {
-      headers["Accept-Language"] = languagePreference;
-    }
-    return headers;
-  }, [languagePreference]);
-
-  useEffect(() => {
-    if (location?.label) {
-      setLocationQuery(location.label);
-      setSelectedLocationLabel(location.label);
-    }
-  }, [location?.label]);
-
-  const fetchSearchResults = useCallback(
-    async (query: string) => {
-      setIsSearching(true);
-      setLocationError(null);
-
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&q=${encodeURIComponent(
-            query,
-          )}`,
-          { headers: nominatumHeaders },
-        );
-        if (!response.ok) {
-          throw new Error("Search request failed");
-        }
-        const data = (await response.json()) as NominatimResult[];
-        setLocationResults(data);
-      } catch (error) {
-        console.error("Location search failed", error);
-        setLocationResults([]);
-        setLocationError("Nie udało się wyszukać lokalizacji.");
-      } finally {
-        setIsSearching(false);
-      }
+  const geoSearchQuery = useGeoSearch(
+    trimmedDebouncedLocationQuery,
+    geoLanguage,
+    {
+      enabled: shouldSearchManualLocation,
     },
-    [nominatumHeaders],
+  );
+  const geoReverseQuery = useGeoReverse(
+    pendingDeviceLocation?.lat ?? null,
+    pendingDeviceLocation?.lon ?? null,
+    geoLanguage,
+    { enabled: pendingDeviceLocation !== null },
   );
 
+  const locationResults = shouldSearchManualLocation
+    ? (geoSearchQuery.data ?? [])
+    : [];
+  const isSearching = shouldSearchManualLocation && geoSearchQuery.isFetching;
+  const isSavingLocation = updateLocationPreference.isPending;
+
   useEffect(() => {
-    const trimmed = locationQuery.trim();
-    if (trimmed.length < 3) {
-      setLocationResults([]);
-      return;
-    }
+    if (!location?.label) return;
+    setLocationQuery(location.label);
+    setDebouncedLocationQuery(location.label);
+    setSelectedLocationLabel(location.label);
+  }, [location?.label, location?.mode]);
 
-    if (selectedLocationLabel && trimmed === selectedLocationLabel) {
-      setLocationResults([]);
-      return;
-    }
-
+  useEffect(() => {
     const timeout = setTimeout(() => {
-      fetchSearchResults(trimmed);
+      setDebouncedLocationQuery(locationQuery);
     }, 400);
 
     return () => clearTimeout(timeout);
-  }, [fetchSearchResults, locationQuery, selectedLocationLabel]);
+  }, [locationQuery]);
+
+  useEffect(() => {
+    if (!geoSearchQuery.isError) return;
+    console.error("Location search failed", geoSearchQuery.error);
+    setLocationError("Nie udało się wyszukać lokalizacji.");
+  }, [geoSearchQuery.error, geoSearchQuery.isError]);
 
   const handleSelectLocation = useCallback(
-    (result: NominatimResult) => {
-      const location: StoredLocation = {
-        label: result.display_name,
-        lat: Number(result.lat),
-        lon: Number(result.lon),
-      };
-      setLocationQuery(result.display_name);
-      setSelectedLocationLabel(result.display_name);
-      setLocationResults([]);
+    async (result: GeoSearchItem) => {
       setLocationError(null);
-      setLocationPreference(location);
+      setLocationPermissionDenied(false);
+      try {
+        await updateLocationPreference.mutateAsync({
+          mode: "MANUAL",
+          label: result.label,
+          lat: result.lat,
+          lon: result.lon,
+          providerPlaceId: result.placeId,
+        });
+
+        const nextLocation: StoredLocation = {
+          label: result.label,
+          lat: result.lat,
+          lon: result.lon,
+          mode: "MANUAL",
+          updatedAt: Date.now(),
+          providerPlaceId: result.placeId,
+        };
+
+        setLocationQuery(result.label);
+        setDebouncedLocationQuery(result.label);
+        setSelectedLocationLabel(result.label);
+        setLocationPreference(nextLocation);
+      } catch (error) {
+        console.error("Saving manual location failed", error);
+        setLocationError(
+          `Nie udało się zapisać lokalizacji. ${getResponseError(error)}`,
+        );
+      }
     },
-    [setLocationPreference],
+    [setLocationPreference, updateLocationPreference],
   );
 
   const handleUseCurrentLocation = useCallback(async () => {
     setIsLocating(true);
     setLocationError(null);
+    setLocationPermissionDenied(false);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         setLocationError("Brak uprawnień do lokalizacji.");
+        setLocationPermissionDenied(true);
+        setIsLocating(false);
         return;
       }
 
-      const position = await Location.getCurrentPositionAsync({});
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
       const { latitude, longitude } = position.coords;
-
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
-        { headers: nominatumHeaders },
-      );
-
-      if (!response.ok) {
-        throw new Error("Reverse geocoding failed");
-      }
-
-      const data = (await response.json()) as { display_name?: string };
-      const label =
-        data.display_name ?? `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-      const location: StoredLocation = {
-        label,
+      setPendingDeviceLocation({
         lat: latitude,
         lon: longitude,
-      };
-      setLocationQuery(label);
-      setSelectedLocationLabel(label);
-      setLocationResults([]);
-      setLocationPreference(location);
+        accuracyM:
+          typeof position.coords.accuracy === "number"
+            ? position.coords.accuracy
+            : undefined,
+      });
     } catch (error) {
       console.error("Using current location failed", error);
       setLocationError("Nie udało się pobrać lokalizacji.");
-    } finally {
       setIsLocating(false);
     }
-  }, [nominatumHeaders, setLocationPreference]);
+  }, []);
+
+  useEffect(() => {
+    if (!pendingDeviceLocation) return;
+
+    if (geoReverseQuery.isError) {
+      console.error("Reverse geocoding failed", geoReverseQuery.error);
+      setLocationError("Nie udało się pobrać lokalizacji.");
+      setPendingDeviceLocation(null);
+      setIsLocating(false);
+      return;
+    }
+
+    if (!geoReverseQuery.data) return;
+
+    const request = pendingDeviceLocation;
+    const label =
+      geoReverseQuery.data.label ||
+      `${request.lat.toFixed(4)}, ${request.lon.toFixed(4)}`;
+    setPendingDeviceLocation(null);
+
+    let active = true;
+    void (async () => {
+      try {
+        await updateLocationPreference.mutateAsync({
+          mode: "DEVICE",
+          label,
+          lat: request.lat,
+          lon: request.lon,
+          accuracyM: request.accuracyM,
+        });
+
+        if (!active) return;
+
+        const nextLocation: StoredLocation = {
+          label,
+          lat: request.lat,
+          lon: request.lon,
+          mode: "DEVICE",
+          updatedAt: Date.now(),
+          accuracyM: request.accuracyM,
+        };
+
+        setLocationQuery(label);
+        setDebouncedLocationQuery(label);
+        setSelectedLocationLabel(label);
+        setLocationError(null);
+        setLocationPermissionDenied(false);
+        setLocationPreference(nextLocation);
+      } catch (error) {
+        console.error("Saving device location failed", error);
+        if (!active) return;
+        setLocationError(
+          `Nie udało się zapisać lokalizacji. ${getResponseError(error)}`,
+        );
+      } finally {
+        if (active) {
+          setIsLocating(false);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    geoReverseQuery.data,
+    geoReverseQuery.error,
+    geoReverseQuery.isError,
+    pendingDeviceLocation,
+    setLocationPreference,
+    updateLocationPreference,
+  ]);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -405,15 +481,26 @@ export default function HomeSettingsScreen() {
               onChangeText={(value) => {
                 setLocationQuery(value);
                 setSelectedLocationLabel(null);
+                setLocationError(null);
+                setLocationPermissionDenied(false);
               }}
               placeholder="Wpisz miasto, ulicę lub adres"
               style={styles.locationInput}
             />
+            {location?.mode === "DEVICE" ? (
+              <Text style={styles.emptyHint}>
+                Ustawiono na podstawie lokalizacji urządzenia
+              </Text>
+            ) : null}
+            {location?.mode === "MANUAL" ? (
+              <Text style={styles.emptyHint}>Ustawiono ręcznie</Text>
+            ) : null}
             <Button
               mode="outlined"
               icon="crosshairs-gps"
               onPress={handleUseCurrentLocation}
               loading={isLocating}
+              disabled={isLocating || isSavingLocation}
               style={styles.locationButton}
             >
               Użyj bieżącej lokalizacji
@@ -423,15 +510,26 @@ export default function HomeSettingsScreen() {
               <Text style={styles.errorText}>{locationError}</Text>
             ) : null}
 
+            {locationPermissionDenied ? (
+              <Button
+                mode="text"
+                onPress={handleOpenSettings}
+                style={styles.inlineAction}
+              >
+                Otwórz ustawienia
+              </Button>
+            ) : null}
+
             {locationResults.length > 0 ? (
               <Surface style={styles.results} elevation={0}>
                 {locationResults.map((result) => (
                   <Pressable
-                    key={result.place_id}
+                    key={result.placeId}
                     onPress={() => handleSelectLocation(result)}
                     style={styles.resultItem}
+                    disabled={isSavingLocation}
                   >
-                    <Text style={styles.resultText}>{result.display_name}</Text>
+                    <Text style={styles.resultText}>{result.label}</Text>
                   </Pressable>
                 ))}
               </Surface>

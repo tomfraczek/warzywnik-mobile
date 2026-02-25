@@ -15,6 +15,7 @@ export type LanguagePreference = "system" | "pl" | "en";
 export type TemperatureUnit = "celsius" | "fahrenheit";
 export type PrecipitationUnit = "mm" | "in";
 export type AreaUnit = "m2" | "ft2";
+export type LocationMode = "MANUAL" | "DEVICE";
 
 export type UnitsSettings = {
   temperature: TemperatureUnit;
@@ -26,6 +27,10 @@ export type StoredLocation = {
   label: string;
   lat: number;
   lon: number;
+  mode: LocationMode;
+  updatedAt: number;
+  accuracyM?: number;
+  providerPlaceId?: string;
 };
 
 export type ProfileSettings = {
@@ -97,13 +102,24 @@ const isPrecipitationUnit = (value: unknown): value is PrecipitationUnit =>
 const isAreaUnit = (value: unknown): value is AreaUnit =>
   value === "m2" || value === "ft2";
 
+const isLocationMode = (value: unknown): value is LocationMode =>
+  value === "MANUAL" || value === "DEVICE";
+
 const parseSettings = (raw: string | null): AppSettings => {
   if (!raw) return defaultSettings;
 
   try {
     const parsed = JSON.parse(raw) as Partial<AppSettings>;
     const locationCandidate = parsed.location as
-      | StoredLocation
+      | (Partial<StoredLocation> & {
+          label?: unknown;
+          lat?: unknown;
+          lon?: unknown;
+          mode?: unknown;
+          updatedAt?: unknown;
+          accuracyM?: unknown;
+          providerPlaceId?: unknown;
+        })
       | null
       | undefined;
     const profileCandidate = parsed.profile as ProfileSettings | undefined;
@@ -135,7 +151,28 @@ const parseSettings = (raw: string | null): AppSettings => {
         typeof locationCandidate.label === "string" &&
         typeof locationCandidate.lat === "number" &&
         typeof locationCandidate.lon === "number"
-          ? locationCandidate
+          ? {
+              label: locationCandidate.label,
+              lat: locationCandidate.lat,
+              lon: locationCandidate.lon,
+              mode: isLocationMode(locationCandidate.mode)
+                ? locationCandidate.mode
+                : "MANUAL",
+              updatedAt:
+                typeof locationCandidate.updatedAt === "number" &&
+                Number.isFinite(locationCandidate.updatedAt)
+                  ? locationCandidate.updatedAt
+                  : Date.now(),
+              accuracyM:
+                typeof locationCandidate.accuracyM === "number" &&
+                Number.isFinite(locationCandidate.accuracyM)
+                  ? locationCandidate.accuracyM
+                  : undefined,
+              providerPlaceId:
+                typeof locationCandidate.providerPlaceId === "string"
+                  ? locationCandidate.providerPlaceId
+                  : undefined,
+            }
           : null,
       profile: {
         name:
