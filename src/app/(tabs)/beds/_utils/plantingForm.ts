@@ -90,7 +90,7 @@ export const buildUpdatePlantingPayload = (
     payload.startMethod = current.startMethod;
   }
 
-  if (initial.sowedAt !== current.sowedAt) {
+  if (current.startMethod === "DIRECT_SOW") {
     payload.sowedAt = normalizeNullableString(current.sowedAt);
   }
 
