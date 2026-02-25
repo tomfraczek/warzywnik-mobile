@@ -113,7 +113,7 @@ export default function PlantingDetailsScreen() {
     refetch: refetchPlantingTasks,
     isLoading: isPlantingTasksLoading,
     error: plantingTasksError,
-  } = useGetPlantingActionTasks(resolvedPlantingId ?? null, "planned");
+  } = useGetPlantingActionTasks(resolvedPlantingId ?? null, "pending");
   const updateActionTask = useUpdateActionTask();
 
   const [problemsTab, setProblemsTab] = useState<"diseases" | "pests">(
@@ -453,13 +453,6 @@ export default function PlantingDetailsScreen() {
           </Text>
           <Text style={styles.valueText}>
             Data siewu: {formatDate(planting.sowedAt)}
-          </Text>
-          <Text style={styles.valueText}>
-            Data przesadzenia: {formatDate(planting.transplantedAt)}
-          </Text>
-          <Text style={styles.valueText}>
-            Okno zbioru: {formatDate(planting.harvestWindowStart)} -{" "}
-            {formatDate(planting.harvestWindowEnd)}
           </Text>
         </Surface>
 

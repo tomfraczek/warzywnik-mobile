@@ -126,7 +126,7 @@ export default function BedDetailsScreen() {
     refetch: refetchBedTasks,
     isLoading: isBedTasksLoading,
     error: bedTasksError,
-  } = useGetBedActionTasks(resolvedBedId ?? null, "planned");
+  } = useGetBedActionTasks(resolvedBedId ?? null, "pending");
   const updateActionTask = useUpdateActionTask();
 
   const bed = data as Bed | undefined;

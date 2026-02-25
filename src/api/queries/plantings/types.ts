@@ -34,9 +34,6 @@ export type Planting = {
   status: PlantingStatus;
   startMethod?: PlantingStartMethod;
   sowedAt?: string | null;
-  transplantedAt?: string | null;
-  harvestWindowStart?: string | null;
-  harvestWindowEnd?: string | null;
   plannedStartDate: string;
   actualStartDate?: string | null;
   harvestStartDate?: string | null;
@@ -52,9 +49,6 @@ export type CreatePlantingDto = {
   vegetableId: string;
   startMethod: PlantingStartMethod;
   sowedAt?: string | null;
-  transplantedAt?: string | null;
-  harvestWindowStart?: string | null;
-  harvestWindowEnd?: string | null;
   plannedStartDate: string;
   actualStartDate?: string | null;
   status?: PlantingStatus;

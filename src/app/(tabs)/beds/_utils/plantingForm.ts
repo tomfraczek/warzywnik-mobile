@@ -12,9 +12,6 @@ export type PlantingFormValues = {
   vegetableName: string | null;
   startMethod: PlantingStartMethod;
   sowedAt: string;
-  transplantedAt: string;
-  harvestWindowStart: string;
-  harvestWindowEnd: string;
   status: AllowedPlantingStatus;
   notes: string;
 };
@@ -32,9 +29,6 @@ export const createEmptyPlantingFormValues = (): PlantingFormValues => ({
   vegetableName: null,
   startMethod: "DIRECT_SOW",
   sowedAt: "",
-  transplantedAt: "",
-  harvestWindowStart: "",
-  harvestWindowEnd: "",
   status: "PLANNED",
   notes: "",
 });
@@ -44,34 +38,16 @@ export const plantingToFormValues = (
 ): PlantingFormValues => ({
   vegetableId: planting.vegetableId,
   vegetableName: planting.vegetable?.name ?? planting.vegetableName ?? "",
-  startMethod:
-    planting.startMethod ??
-    (planting.transplantedAt ? "TRANSPLANT" : "DIRECT_SOW"),
+  startMethod: planting.startMethod ?? "DIRECT_SOW",
   sowedAt: planting.sowedAt ?? planting.plannedStartDate ?? "",
-  transplantedAt: planting.transplantedAt ?? planting.actualStartDate ?? "",
-  harvestWindowStart:
-    planting.harvestWindowStart ?? planting.harvestStartDate ?? "",
-  harvestWindowEnd: planting.harvestWindowEnd ?? planting.harvestEndDate ?? "",
   status: planting.status === "ACTIVE" ? "ACTIVE" : "PLANNED",
   notes: planting.notes ?? "",
 });
 
 export const validatePlantingForm = (values: PlantingFormValues) => {
   if (!values.vegetableId) return "Wybierz warzywo.";
-  if (values.startMethod === "DIRECT_SOW" && !values.sowedAt.trim()) {
-    return "Podaj datę siewu dla siewu bezpośredniego.";
-  }
-
-  if (values.startMethod === "TRANSPLANT" && !values.transplantedAt.trim()) {
-    return "Podaj datę przesadzenia dla metody rozsada.";
-  }
-
-  if (
-    values.harvestWindowStart.trim() &&
-    values.harvestWindowEnd.trim() &&
-    values.harvestWindowStart > values.harvestWindowEnd
-  ) {
-    return "Data początku okna zbioru nie może być późniejsza niż data końca.";
+  if (!values.sowedAt.trim()) {
+    return "Podaj datę siewu.";
   }
 
   return null;
@@ -87,22 +63,14 @@ export const buildCreatePlantingPayload = (
   values: PlantingFormValues,
 ): CreatePlantingDto => {
   const sowedAt = normalizeNullableString(values.sowedAt);
-  const transplantedAt = normalizeNullableString(values.transplantedAt);
-  const derivedStartDate =
-    values.startMethod === "DIRECT_SOW"
-      ? (sowedAt ?? transplantedAt ?? "")
-      : (transplantedAt ?? sowedAt ?? "");
+  const derivedStartDate = sowedAt ?? "";
 
   return {
     bedId,
     vegetableId: values.vegetableId as string,
     startMethod: values.startMethod,
     sowedAt,
-    transplantedAt,
-    harvestWindowStart: normalizeNullableString(values.harvestWindowStart),
-    harvestWindowEnd: normalizeNullableString(values.harvestWindowEnd),
     plannedStartDate: derivedStartDate,
-    actualStartDate: transplantedAt,
     status: values.status,
     notes: normalizeNullableString(values.notes),
   };
@@ -126,22 +94,6 @@ export const buildUpdatePlantingPayload = (
     payload.sowedAt = normalizeNullableString(current.sowedAt);
   }
 
-  if (initial.transplantedAt !== current.transplantedAt) {
-    payload.transplantedAt = normalizeNullableString(current.transplantedAt);
-  }
-
-  if (initial.harvestWindowStart !== current.harvestWindowStart) {
-    payload.harvestWindowStart = normalizeNullableString(
-      current.harvestWindowStart,
-    );
-  }
-
-  if (initial.harvestWindowEnd !== current.harvestWindowEnd) {
-    payload.harvestWindowEnd = normalizeNullableString(
-      current.harvestWindowEnd,
-    );
-  }
-
   if (initial.status !== current.status) {
     payload.status = current.status;
   }
@@ -151,27 +103,13 @@ export const buildUpdatePlantingPayload = (
   }
 
   const normalizedSowedAt = normalizeNullableString(current.sowedAt);
-  const normalizedTransplantedAt = normalizeNullableString(
-    current.transplantedAt,
-  );
-  const derivedStartDate =
-    current.startMethod === "DIRECT_SOW"
-      ? (normalizedSowedAt ?? normalizedTransplantedAt ?? "")
-      : (normalizedTransplantedAt ?? normalizedSowedAt ?? "");
+  const derivedStartDate = normalizedSowedAt ?? "";
 
   const initialSowedAt = normalizeNullableString(initial.sowedAt);
-  const initialTransplantedAt = normalizeNullableString(initial.transplantedAt);
-  const initialDerivedStartDate =
-    initial.startMethod === "DIRECT_SOW"
-      ? (initialSowedAt ?? initialTransplantedAt ?? "")
-      : (initialTransplantedAt ?? initialSowedAt ?? "");
+  const initialDerivedStartDate = initialSowedAt ?? "";
 
   if (derivedStartDate !== initialDerivedStartDate) {
     payload.plannedStartDate = derivedStartDate;
-  }
-
-  if (normalizedTransplantedAt !== initialTransplantedAt) {
-    payload.actualStartDate = normalizedTransplantedAt;
   }
 
   return payload;

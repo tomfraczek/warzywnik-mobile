@@ -1,6 +1,6 @@
 export type ActionTaskStatus = "pending" | "done";
 
-export type TaskListStatusFilter = "planned" | "done" | "all";
+export type TaskListStatusFilter = "pending" | "done" | "all";
 
 export type TaskEntityStatusLike = ActionTaskStatus | "canceled";
 
@@ -46,17 +46,18 @@ export const resolveActionTaskList = (payload: unknown): ActionTask[] => {
 export const mapEntityStatusToTaskListFilter = (
   status: TaskEntityStatusLike,
 ): TaskListStatusFilter => {
-  if (status === "pending") return "planned";
+  if (status === "pending") return "pending";
   if (status === "done") return "done";
   return "all";
 };
 
 export const normalizeTaskListStatusFilter = (
-  status?: TaskListStatusFilter | TaskEntityStatusLike,
+  status?: TaskListStatusFilter | TaskEntityStatusLike | "planned",
 ): TaskListStatusFilter | undefined => {
   if (!status) return undefined;
-  if (status === "planned" || status === "done" || status === "all") {
+  if (status === "pending" || status === "done" || status === "all") {
     return status;
   }
+  if (status === "planned") return "pending";
   return mapEntityStatusToTaskListFilter(status);
 };

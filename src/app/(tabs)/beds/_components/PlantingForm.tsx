@@ -51,28 +51,10 @@ function PlantingFormComponent({
   onClearVegetable,
 }: PlantingFormProps) {
   const [sowedOpen, setSowedOpen] = useState(false);
-  const [transplantedOpen, setTransplantedOpen] = useState(false);
-  const [harvestStartOpen, setHarvestStartOpen] = useState(false);
-  const [harvestEndOpen, setHarvestEndOpen] = useState(false);
 
   const sowedDate = useMemo(
     () => parseIsoDate(values.sowedAt),
     [values.sowedAt],
-  );
-
-  const transplantedDate = useMemo(
-    () => parseIsoDate(values.transplantedAt),
-    [values.transplantedAt],
-  );
-
-  const harvestWindowStartDate = useMemo(
-    () => parseIsoDate(values.harvestWindowStart),
-    [values.harvestWindowStart],
-  );
-
-  const harvestWindowEndDate = useMemo(
-    () => parseIsoDate(values.harvestWindowEnd),
-    [values.harvestWindowEnd],
   );
 
   const {
@@ -145,9 +127,7 @@ function PlantingFormComponent({
           </Pressable>
         </View>
 
-        <Text style={styles.label}>
-          Data siewu {values.startMethod === "DIRECT_SOW" ? "*" : ""}
-        </Text>
+        <Text style={styles.label}>Data siewu *</Text>
         <View style={styles.dateRow}>
           <View style={styles.dateField}>
             <PaperTextInput
@@ -175,101 +155,6 @@ function PlantingFormComponent({
             setSowedOpen(false);
             if (!date) return;
             onChange({ sowedAt: date.toISOString() });
-          }}
-        />
-
-        <Text style={styles.label}>
-          Data przesadzenia {values.startMethod === "TRANSPLANT" ? "*" : ""}
-        </Text>
-        <View style={styles.dateRow}>
-          <View style={styles.dateField}>
-            <PaperTextInput
-              mode="outlined"
-              value={isoToDateOnly(values.transplantedAt)}
-              placeholder="YYYY-MM-DD"
-              editable={false}
-              right={
-                <PaperTextInput.Icon
-                  icon="calendar"
-                  onPress={() => setTransplantedOpen(true)}
-                />
-              }
-            />
-          </View>
-        </View>
-
-        <DatePickerModal
-          locale="pl"
-          mode="single"
-          visible={transplantedOpen}
-          date={transplantedDate ?? new Date()}
-          onDismiss={() => setTransplantedOpen(false)}
-          onConfirm={({ date }) => {
-            setTransplantedOpen(false);
-            if (!date) return;
-            onChange({ transplantedAt: date.toISOString() });
-          }}
-        />
-
-        <Text style={styles.label}>Początek okna zbioru (zalecane)</Text>
-        <View style={styles.dateRow}>
-          <View style={styles.dateField}>
-            <PaperTextInput
-              mode="outlined"
-              value={isoToDateOnly(values.harvestWindowStart)}
-              placeholder="YYYY-MM-DD"
-              editable={false}
-              right={
-                <PaperTextInput.Icon
-                  icon="calendar"
-                  onPress={() => setHarvestStartOpen(true)}
-                />
-              }
-            />
-          </View>
-        </View>
-
-        <DatePickerModal
-          locale="pl"
-          mode="single"
-          visible={harvestStartOpen}
-          date={harvestWindowStartDate ?? new Date()}
-          onDismiss={() => setHarvestStartOpen(false)}
-          onConfirm={({ date }) => {
-            setHarvestStartOpen(false);
-            if (!date) return;
-            onChange({ harvestWindowStart: date.toISOString() });
-          }}
-        />
-
-        <Text style={styles.label}>Koniec okna zbioru (zalecane)</Text>
-        <View style={styles.dateRow}>
-          <View style={styles.dateField}>
-            <PaperTextInput
-              mode="outlined"
-              value={isoToDateOnly(values.harvestWindowEnd)}
-              placeholder="YYYY-MM-DD"
-              editable={false}
-              right={
-                <PaperTextInput.Icon
-                  icon="calendar"
-                  onPress={() => setHarvestEndOpen(true)}
-                />
-              }
-            />
-          </View>
-        </View>
-
-        <DatePickerModal
-          locale="pl"
-          mode="single"
-          visible={harvestEndOpen}
-          date={harvestWindowEndDate ?? new Date()}
-          onDismiss={() => setHarvestEndOpen(false)}
-          onConfirm={({ date }) => {
-            setHarvestEndOpen(false);
-            if (!date) return;
-            onChange({ harvestWindowEnd: date.toISOString() });
           }}
         />
       </View>

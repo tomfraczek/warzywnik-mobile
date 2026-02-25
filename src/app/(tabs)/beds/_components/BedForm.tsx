@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { MD3Theme, useTheme } from "react-native-paper";
 
 type BedFormProps = {
   values: BedFormValues;
@@ -30,6 +31,9 @@ function BedFormComponent({
   onPickSoil,
   onClearSoil,
 }: BedFormProps) {
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.section}>
@@ -40,6 +44,7 @@ function BedFormComponent({
           value={values.name}
           onChangeText={(text) => onChange({ name: text })}
           placeholder="Np. Grządka A"
+          placeholderTextColor={theme.colors.onSurfaceVariant}
         />
 
         <Text style={styles.label}>Opis</Text>
@@ -48,6 +53,7 @@ function BedFormComponent({
           value={values.description}
           onChangeText={(text) => onChange({ description: text })}
           placeholder="Opcjonalnie"
+          placeholderTextColor={theme.colors.onSurfaceVariant}
         />
 
         <Text style={styles.label}>Lokalizacja</Text>
@@ -56,6 +62,7 @@ function BedFormComponent({
           value={values.locationLabel}
           onChangeText={(text) => onChange({ locationLabel: text })}
           placeholder="Np. przy szklarni"
+          placeholderTextColor={theme.colors.onSurfaceVariant}
         />
       </View>
 
@@ -118,6 +125,13 @@ function BedFormComponent({
           <Switch
             value={values.isActive}
             onValueChange={(value) => onChange({ isActive: value })}
+            trackColor={{
+              false: theme.colors.surfaceVariant,
+              true: theme.colors.primaryContainer,
+            }}
+            thumbColor={
+              values.isActive ? theme.colors.primary : theme.colors.outline
+            }
           />
         </View>
       </View>
@@ -129,6 +143,15 @@ function BedFormComponent({
           <Switch
             value={values.soilTestingEnabled}
             onValueChange={(value) => onChange({ soilTestingEnabled: value })}
+            trackColor={{
+              false: theme.colors.surfaceVariant,
+              true: theme.colors.primaryContainer,
+            }}
+            thumbColor={
+              values.soilTestingEnabled
+                ? theme.colors.primary
+                : theme.colors.outline
+            }
           />
         </View>
         {values.soilTestingEnabled ? (
@@ -142,6 +165,7 @@ function BedFormComponent({
                   onChangeText={(text) => onChange({ measuredN: text })}
                   keyboardType="numeric"
                   placeholder="0-100"
+                  placeholderTextColor={theme.colors.onSurfaceVariant}
                 />
               </View>
               <View style={[styles.col, styles.colLast]}>
@@ -152,6 +176,7 @@ function BedFormComponent({
                   onChangeText={(text) => onChange({ measuredP: text })}
                   keyboardType="numeric"
                   placeholder="0-100"
+                  placeholderTextColor={theme.colors.onSurfaceVariant}
                 />
               </View>
             </View>
@@ -164,6 +189,7 @@ function BedFormComponent({
                   onChangeText={(text) => onChange({ measuredK: text })}
                   keyboardType="numeric"
                   placeholder="0-100"
+                  placeholderTextColor={theme.colors.onSurfaceVariant}
                 />
               </View>
               <View style={[styles.col, styles.colLast]}>
@@ -174,6 +200,7 @@ function BedFormComponent({
                   onChangeText={(text) => onChange({ measuredPh: text })}
                   keyboardType="numeric"
                   placeholder="0-14"
+                  placeholderTextColor={theme.colors.onSurfaceVariant}
                 />
               </View>
             </View>
@@ -187,7 +214,7 @@ function BedFormComponent({
         onPress={onSubmit}
       >
         {isSubmitting ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={theme.colors.onPrimary} />
         ) : (
           <Text style={styles.submitText}>{submitLabel}</Text>
         )}
@@ -198,87 +225,92 @@ function BedFormComponent({
 
 export const BedForm = memo(BedFormComponent);
 
-const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    paddingBottom: 32,
-    backgroundColor: "#fff",
-  },
-  section: {
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 12,
-    padding: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 12,
-  },
-  label: {
-    fontSize: 14,
-    color: "#374151",
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  pickerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-  },
-  valueText: {
-    fontSize: 14,
-    color: "#111827",
-  },
-  linkText: {
-    color: "#2563eb",
-    fontWeight: "600",
-  },
-  clearText: {
-    color: "#ef4444",
-    marginTop: 8,
-  },
-  row: {
-    flexDirection: "row",
-  },
-  col: {
-    flex: 1,
-    marginRight: 12,
-  },
-  colLast: {
-    marginRight: 0,
-  },
-  switchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 6,
-  },
-  metrics: {
-    marginTop: 8,
-  },
-  submitButton: {
-    backgroundColor: "#111827",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  submitText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 16,
-  },
-});
+const makeStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    container: {
+      padding: 16,
+      paddingBottom: 32,
+      backgroundColor: theme.colors.background,
+    },
+    section: {
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      padding: 12,
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: "600",
+      marginBottom: 12,
+      color: theme.colors.onSurface,
+    },
+    label: {
+      fontSize: 14,
+      color: theme.colors.onSurfaceVariant,
+      marginBottom: 6,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+      borderRadius: 8,
+      backgroundColor: theme.colors.surface,
+      color: theme.colors.onSurface,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 14,
+      marginBottom: 12,
+    },
+    pickerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 8,
+    },
+    valueText: {
+      fontSize: 14,
+      color: theme.colors.onSurface,
+    },
+    linkText: {
+      color: theme.colors.primary,
+      fontWeight: "600",
+    },
+    clearText: {
+      color: theme.colors.error,
+      marginTop: 8,
+    },
+    row: {
+      flexDirection: "row",
+    },
+    col: {
+      flex: 1,
+      marginRight: 12,
+    },
+    colLast: {
+      marginRight: 0,
+    },
+    switchRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 6,
+    },
+    metrics: {
+      marginTop: 8,
+    },
+    submitButton: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: 14,
+      borderRadius: 10,
+      alignItems: "center",
+    },
+    disabledButton: {
+      opacity: 0.6,
+    },
+    submitText: {
+      color: theme.colors.onPrimary,
+      fontWeight: "600",
+      fontSize: 16,
+    },
+  });
