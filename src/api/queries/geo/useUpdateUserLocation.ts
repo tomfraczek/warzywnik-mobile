@@ -26,6 +26,9 @@ export const useUpdateUserLocation = () => {
         queryClient.invalidateQueries({ queryKey: ["gardens"] }),
         queryClient.invalidateQueries({ queryKey: ["weather"] }),
         queryClient.invalidateQueries({ queryKey: ["warnings"] }),
+        queryClient.invalidateQueries({ queryKey: ["me", "weather"] }),
+        queryClient.invalidateQueries({ queryKey: ["me", "warnings"] }),
+        queryClient.invalidateQueries({ queryKey: ["me", "tasks"] }),
         queryClient.invalidateQueries({ queryKey: ["settings"] }),
         queryClient.invalidateQueries({ queryKey: ["currentUser"] }),
       ]);
