@@ -9,7 +9,7 @@ const createPlantingDisease = async (
   payload: CreatePlantingDiseaseDto,
 ): Promise<PlantingDisease> => {
   const { data } = await restClient.post(
-    `/plantings/${plantingId}/diseases`,
+    `/plantings/${plantingId}/disease-occurrences`,
     payload,
   );
   return data;

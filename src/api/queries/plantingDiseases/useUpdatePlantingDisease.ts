@@ -10,7 +10,7 @@ const updatePlantingDisease = async (
   payload: UpdatePlantingDiseaseDto,
 ): Promise<PlantingDisease> => {
   const { data } = await restClient.patch(
-    `/plantings/${plantingId}/diseases/${diseaseId}`,
+    `/plantings/${plantingId}/disease-occurrences/${diseaseId}`,
     payload,
   );
   return data;

@@ -7,7 +7,7 @@ const getPlantingDiseases = async (
   params: PlantingDiseaseListParams,
 ): Promise<PlantingDisease[]> => {
   const { data } = await restClient.get(
-    `/plantings/${params.plantingId}/diseases`,
+    `/plantings/${params.plantingId}/disease-occurrences`,
     {
       params: {
         status: params.status ?? "active",
