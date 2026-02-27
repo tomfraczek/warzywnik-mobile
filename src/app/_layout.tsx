@@ -74,25 +74,23 @@ const darkTheme = {
   colors: {
     ...MD3DarkTheme.colors,
 
-    // GŁÓWNE
-    primary: "#D4AF37", // złoto (bardziej wyraziste)
-    secondary: "#C6A75E",
-    tertiary: "#E6C878",
+    primary: "#8CC7A2",
+    onPrimary: "#0F2218",
+    secondary: "#6EA487",
+    onSecondary: "#08160F",
+    tertiary: "#C6AA72",
+    onTertiary: "#1A1406",
 
-    // TŁA
-    background: "#0F0F10", // głęboka czerń
-    surface: "#1A1A1C", // jaśniejszy czarny / grafit
+    background: "#111714",
+    onBackground: "#E6EEE9",
+    surface: "#18211C",
+    onSurface: "#E6EEE9",
+    surfaceVariant: "#243029",
+    onSurfaceVariant: "#B5C7BC",
 
-    // TEKST
-    onPrimary: "#111111",
-    onSecondary: "#111111",
-    onTertiary: "#111111",
-    onBackground: "#EAEAEA",
-    onSurface: "#EAEAEA",
-
-    // SYSTEM
-    error: "#FF6B6B",
-    outline: "#2A2A2D",
+    outline: "#33433A",
+    outlineVariant: "#2B3831",
+    error: "#FF8C82",
   },
 };
 

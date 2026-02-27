@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 type CustomHeaderProps = {
   title?: string;
   showBack?: boolean;
-  backRoute?: "/(tabs)/home";
+  backRoute?: "/(tabs)/home" | "/(tabs)/profile";
   rightAction?: ReactNode;
 };
 
@@ -26,7 +26,8 @@ export default function CustomHeader({
     | "/(tabs)/home"
     | "/(tabs)/beds"
     | "/(tabs)/planner"
-    | "/(tabs)/education";
+    | "/(tabs)/education"
+    | "/(tabs)/profile";
 
   const tabSegment = segments[0] === "(tabs)" ? segments[1] : null;
   const fallbackRoute: TabRootRoute =
@@ -36,7 +37,9 @@ export default function CustomHeader({
         ? "/(tabs)/planner"
         : tabSegment === "education"
           ? "/(tabs)/education"
-          : "/(tabs)/home";
+          : tabSegment === "profile"
+            ? "/(tabs)/profile"
+            : "/(tabs)/home";
 
   const handleBack = useCallback(() => {
     if (backRoute) {

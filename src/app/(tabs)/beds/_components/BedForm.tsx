@@ -1,4 +1,5 @@
 import { BedFormValues } from "@/src/app/(tabs)/beds/_utils/bedForm";
+import { radius, spacing } from "@/src/theme/ui";
 import { memo } from "react";
 import {
   ActivityIndicator,
@@ -228,39 +229,41 @@ export const BedForm = memo(BedFormComponent);
 const makeStyles = (theme: MD3Theme) =>
   StyleSheet.create({
     container: {
-      padding: 16,
-      paddingBottom: 32,
+      padding: spacing.md,
+      paddingBottom: spacing.xl,
       backgroundColor: theme.colors.background,
+      gap: spacing.sm,
     },
     section: {
-      marginBottom: 20,
+      marginBottom: spacing.sm,
       borderWidth: 1,
       borderColor: theme.colors.outlineVariant,
       backgroundColor: theme.colors.surface,
-      borderRadius: 12,
-      padding: 12,
+      borderRadius: radius.lg,
+      padding: spacing.md,
     },
     sectionTitle: {
       fontSize: 16,
-      fontWeight: "600",
-      marginBottom: 12,
+      fontWeight: "700",
+      marginBottom: spacing.sm,
       color: theme.colors.onSurface,
     },
     label: {
-      fontSize: 14,
+      fontSize: 13,
+      fontWeight: "600",
       color: theme.colors.onSurfaceVariant,
-      marginBottom: 6,
+      marginBottom: spacing.sm,
     },
     input: {
       borderWidth: 1,
-      borderColor: theme.colors.outline,
-      borderRadius: 8,
+      borderColor: theme.colors.outlineVariant,
+      borderRadius: radius.md,
       backgroundColor: theme.colors.surface,
       color: theme.colors.onSurface,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.sm,
       fontSize: 14,
-      marginBottom: 12,
+      marginBottom: spacing.sm,
     },
     pickerRow: {
       flexDirection: "row",
@@ -285,7 +288,7 @@ const makeStyles = (theme: MD3Theme) =>
     },
     col: {
       flex: 1,
-      marginRight: 12,
+      marginRight: spacing.sm,
     },
     colLast: {
       marginRight: 0,
@@ -294,15 +297,15 @@ const makeStyles = (theme: MD3Theme) =>
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingVertical: 6,
+      paddingVertical: spacing.xs,
     },
     metrics: {
-      marginTop: 8,
+      marginTop: spacing.sm,
     },
     submitButton: {
       backgroundColor: theme.colors.primary,
-      paddingVertical: 14,
-      borderRadius: 10,
+      paddingVertical: spacing.md,
+      borderRadius: radius.md,
       alignItems: "center",
     },
     disabledButton: {

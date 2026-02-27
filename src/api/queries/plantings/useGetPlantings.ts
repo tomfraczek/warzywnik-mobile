@@ -5,7 +5,8 @@ import { PlantingListParams, plantingKeys } from "./plantingKeys";
 import { Planting } from "./types";
 
 const getPlantings = async (params: PlantingListParams, pageParam: number) => {
-  const limit = params.limit ?? 20;
+  const requestedLimit = params.limit ?? 20;
+  const limit = Math.min(Math.max(requestedLimit, 1), 100);
   const { data } = await restClient.get("/plantings", {
     params: {
       page: pageParam,

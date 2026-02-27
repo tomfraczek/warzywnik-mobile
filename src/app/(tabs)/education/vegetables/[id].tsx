@@ -1,17 +1,13 @@
 import { getResponseError } from "@/src/api/axios";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { Screen } from "@/src/components/Screen";
+import { Card } from "@/src/components/ui/Card";
+import { spacing } from "@/src/theme/ui";
 import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import { useMemo } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { Button, MD3Theme, useTheme } from "react-native-paper";
+import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import { Button, MD3Theme, Text, useTheme } from "react-native-paper";
 import { SectionBlock } from "../_components/SectionBlock";
 
 export default function VegetableDetailsScreen() {
@@ -99,49 +95,34 @@ export default function VegetableDetailsScreen() {
             style={styles.image}
           />
         ) : null}
-        <Text style={styles.title}>{vegetable.name}</Text>
-        {vegetable.latinName ? (
-          <Text style={styles.subtitle}>{vegetable.latinName}</Text>
-        ) : null}
+        <Card>
+          <Text style={styles.title}>{vegetable.name}</Text>
+          {vegetable.latinName ? (
+            <Text style={styles.subtitle}>{vegetable.latinName}</Text>
+          ) : null}
+        </Card>
 
         <SectionBlock title="Opis" text={vegetable.description} />
-        <SectionBlock title="Wymagania świetlne" text={vegetable.sunExposure} />
+        <SectionBlock title="Warunki uprawy" text={vegetable.sunExposure} />
         <SectionBlock
-          title="Zapotrzebowanie na wodę"
-          text={vegetable.waterDemand}
-        />
-        <SectionBlock
-          title="Zapotrzebowanie na składniki"
+          title="Wymagania glebowe"
           text={vegetable.nutrientDemand}
         />
+        <SectionBlock title="Termin siewu" items={sowingMethods ?? null} />
+        <SectionBlock title="Termin zbioru" text={harvestRange} />
         <SectionBlock
-          title="Minimalna głębokość gleby"
-          text={
-            vegetable.minSoilDepthCm ? `${vegetable.minSoilDepthCm} cm` : null
-          }
-        />
-        <SectionBlock title="Czas do zbioru" text={harvestRange} />
-        <SectionBlock title="Oznaki zbioru" text={vegetable.harvestSigns} />
-        <SectionBlock title="Sposoby siewu" items={sowingMethods ?? null} />
-        <SectionBlock
-          title="Etapy nawożenia"
-          items={fertilizationStages ?? null}
-        />
-        <SectionBlock
-          title="Wspólne szkodniki"
-          items={vegetable.commonPests?.map((item) => item.name) ?? null}
-        />
-        <SectionBlock
-          title="Wspólne choroby"
-          items={vegetable.commonDiseases?.map((item) => item.name) ?? null}
-        />
-        <SectionBlock
-          title="Dobre sąsiedztwo"
+          title="Sąsiedztwo"
           items={vegetable.goodCompanions?.map((item) => item.name) ?? null}
         />
         <SectionBlock
-          title="Złe sąsiedztwo"
-          items={vegetable.badCompanions?.map((item) => item.name) ?? null}
+          title="Ostrzeżenia"
+          items={(vegetable.commonPests?.map((item) => item.name) ?? []).concat(
+            vegetable.commonDiseases?.map((item) => item.name) ?? [],
+          )}
+        />
+        <SectionBlock
+          title="Powiązane artykuły"
+          items={fertilizationStages ?? null}
         />
       </ScrollView>
     </Screen>
@@ -151,8 +132,9 @@ export default function VegetableDetailsScreen() {
 const makeStyles = (theme: MD3Theme) =>
   StyleSheet.create({
     container: {
-      padding: 20,
+      padding: spacing.md,
       paddingBottom: 32,
+      gap: spacing.sm,
     },
     center: {
       flex: 1,
@@ -161,22 +143,19 @@ const makeStyles = (theme: MD3Theme) =>
       padding: 24,
     },
     title: {
-      fontSize: 20,
-      fontWeight: "600",
-      marginBottom: 4,
-      color: theme.colors.onBackground,
+      fontSize: 24,
+      fontWeight: "700",
+      color: theme.colors.onSurface,
     },
     image: {
       width: "100%",
-      height: 180,
-      borderRadius: 16,
-      marginBottom: 16,
+      height: 220,
+      borderRadius: 18,
       backgroundColor: theme.colors.surfaceVariant,
     },
     subtitle: {
-      fontSize: 13,
+      fontSize: 14,
       color: theme.colors.onSurfaceVariant,
-      marginBottom: 12,
     },
     errorText: {
       color: theme.colors.error,

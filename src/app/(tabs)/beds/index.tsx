@@ -1,122 +1,58 @@
-import { getResponseError } from "@/src/api/axios";
 import { Bed } from "@/src/api/queries/beds/types";
 import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
+import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { Screen } from "@/src/components/Screen";
+import { Card } from "@/src/components/ui/Card";
+import { StatusBadge } from "@/src/components/ui/StatusBadge";
+import { radius, spacing } from "@/src/theme/ui";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
-import { Button, MD3Theme, TextInput, useTheme } from "react-native-paper";
+import { FAB, MD3Theme, Text, TextInput, useTheme } from "react-native-paper";
 
-const getSoilLabel = (bed: Bed) =>
-  bed.soil?.name ?? (bed as any)?.soilName ?? "Brak";
+const getSoilLabel = (bed: Bed) => bed.soil?.name ?? "Nie wybrano";
 
 export default function BedsListScreen() {
   const router = useRouter();
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      setSearchQuery(searchInput.trim());
-    }, 350);
-    return () => clearTimeout(handle);
-  }, [searchInput]);
-
-  const {
-    data,
-    isLoading,
-    isFetchingNextPage,
-    fetchNextPage,
-    hasNextPage,
-    error,
-    refetch,
-    isRefetching,
-  } = useGetBeds({ q: searchQuery, limit: 20 });
+  const bedsQuery = useGetBeds({
+    q: searchInput.trim() || undefined,
+    limit: 50,
+  });
+  const plantingsQuery = useGetPlantings({ limit: 100 });
 
   const beds = useMemo(
-    () => data?.pages.flatMap((page) => page.items) ?? [],
-    [data?.pages],
+    () => bedsQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [bedsQuery.data?.pages],
   );
 
-  const renderItem = ({ item }: { item: Bed }) => {
-    const soilLabel = getSoilLabel(item);
-    return (
-      <Pressable
-        style={styles.row}
-        onPress={() => router.push(`/(tabs)/beds/${item.id}`)}
-      >
-        <View style={styles.rowMain}>
-          <Text style={styles.rowTitle}>{item.name}</Text>
-          {item.locationLabel ? (
-            <Text style={styles.rowSubtitle}>{item.locationLabel}</Text>
-          ) : null}
-        </View>
-        <View style={styles.rowMeta}>
-          <Text style={styles.rowMetaText}>{soilLabel}</Text>
-          <Text style={styles.rowMetaBadge}>
-            {item.isActive === false ? "Nieaktywna" : "Aktywna"}
-          </Text>
-        </View>
-      </Pressable>
-    );
-  };
+  const activePlantingsCountByBed = useMemo(() => {
+    const counts = new Map<string, number>();
+    const items =
+      plantingsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+    items.forEach((item) => {
+      if (!item.bedId) return;
+      if (item.status === "CANCELLED" || item.status === "FINISHED") return;
+      counts.set(item.bedId, (counts.get(item.bedId) ?? 0) + 1);
+    });
+    return counts;
+  }, [plantingsQuery.data?.pages]);
 
-  const listHeader = (
-    <View style={styles.header}>
-      <Text style={styles.title}>Grządki</Text>
-      <TextInput
-        style={styles.searchInput}
-        value={searchInput}
-        onChangeText={setSearchInput}
-        placeholder="Szukaj po nazwie"
-      />
-      <Button mode="contained" onPress={() => router.push("/(tabs)/beds/new")}>
-        + Dodaj grządkę
-      </Button>
-      {isLoading || isRefetching ? (
-        <View style={styles.loadingRow}>
+  if (bedsQuery.isLoading && beds.length === 0) {
+    return (
+      <Screen safeAreaEdges={["top", "left", "right"]}>
+        <View style={styles.center}>
           <ActivityIndicator />
-        </View>
-      ) : null}
-    </View>
-  );
-
-  if (error && beds.length === 0) {
-    return (
-      <Screen safeAreaEdges={["top", "left", "right"]}>
-        <View style={styles.center}>
-          <Text style={styles.errorText}>
-            {String(getResponseError(error))}
-          </Text>
-          <Button mode="outlined" onPress={() => refetch()}>
-            Spróbuj ponownie
-          </Button>
-        </View>
-      </Screen>
-    );
-  }
-
-  if (!isLoading && beds.length === 0) {
-    return (
-      <Screen safeAreaEdges={["top", "left", "right"]}>
-        <View style={styles.center}>
-          <Text style={styles.emptyTitle}>Nie masz jeszcze grządek</Text>
-          <Text style={styles.emptySubtitle}>Dodaj pierwszą grządkę</Text>
-          <Button
-            mode="contained"
-            onPress={() => router.push("/(tabs)/beds/new")}
-          >
-            Dodaj pierwszą grządkę
-          </Button>
         </View>
       </Screen>
     );
@@ -124,122 +60,165 @@ export default function BedsListScreen() {
 
   return (
     <Screen safeAreaEdges={["top", "left", "right"]}>
-      <FlatList
-        data={beds}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        ListHeaderComponent={listHeader}
-        ListFooterComponent={
-          hasNextPage ? (
-            <Button
-              mode="outlined"
-              onPress={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-              style={styles.secondaryButton}
-            >
-              {isFetchingNextPage ? "Ładowanie..." : "Wczytaj więcej"}
-            </Button>
-          ) : (
-            <View style={styles.footerSpace} />
-          )
-        }
-        onEndReached={() => {
-          if (hasNextPage && !isFetchingNextPage) {
-            fetchNextPage();
+      <View style={styles.container}>
+        <FlatList
+          data={beds}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.content}
+          ListHeaderComponent={
+            <View style={styles.header}>
+              <Text style={styles.title}>Grządki</Text>
+              <Text style={styles.subtitle}>
+                Monitoruj status i aktywność każdej grządki
+              </Text>
+              <TextInput
+                mode="outlined"
+                value={searchInput}
+                onChangeText={setSearchInput}
+                placeholder="Szukaj grządki"
+              />
+            </View>
           }
-        }}
-        onEndReachedThreshold={0.4}
-      />
+          renderItem={({ item }) => {
+            const area =
+              item.lengthCm && item.widthCm
+                ? `${item.lengthCm} × ${item.widthCm} cm`
+                : "Brak wymiarów";
+            const activeCount = activePlantingsCountByBed.get(item.id) ?? 0;
+
+            return (
+              <Pressable onPress={() => router.push(`/(tabs)/beds/${item.id}`)}>
+                <Card>
+                  <View style={styles.rowTop}>
+                    <Text style={styles.bedName}>{item.name}</Text>
+                    <StatusBadge
+                      label={item.isActive === false ? "Nieaktywna" : "Aktywna"}
+                      tone={item.isActive === false ? "neutral" : "success"}
+                    />
+                  </View>
+
+                  <View style={styles.metaRow}>
+                    <View style={styles.metaItem}>
+                      <MaterialCommunityIcons
+                        name="seed-outline"
+                        size={16}
+                        color={theme.colors.onSurfaceVariant}
+                      />
+                      <Text style={styles.metaText}>
+                        Gleba: {getSoilLabel(item)}
+                      </Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <MaterialCommunityIcons
+                        name="ruler-square"
+                        size={16}
+                        color={theme.colors.onSurfaceVariant}
+                      />
+                      <Text style={styles.metaText}>{area}</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <MaterialCommunityIcons
+                        name="sprout"
+                        size={16}
+                        color={theme.colors.onSurfaceVariant}
+                      />
+                      <Text style={styles.metaText}>
+                        Aktywne uprawy: {activeCount}
+                      </Text>
+                    </View>
+                  </View>
+                </Card>
+              </Pressable>
+            );
+          }}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          ListEmptyComponent={
+            <Card>
+              <Text style={styles.emptyTitle}>Nie masz jeszcze grządek</Text>
+              <Text style={styles.emptySubtitle}>
+                Dodaj pierwszą grządkę przyciskiem poniżej.
+              </Text>
+            </Card>
+          }
+        />
+
+        <FAB
+          icon="plus"
+          label="Dodaj grządkę"
+          style={styles.fab}
+          onPress={() => router.push("/(tabs)/beds/new")}
+        />
+      </View>
     </Screen>
   );
 }
 
 const makeStyles = (theme: MD3Theme) =>
   StyleSheet.create({
-    listContent: {
-      paddingBottom: 24,
-      backgroundColor: theme.colors.background,
+    container: {
+      flex: 1,
+    },
+    content: {
+      padding: spacing.md,
+      paddingBottom: 110,
     },
     header: {
-      padding: 16,
-      gap: 12,
+      gap: spacing.sm,
+      marginBottom: spacing.md,
     },
     title: {
-      fontSize: 22,
+      fontSize: 26,
       fontWeight: "700",
       color: theme.colors.onBackground,
     },
-    searchInput: {
-      borderRadius: 10,
+    subtitle: {
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 13,
     },
-    row: {
-      borderTopWidth: 1,
-      borderColor: theme.colors.outlineVariant,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
+    rowTop: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
+      gap: spacing.sm,
     },
-    rowMain: {
+    bedName: {
       flex: 1,
-      paddingRight: 12,
-    },
-    rowTitle: {
-      fontSize: 16,
-      fontWeight: "600",
+      fontSize: 18,
+      fontWeight: "700",
       color: theme.colors.onSurface,
     },
-    rowSubtitle: {
+    metaRow: {
+      gap: spacing.sm,
+    },
+    metaItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    metaText: {
       fontSize: 13,
       color: theme.colors.onSurfaceVariant,
-      marginTop: 4,
     },
-    rowMeta: {
-      alignItems: "flex-end",
+    emptyTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: theme.colors.onSurface,
     },
-    rowMetaText: {
-      fontSize: 12,
+    emptySubtitle: {
+      fontSize: 13,
       color: theme.colors.onSurfaceVariant,
-      marginBottom: 6,
-    },
-    rowMetaBadge: {
-      fontSize: 11,
-      color: theme.colors.primary,
-    },
-    secondaryButton: {
-      marginHorizontal: 16,
-      marginTop: 16,
     },
     center: {
       flex: 1,
+      alignItems: "center",
       justifyContent: "center",
-      alignItems: "center",
-      padding: 24,
-      gap: 8,
+      padding: spacing.lg,
     },
-    emptyTitle: {
-      fontSize: 18,
-      fontWeight: "600",
-      marginBottom: 4,
-      color: theme.colors.onBackground,
-    },
-    emptySubtitle: {
-      fontSize: 14,
-      color: theme.colors.onSurfaceVariant,
-      marginBottom: 8,
-    },
-    errorText: {
-      fontSize: 14,
-      color: theme.colors.error,
-      marginBottom: 12,
-      textAlign: "center",
-    },
-    loadingRow: {
-      alignItems: "center",
-    },
-    footerSpace: {
-      height: 24,
+    fab: {
+      position: "absolute",
+      right: spacing.md,
+      bottom: spacing.md,
+      borderRadius: radius.pill,
+      backgroundColor: theme.colors.primary,
     },
   });

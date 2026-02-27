@@ -1,7 +1,7 @@
 import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { Stack } from "expo-router";
 
-export default function PlannerLayout() {
+export default function ProfileLayout() {
   return (
     <Stack
       screenOptions={{
@@ -12,9 +12,12 @@ export default function PlannerLayout() {
     >
       <Stack.Screen
         name="index"
-        options={{ title: "Kalendarz", headerShown: false }}
+        options={{ title: "Profil", headerShown: false }}
       />
-      <Stack.Screen name="calendar" options={{ title: "Kalendarz" }} />
+      <Stack.Screen
+        name="profile-edit"
+        options={{ title: "Edycja profilu", headerShown: false }}
+      />
     </Stack>
   );
 }

@@ -22,7 +22,7 @@ export default function EducationLayout() {
     >
       <Stack.Screen
         name="index"
-        options={{ title: "Edukacja", headerShown: false }}
+        options={{ title: "Biblioteka", headerShown: false }}
       />
       <Stack.Screen name="articles/index" options={{ title: "Artykuły" }} />
       <Stack.Screen

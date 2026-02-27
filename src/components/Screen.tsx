@@ -30,7 +30,7 @@ export const Screen = ({ children, style, safeAreaEdges }: ScreenProps) => {
   return (
     <SafeAreaView
       style={styles.safeArea}
-      edges={safeAreaEdges ?? ["left", "right"]}
+      edges={safeAreaEdges ?? ["top", "bottom", "left", "right"]}
     >
       <Surface style={[styles.surface, style]}>{children}</Surface>
     </SafeAreaView>

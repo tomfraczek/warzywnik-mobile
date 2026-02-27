@@ -1,10 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Tabs, useRouter } from "expo-router";
+import { Tabs } from "expo-router";
 import { MD3Theme, useTheme } from "react-native-paper";
 
 export default function TabsLayout() {
   const theme = useTheme<MD3Theme>();
-  const router = useRouter();
 
   return (
     <Tabs
@@ -28,7 +27,6 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="home/settings" options={{ href: null }} />
       <Tabs.Screen
         name="beds"
         options={{
@@ -41,7 +39,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="planner"
         options={{
-          title: "Planer",
+          title: "Kalendarz",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" color={color} size={size} />
           ),
@@ -50,8 +48,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="education"
         options={{
-          title: "Edukacja",
-          unmountOnBlur: true,
+          title: "Biblioteka",
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons
               name="book-open"
@@ -60,11 +57,18 @@ export default function TabsLayout() {
             />
           ),
         }}
-        listeners={{
-          tabPress: (event) => {
-            event.preventDefault();
-            router.replace("/(tabs)/education");
-          },
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profil",
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons
+              name="account-circle-outline"
+              color={color}
+              size={size}
+            />
+          ),
         }}
       />
     </Tabs>
