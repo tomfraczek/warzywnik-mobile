@@ -145,6 +145,7 @@ export default function BedsListScreen() {
         <FAB
           icon="plus"
           label="Dodaj grządkę"
+          color={theme.colors.onPrimary}
           style={styles.fab}
           onPress={() => router.push("/(tabs)/beds/new")}
         />

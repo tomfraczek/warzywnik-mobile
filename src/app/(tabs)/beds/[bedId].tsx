@@ -38,7 +38,6 @@ import {
   Snackbar,
   useTheme,
 } from "react-native-paper";
-import { DatePickerModal } from "react-native-paper-dates";
 
 const getSoilLabel = (bed: Bed) =>
   bed.soil?.name ??
@@ -139,7 +138,6 @@ export default function BedDetailsScreen() {
   const [promptQueue, setPromptQueue] = useState<HarvestPromptItem[]>([]);
   const [lastPromptSignature, setLastPromptSignature] = useState("");
   const [postHarvestModalVisible, setPostHarvestModalVisible] = useState(false);
-  const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
 
   const [postHarvestActions, setPostHarvestActions] = useState<
     ActionTemplate[]
@@ -250,13 +248,13 @@ export default function BedDetailsScreen() {
     }
   };
 
-  const handleRescheduleTask = async (taskId: string, dueAt: string) => {
+  const handleCancelTask = async (taskId: string) => {
     try {
       await updateActionTask.mutateAsync({
         id: taskId,
-        payload: { dueAt },
+        payload: { status: "canceled" },
       });
-      setSnackbarMessage("Termin zadania został zmieniony.");
+      setSnackbarMessage("Zadanie zostało anulowane.");
       await refetchBedTasks();
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
@@ -483,10 +481,10 @@ export default function BedDetailsScreen() {
                 <Button
                   mode="outlined"
                   compact
-                  onPress={() => setRescheduleTaskId(task.id)}
+                  onPress={() => handleCancelTask(task.id)}
                   disabled={updateActionTask.isPending}
                 >
-                  Przełóż
+                  Anuluj
                 </Button>
                 <Button
                   mode="contained"
@@ -580,23 +578,6 @@ export default function BedDetailsScreen() {
       >
         {snackbarMessage}
       </Snackbar>
-
-      <DatePickerModal
-        locale="pl"
-        mode="single"
-        visible={!!rescheduleTaskId}
-        date={new Date()}
-        onDismiss={() => setRescheduleTaskId(null)}
-        onConfirm={({ date }) => {
-          if (!rescheduleTaskId || !date) {
-            setRescheduleTaskId(null);
-            return;
-          }
-
-          handleRescheduleTask(rescheduleTaskId, date.toISOString());
-          setRescheduleTaskId(null);
-        }}
-      />
     </ScrollView>
   );
 }

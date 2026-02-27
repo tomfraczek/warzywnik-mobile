@@ -1,4 +1,4 @@
-export type ActionTaskStatus = "pending" | "done";
+export type ActionTaskStatus = "pending" | "done" | "canceled";
 
 export type TaskListStatusFilter = "pending" | "done" | "all";
 
