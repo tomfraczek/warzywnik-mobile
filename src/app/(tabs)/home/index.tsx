@@ -12,6 +12,11 @@ import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { TaskItem } from "@/src/components/ui/TaskItem";
 import { WarningCard } from "@/src/components/ui/WarningCard";
 import { useSettings } from "@/src/context/SettingsProvider";
+import {
+  asNonEmptyString,
+  findMatchingWeatherTask,
+  resolveWarningPresentation,
+} from "@/src/features/warnings/model";
 import { radius, spacing } from "@/src/theme/ui";
 import {
   formatTemperature,
@@ -32,60 +37,31 @@ import {
   useTheme,
 } from "react-native-paper";
 
-const escapeRegExp = (value: string) =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-const interpolateWarningText = (
-  text: string | null | undefined,
-  values?: Record<string, unknown> | null,
-) => {
-  if (!text || !values) return text ?? "";
-  return Object.entries(values).reduce((acc, [key, value]) => {
-    const safeKey = escapeRegExp(key);
-    const replacement =
-      value == null || String(value).trim().length === 0
-        ? `{${key}}`
-        : String(value);
-    return acc.replace(new RegExp(`\\{${safeKey}\\}`, "g"), replacement);
-  }, text);
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
 };
 
-const asNonEmptyString = (value: unknown) => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-};
+const getTaskMeta = (task: MeTaskItem, ...keys: string[]) => {
+  const containers = [
+    task,
+    asRecord(task.details),
+    asRecord(task.meta),
+    asRecord(task.context),
+    asRecord(task.payload),
+  ].filter((item): item is Record<string, unknown> => Boolean(item));
 
-const getWarningBedName = (
-  warning: Record<string, unknown>,
-  bedsById: Map<string, string>,
-) => {
-  const details =
-    warning.details && typeof warning.details === "object"
-      ? (warning.details as Record<string, unknown>)
-      : null;
+  for (const container of containers) {
+    for (const key of keys) {
+      const value = container[key];
+      if (typeof value === "string" && value.trim().length > 0) {
+        return value;
+      }
+    }
+  }
 
-  const directBedName =
-    asNonEmptyString(warning.bedName) ??
-    asNonEmptyString(warning.bed_name) ??
-    asNonEmptyString(details?.bedName) ??
-    asNonEmptyString(details?.bed_name);
-
-  if (directBedName) return directBedName;
-
-  const bedId =
-    asNonEmptyString(warning.bedId) ??
-    asNonEmptyString(warning.bed_id) ??
-    asNonEmptyString(details?.bedId) ??
-    asNonEmptyString(details?.bed_id);
-
-  if (!bedId) return null;
-  return bedsById.get(bedId) ?? null;
-};
-
-const getTaskMeta = (task: MeTaskItem, key: string) => {
-  const value = task[key];
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
+  return null;
 };
 
 const isWeatherMissingLocationError = (error: unknown) => {
@@ -136,6 +112,49 @@ export default function HomeScreen() {
     articlesData?.pages.flatMap((page) => page.items).slice(0, 2) ?? [];
   const isLoading =
     weatherLoading && tasksLoading && warningsLoading && articlesLoading;
+
+  console.log("warnings", warnings);
+
+  const warningCards = useMemo(
+    () =>
+      warnings.map((warning) => ({
+        warning,
+        presentation: resolveWarningPresentation(warning, bedsById),
+      })),
+    [warnings, bedsById],
+  );
+
+  const handleWarningPress = (warning: (typeof warningCards)[number]) => {
+    const matchedTask = findMatchingWeatherTask(
+      warning.warning,
+      bedsById,
+      tasks,
+    );
+
+    if (matchedTask) {
+      router.push({
+        pathname: "/(tabs)/planner/tasks",
+        params: {
+          taskId: matchedTask.id,
+        },
+      });
+      return;
+    }
+
+    router.push({
+      pathname: "/(tabs)/home/alert-details",
+      params: {
+        title: warning.presentation.title,
+        message: warning.presentation.message,
+        hint: warning.presentation.hint ?? "",
+        scope: warning.presentation.scope,
+        bedId: warning.presentation.bedId ?? "",
+        bedName: warning.presentation.bedName ?? "",
+        plantingId: warning.presentation.plantingId ?? "",
+        vegetableName: warning.presentation.vegetableName ?? "",
+      },
+    });
+  };
 
   return (
     <Screen style={styles.screenContent}>
@@ -259,17 +278,24 @@ export default function HomeScreen() {
                 {tasks.length === 0 ? (
                   <Text style={styles.placeholder}>Brak zadań na teraz.</Text>
                 ) : (
-                  tasks
-                    .slice(0, 3)
-                    .map((task) => (
+                  tasks.slice(0, 3).map((task) => {
+                    const bedName =
+                      getTaskMeta(task, "bedName", "bed_name") ??
+                      (() => {
+                        const bedId = getTaskMeta(task, "bedId", "bed_id");
+                        return bedId ? (bedsById.get(bedId) ?? null) : null;
+                      })();
+
+                    return (
                       <TaskItem
                         key={task.id}
                         title={task.title}
                         status={task.status}
-                        bed={getTaskMeta(task, "bedName")}
-                        crop={getTaskMeta(task, "cropName")}
+                        bed={bedName}
+                        crop={getTaskMeta(task, "cropName", "crop_name")}
                       />
-                    ))
+                    );
+                  })
                 )}
               </View>
             </Card>
@@ -281,35 +307,14 @@ export default function HomeScreen() {
                     Brak aktywnych alertów.
                   </Text>
                 ) : (
-                  warnings.slice(0, 2).map((warning) => {
-                    const warningRecord = warning as Record<string, unknown>;
-                    const derivedBedName = getWarningBedName(
-                      warningRecord,
-                      bedsById,
-                    );
-                    const warningValues = {
-                      ...warningRecord,
-                      ...((warning.details as Record<string, unknown> | null) ??
-                        {}),
-                      bedName:
-                        derivedBedName ??
-                        asNonEmptyString(warningRecord.bedName) ??
-                        asNonEmptyString(warningRecord.bed_name),
-                    };
-
+                  warningCards.slice(0, 2).map((item) => {
                     return (
                       <WarningCard
-                        key={`${warning.code}-${warning.title}`}
-                        title={interpolateWarningText(
-                          warning.title,
-                          warningValues,
-                        )}
-                        message={interpolateWarningText(
-                          warning.message,
-                          warningValues,
-                        )}
-                        severity={warning.severity}
-                        onPress={() => router.push("/(tabs)/planner")}
+                        key={`${item.warning.code}-${item.warning.title}`}
+                        title={item.presentation.title}
+                        message={item.presentation.message}
+                        severity={item.warning.severity}
+                        onPress={() => handleWarningPress(item)}
                       />
                     );
                   })

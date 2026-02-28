@@ -15,7 +15,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { MD3Theme, Text, useTheme } from "react-native-paper";
+import { Button, MD3Theme, Text, useTheme } from "react-native-paper";
 
 const pad = (value: number) => String(value).padStart(2, "0");
 const formatDate = (date: Date) =>
@@ -72,6 +72,12 @@ export default function PlannerScreen() {
         <Text style={styles.subtitle}>
           Dynamiczna oś czasu zadań systemowych i zbiorów
         </Text>
+        <Button
+          mode="outlined"
+          onPress={() => router.push("/(tabs)/planner/tasks")}
+        >
+          Przejdź do listy zadań
+        </Button>
 
         {timeline.length === 0 ? (
           <Card>

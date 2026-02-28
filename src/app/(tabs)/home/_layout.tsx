@@ -23,6 +23,10 @@ export default function HomeLayout() {
         options={{ title: "Pogoda", headerBackTitle: "Home" }}
       />
       <Stack.Screen
+        name="alert-details"
+        options={{ title: "Szczegóły alertu", headerBackTitle: "Home" }}
+      />
+      <Stack.Screen
         name="profile-edit"
         options={{ headerShown: false, title: "Edycja profilu" }}
       />

@@ -9,12 +9,16 @@ import { Button, MD3Theme, useTheme } from "react-native-paper";
 export default function PlantingRedirectScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
-  const { plantingId } = useLocalSearchParams<{
+  const { plantingId, actionTaskId } = useLocalSearchParams<{
     plantingId?: string | string[];
+    actionTaskId?: string | string[];
   }>();
   const resolvedPlantingId = Array.isArray(plantingId)
     ? plantingId[0]
     : plantingId;
+  const resolvedActionTaskId = Array.isArray(actionTaskId)
+    ? actionTaskId[0]
+    : actionTaskId;
   const router = useRouter();
   const plantingQuery = useGetPlanting(resolvedPlantingId ?? null);
 
@@ -22,8 +26,13 @@ export default function PlantingRedirectScreen() {
     if (!plantingQuery.data || !resolvedPlantingId) return;
     const bedId = plantingQuery.data.bedId;
     if (!bedId) return;
-    router.replace(`/(tabs)/beds/${bedId}/plantings/${resolvedPlantingId}`);
-  }, [plantingQuery.data, resolvedPlantingId, router]);
+    const suffix = resolvedActionTaskId
+      ? `?actionTaskId=${resolvedActionTaskId}`
+      : "";
+    router.replace(
+      `/(tabs)/beds/${bedId}/plantings/${resolvedPlantingId}${suffix}`,
+    );
+  }, [plantingQuery.data, resolvedPlantingId, resolvedActionTaskId, router]);
 
   if (plantingQuery.isLoading) {
     return (

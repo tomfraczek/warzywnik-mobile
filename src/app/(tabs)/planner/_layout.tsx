@@ -14,6 +14,7 @@ export default function PlannerLayout() {
         name="index"
         options={{ title: "Kalendarz", headerShown: false }}
       />
+      <Stack.Screen name="tasks" options={{ title: "Lista zadań" }} />
       <Stack.Screen name="calendar" options={{ title: "Kalendarz" }} />
     </Stack>
   );

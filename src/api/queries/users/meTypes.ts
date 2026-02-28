@@ -12,6 +12,7 @@ export type WeatherType =
 
 export type WeatherBasis = "FRESH" | "STALE" | "NONE";
 export type WeatherProvider = "OPEN_METEO";
+export type WarningScope = "USER" | "BED" | "PLANTING";
 
 export type WeatherHourlyItem = {
   time: string;
@@ -79,7 +80,17 @@ export type WarningItem = {
   severity: string;
   title: string;
   message: string;
-  details?: Record<string, unknown> | null;
+  hint?: string | null;
+  scope?: WarningScope | string;
+  details?:
+    | (Record<string, unknown> & {
+        scope?: WarningScope | string;
+        bedId?: string | null;
+        bedName?: string | null;
+        plantingId?: string | null;
+        vegetableName?: string | null;
+      })
+    | null;
 } & Record<string, unknown>;
 
 export type WarningsResponse = {
@@ -88,11 +99,18 @@ export type WarningsResponse = {
   items: WarningItem[];
 };
 
+export type TaskSource = "WEATHER_WARNING" | string;
+
 export type TaskItem = {
   id: string;
   title: string;
+  description?: string | null;
   dueAt?: string;
   status: string;
+  source?: TaskSource;
+  bedId?: string | null;
+  plantingId?: string | null;
+  dedupeKey?: string | null;
 } & Record<string, unknown>;
 
 export type TasksResponse = {
