@@ -2,6 +2,8 @@ import { ArticleListItem } from "@/src/api/queries/articles/types";
 import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
 import { Bed } from "@/src/api/queries/beds/types";
 import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
+import { Planting } from "@/src/api/queries/plantings/types";
+import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { TaskItem as MeTaskItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { useGetMyWarnings } from "@/src/api/queries/users/useGetMyWarnings";
@@ -12,6 +14,11 @@ import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { TaskItem } from "@/src/components/ui/TaskItem";
 import { WarningCard } from "@/src/components/ui/WarningCard";
 import { useSettings } from "@/src/context/SettingsProvider";
+import {
+  isTaskPending,
+  resolveTaskPresentation,
+  sortTasksByDueAt,
+} from "@/src/features/tasks/model";
 import {
   asNonEmptyString,
   findMatchingWeatherTask,
@@ -36,33 +43,6 @@ import {
   Text,
   useTheme,
 } from "react-native-paper";
-
-const asRecord = (value: unknown): Record<string, unknown> | null => {
-  return typeof value === "object" && value !== null
-    ? (value as Record<string, unknown>)
-    : null;
-};
-
-const getTaskMeta = (task: MeTaskItem, ...keys: string[]) => {
-  const containers = [
-    task,
-    asRecord(task.details),
-    asRecord(task.meta),
-    asRecord(task.context),
-    asRecord(task.payload),
-  ].filter((item): item is Record<string, unknown> => Boolean(item));
-
-  for (const container of containers) {
-    for (const key of keys) {
-      const value = container[key];
-      if (typeof value === "string" && value.trim().length > 0) {
-        return value;
-      }
-    }
-  }
-
-  return null;
-};
 
 const isWeatherMissingLocationError = (error: unknown) => {
   if (!isAxiosError(error)) return false;
@@ -90,6 +70,7 @@ export default function HomeScreen() {
   const { data: tasksData, isLoading: tasksLoading } = useGetMyTasks();
   const { data: warningsData, isLoading: warningsLoading } = useGetMyWarnings();
   const bedsQuery = useGetBeds({ limit: 100 });
+  const plantingsQuery = useGetPlantings({ limit: 100 });
   const { data: articlesData, isLoading: articlesLoading } = useGetArticles({
     limit: 5,
   });
@@ -106,23 +87,93 @@ export default function HomeScreen() {
     return map;
   }, [bedsQuery.data?.pages]);
 
-  const tasks = tasksData?.items ?? [];
-  const warnings = warningsData?.items ?? [];
+  const plantingsById = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        id: string;
+        bedId: string | null;
+        bedName: string | null;
+        vegetableName: string | null;
+      }
+    >();
+
+    const plantings =
+      plantingsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+
+    plantings.forEach((planting: Planting) => {
+      if (!planting?.id) return;
+
+      const bedId = asNonEmptyString(planting.bedId);
+      const bedName =
+        asNonEmptyString(planting.bedName) ??
+        (bedId ? (bedsById.get(bedId) ?? null) : null);
+      const vegetableName =
+        asNonEmptyString(planting.vegetableName) ??
+        asNonEmptyString(planting.name) ??
+        asNonEmptyString(planting.vegetable?.name);
+
+      map.set(planting.id, {
+        id: planting.id,
+        bedId,
+        bedName,
+        vegetableName,
+      });
+    });
+
+    return map;
+  }, [bedsById, plantingsQuery.data?.pages]);
+
+  const tasks = useMemo(() => tasksData?.items ?? [], [tasksData?.items]);
+  const warnings = useMemo(
+    () => warningsData?.items ?? [],
+    [warningsData?.items],
+  );
+  const nearestPendingTasks = useMemo(() => {
+    return sortTasksByDueAt(tasks.filter(isTaskPending)).slice(0, 3);
+  }, [tasks]);
   const tips: ArticleListItem[] =
     articlesData?.pages.flatMap((page) => page.items).slice(0, 2) ?? [];
   const isLoading =
     weatherLoading && tasksLoading && warningsLoading && articlesLoading;
-
-  console.log("warnings", warnings);
-
   const warningCards = useMemo(
     () =>
       warnings.map((warning) => ({
         warning,
-        presentation: resolveWarningPresentation(warning, bedsById),
+        presentation: resolveWarningPresentation(
+          warning,
+          bedsById,
+          plantingsById,
+        ),
       })),
-    [warnings, bedsById],
+    [warnings, bedsById, plantingsById],
   );
+
+  const handleTaskPress = (task: MeTaskItem) => {
+    const presentation = resolveTaskPresentation(task, {
+      bedsById,
+      plantingsById,
+    });
+
+    if (presentation.targetType === "planting" && presentation.plantingId) {
+      router.push(`/plantings/${presentation.plantingId}`);
+      return;
+    }
+
+    if (presentation.targetType === "bed" && presentation.bedId) {
+      router.push(`/(tabs)/beds/${presentation.bedId}`);
+      return;
+    }
+
+    router.push({
+      pathname: "/(tabs)/planner/tasks",
+      params: {
+        source: "WEATHER_WARNING",
+        scope: "USER",
+        scopeHint: "Zadanie dotyczy wszystkich grządek",
+      },
+    });
+  };
 
   const handleWarningPress = (warning: (typeof warningCards)[number]) => {
     const matchedTask = findMatchingWeatherTask(
@@ -132,12 +183,7 @@ export default function HomeScreen() {
     );
 
     if (matchedTask) {
-      router.push({
-        pathname: "/(tabs)/planner/tasks",
-        params: {
-          taskId: matchedTask.id,
-        },
-      });
+      handleTaskPress(matchedTask);
       return;
     }
 
@@ -275,24 +321,23 @@ export default function HomeScreen() {
               subtitle="Rzeczy do zrobienia teraz"
             >
               <View style={styles.stack}>
-                {tasks.length === 0 ? (
+                {nearestPendingTasks.length === 0 ? (
                   <Text style={styles.placeholder}>Brak zadań na teraz.</Text>
                 ) : (
-                  tasks.slice(0, 3).map((task) => {
-                    const bedName =
-                      getTaskMeta(task, "bedName", "bed_name") ??
-                      (() => {
-                        const bedId = getTaskMeta(task, "bedId", "bed_id");
-                        return bedId ? (bedsById.get(bedId) ?? null) : null;
-                      })();
+                  nearestPendingTasks.map((task) => {
+                    const presentation = resolveTaskPresentation(task, {
+                      bedsById,
+                      plantingsById,
+                    });
 
                     return (
                       <TaskItem
                         key={task.id}
                         title={task.title}
                         status={task.status}
-                        bed={bedName}
-                        crop={getTaskMeta(task, "cropName", "crop_name")}
+                        bed={presentation.locationLabel}
+                        crop={presentation.cropLabel}
+                        onPress={() => handleTaskPress(task)}
                       />
                     );
                   })
@@ -314,6 +359,8 @@ export default function HomeScreen() {
                         title={item.presentation.title}
                         message={item.presentation.message}
                         severity={item.warning.severity}
+                        scopeLabel={item.presentation.scopeLabel}
+                        contextLabel={item.presentation.contextLabel}
                         onPress={() => handleWarningPress(item)}
                       />
                     );

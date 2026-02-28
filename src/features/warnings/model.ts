@@ -13,6 +13,13 @@ type WarningRelations = {
   dedupeKey: string | null;
 };
 
+type PlantingLookup = {
+  id: string;
+  bedId: string | null;
+  bedName: string | null;
+  vegetableName: string | null;
+};
+
 const TOKEN_PATTERN = /\{[^{}]+\}/g;
 const TOKEN_EXISTS_PATTERN = /\{[^{}]+\}/;
 
@@ -82,6 +89,7 @@ const inferScope = (
 export const getWarningRelations = (
   warning: WarningItem,
   bedsById: Map<string, string>,
+  plantingsById?: Map<string, PlantingLookup>,
 ): WarningRelations => {
   const details = detailsFromWarning(warning);
   const bedId =
@@ -105,11 +113,21 @@ export const getWarningRelations = (
     asNonEmptyString(details?.plantingId) ??
     asNonEmptyString(details?.planting_id);
 
+  const planting = plantingId ? (plantingsById?.get(plantingId) ?? null) : null;
+
   const vegetableName =
     asNonEmptyString(warning.vegetableName) ??
     asNonEmptyString(warning.vegetable_name) ??
     asNonEmptyString(details?.vegetableName) ??
-    asNonEmptyString(details?.vegetable_name);
+    asNonEmptyString(details?.vegetable_name) ??
+    planting?.vegetableName ??
+    null;
+
+  const resolvedBedId = bedId ?? planting?.bedId ?? null;
+  const resolvedBedName =
+    bedName ??
+    planting?.bedName ??
+    (resolvedBedId ? (bedsById.get(resolvedBedId) ?? null) : null);
 
   const dedupeKey =
     asNonEmptyString(warning.dedupeKey) ??
@@ -119,12 +137,32 @@ export const getWarningRelations = (
 
   return {
     scope: inferScope(warning, details),
-    bedId,
-    bedName,
+    bedId: resolvedBedId,
+    bedName: resolvedBedName,
     plantingId,
     vegetableName,
     dedupeKey,
   };
+};
+
+const resolveWarningScopeLabel = (relations: WarningRelations) => {
+  if (relations.scope === "USER") return "Globalne";
+  if (relations.scope === "BED") return "Grządka";
+  return "Uprawa";
+};
+
+const resolveWarningContextLabel = (relations: WarningRelations) => {
+  if (relations.scope === "USER") return null;
+
+  if (relations.scope === "BED") {
+    return relations.bedName ?? "Grządka";
+  }
+
+  if (relations.vegetableName && relations.bedName) {
+    return `${relations.vegetableName} • ${relations.bedName}`;
+  }
+
+  return relations.vegetableName ?? relations.bedName ?? "Uprawa";
 };
 
 const fallbackMessageByScope = (relations: WarningRelations) => {
@@ -148,9 +186,10 @@ const fallbackMessageByScope = (relations: WarningRelations) => {
 export const resolveWarningPresentation = (
   warning: WarningItem,
   bedsById: Map<string, string>,
+  plantingsById?: Map<string, PlantingLookup>,
 ) => {
   const details = detailsFromWarning(warning);
-  const relations = getWarningRelations(warning, bedsById);
+  const relations = getWarningRelations(warning, bedsById, plantingsById);
 
   const values: Record<string, unknown> = {
     ...(warning as Record<string, unknown>),
@@ -195,6 +234,8 @@ export const resolveWarningPresentation = (
 
   return {
     ...relations,
+    scopeLabel: resolveWarningScopeLabel(relations),
+    contextLabel: resolveWarningContextLabel(relations),
     title,
     message,
     hint,

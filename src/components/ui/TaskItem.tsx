@@ -45,10 +45,12 @@ export function TaskItem({
       </View>
       <View style={styles.main}>
         <Text style={styles.title}>{title}</Text>
-        <Text style={styles.meta}>
-          {bed || "Nieznana grządka"}
-          {crop ? ` • ${crop}` : ""}
-        </Text>
+        {bed || crop ? (
+          <Text style={styles.meta}>
+            {bed ?? ""}
+            {crop ? `${bed ? " • " : ""}${crop}` : ""}
+          </Text>
+        ) : null}
       </View>
       <StatusBadge label={status} tone={mapTaskStatus(status)} />
     </Pressable>

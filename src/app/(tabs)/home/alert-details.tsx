@@ -41,7 +41,7 @@ export default function AlertDetailsScreen() {
         ? bedName
           ? `Grządka: ${bedName}`
           : "Grządka"
-        : "Twoja lokalizacja";
+        : "Globalne";
 
   return (
     <Screen safeAreaEdges={["top", "left", "right"]}>
@@ -66,6 +66,14 @@ export default function AlertDetailsScreen() {
             onPress={() =>
               router.push({
                 pathname: "/(tabs)/planner/tasks",
+                params:
+                  scope === "USER"
+                    ? {
+                        source: "WEATHER_WARNING",
+                        scope: "USER",
+                        scopeHint: "Zadanie dotyczy wszystkich grządek",
+                      }
+                    : undefined,
               })
             }
           >

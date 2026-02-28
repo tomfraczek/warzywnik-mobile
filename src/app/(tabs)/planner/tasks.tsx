@@ -1,9 +1,20 @@
 import { getResponseError } from "@/src/api/axios";
 import { useDeleteActionTask } from "@/src/api/queries/actionTasks/useDeleteActionTask";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
-import { TaskItem as MeTaskItem } from "@/src/api/queries/users/meTypes";
+import { Bed } from "@/src/api/queries/beds/types";
+import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
+import { Planting } from "@/src/api/queries/plantings/types";
+import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { Screen } from "@/src/components/Screen";
+import {
+  getTaskMeta,
+  isTaskPending,
+  isWeatherWarningTask,
+  resolveTaskPresentation,
+  sortTasksByDueAt,
+} from "@/src/features/tasks/model";
+import { asNonEmptyString } from "@/src/features/warnings/model";
 import { radius, spacing } from "@/src/theme/ui";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo } from "react";
@@ -19,47 +30,105 @@ import { Button, MD3Theme, Surface, Text, useTheme } from "react-native-paper";
 const asParam = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
 
-const asField = (task: MeTaskItem, ...keys: string[]) => {
-  for (const key of keys) {
-    const value = task[key];
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value;
-    }
-  }
-  return null;
-};
-
-const isPendingTask = (task: MeTaskItem) => {
-  const normalized = task.status.toLowerCase();
-  return (
-    normalized !== "done" &&
-    normalized !== "canceled" &&
-    normalized !== "cancelled"
-  );
-};
-
 export default function PlannerTasksScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const router = useRouter();
-  const params = useLocalSearchParams<{ taskId?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    taskId?: string | string[];
+    source?: string | string[];
+    scope?: string | string[];
+    scopeHint?: string | string[];
+  }>();
   const focusedTaskId = asParam(params.taskId);
+  const sourceFilter = asParam(params.source)?.toUpperCase() ?? "";
+  const scopeHint =
+    asParam(params.scopeHint) ??
+    (asParam(params.scope)?.toUpperCase() === "USER"
+      ? "Zadanie dotyczy wszystkich grządek"
+      : "");
 
   const tasksQuery = useGetMyTasks();
+  const bedsQuery = useGetBeds({ limit: 100 });
+  const plantingsQuery = useGetPlantings({ limit: 100 });
   const updateActionTask = useUpdateActionTask();
   const deleteActionTask = useDeleteActionTask();
 
-  const tasks = useMemo(() => {
-    const items = (tasksQuery.data?.items ?? []).filter(isPendingTask);
-    return [...items].sort((a, b) => {
-      if (focusedTaskId && a.id === focusedTaskId) return -1;
-      if (focusedTaskId && b.id === focusedTaskId) return 1;
-
-      const aDue = asField(a, "dueAt", "due_at") ?? "9999-12-31";
-      const bDue = asField(b, "dueAt", "due_at") ?? "9999-12-31";
-      return aDue.localeCompare(bDue);
+  const bedsById = useMemo(() => {
+    const map = new Map<string, string>();
+    const beds = bedsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+    beds.forEach((bed: Bed) => {
+      if (!bed?.id) return;
+      const name = asNonEmptyString(bed.name);
+      if (!name) return;
+      map.set(bed.id, name);
     });
-  }, [tasksQuery.data?.items, focusedTaskId]);
+    return map;
+  }, [bedsQuery.data?.pages]);
+
+  const plantingsById = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        id: string;
+        bedId: string | null;
+        bedName: string | null;
+        vegetableName: string | null;
+      }
+    >();
+    const plantings =
+      plantingsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+
+    plantings.forEach((planting: Planting) => {
+      if (!planting?.id) return;
+      const bedId = asNonEmptyString(planting.bedId);
+      const bedName =
+        asNonEmptyString(planting.bedName) ??
+        (bedId ? (bedsById.get(bedId) ?? null) : null);
+      const vegetableName =
+        asNonEmptyString(planting.vegetableName) ??
+        asNonEmptyString(planting.name) ??
+        asNonEmptyString(planting.vegetable?.name);
+
+      map.set(planting.id, {
+        id: planting.id,
+        bedId,
+        bedName,
+        vegetableName,
+      });
+    });
+
+    return map;
+  }, [bedsById, plantingsQuery.data?.pages]);
+
+  const tasks = useMemo(() => {
+    const pending = (tasksQuery.data?.items ?? []).filter(isTaskPending);
+    const filtered = sourceFilter
+      ? pending.filter((task) =>
+          sourceFilter === "WEATHER_WARNING"
+            ? isWeatherWarningTask(task)
+            : getTaskMeta(
+                task,
+                "source",
+                "taskSource",
+                "task_source",
+              )?.toUpperCase() === sourceFilter,
+        )
+      : pending;
+
+    const sorted = sortTasksByDueAt(filtered);
+    if (!focusedTaskId) return sorted;
+
+    const focusedIndex = sorted.findIndex((task) => task.id === focusedTaskId);
+    if (focusedIndex <= 0) return sorted;
+
+    const focusedTask = sorted[focusedIndex];
+    return [
+      focusedTask,
+      ...sorted.slice(0, focusedIndex),
+      ...sorted.slice(focusedIndex + 1),
+    ];
+  }, [tasksQuery.data?.items, focusedTaskId, sourceFilter]);
 
   const handleDone = (taskId: string) => {
     updateActionTask
@@ -126,6 +195,9 @@ export default function PlannerTasksScreen() {
             <Text style={styles.subtitle}>
               Twoje bieżące zadania do wykonania
             </Text>
+            {scopeHint ? (
+              <Text style={styles.scopeHint}>{scopeHint}</Text>
+            ) : null}
           </View>
         }
         ListEmptyComponent={
@@ -134,11 +206,11 @@ export default function PlannerTasksScreen() {
           </Surface>
         }
         renderItem={({ item }) => {
-          const bedId = asField(item, "bedId", "bed_id");
-          const bedName = asField(item, "bedName", "bed_name");
-          const plantingId = asField(item, "plantingId", "planting_id");
-          const cropName = asField(item, "cropName", "crop_name");
-          const dueAt = asField(item, "dueAt", "due_at");
+          const presentation = resolveTaskPresentation(item, {
+            bedsById,
+            plantingsById,
+          });
+          const dueAt = getTaskMeta(item, "dueAt", "due_at");
           const highlighted = focusedTaskId === item.id;
 
           return (
@@ -160,23 +232,28 @@ export default function PlannerTasksScreen() {
                 Termin: {dueAt ? dueAt.split("T")[0] : "Brak"}
               </Text>
               <Text style={styles.taskMeta}>
-                {bedName ?? "Nieznana grządka"}
-                {cropName ? ` • ${cropName}` : ""}
+                {presentation.locationLabel}
+                {presentation.cropLabel ? ` • ${presentation.cropLabel}` : ""}
               </Text>
 
               <View style={styles.actionsRow}>
-                {plantingId ? (
+                {presentation.targetType === "planting" &&
+                presentation.plantingId ? (
                   <Button
                     mode="outlined"
-                    onPress={() => router.push(`/plantings/${plantingId}`)}
+                    onPress={() =>
+                      router.push(`/plantings/${presentation.plantingId}`)
+                    }
                   >
                     Uprawa
                   </Button>
                 ) : null}
-                {!plantingId && bedId ? (
+                {presentation.targetType === "bed" && presentation.bedId ? (
                   <Button
                     mode="outlined"
-                    onPress={() => router.push(`/(tabs)/beds/${bedId}`)}
+                    onPress={() =>
+                      router.push(`/(tabs)/beds/${presentation.bedId}`)
+                    }
                   >
                     Grządka
                   </Button>
@@ -223,6 +300,12 @@ const makeStyles = (theme: MD3Theme) =>
     subtitle: {
       fontSize: 13,
       color: theme.colors.onSurfaceVariant,
+    },
+    scopeHint: {
+      marginTop: spacing.xs,
+      fontSize: 12,
+      fontWeight: "600",
+      color: theme.colors.primary,
     },
     taskCard: {
       borderRadius: radius.md,
