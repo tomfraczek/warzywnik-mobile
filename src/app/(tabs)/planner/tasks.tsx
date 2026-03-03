@@ -305,7 +305,7 @@ export default function PlannerTasksScreen() {
                 </Button>
               </View>
 
-              {__DEV__ ? <TaskTechnicalDetails task={item} /> : null}
+              {__DEV__ ? <TaskTechnicalDetails item={item} /> : null}
             </Surface>
           );
         }}

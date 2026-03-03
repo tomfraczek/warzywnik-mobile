@@ -9,7 +9,6 @@ import {
 } from "@/src/api/queries/beds/harvestTypes";
 import { Bed } from "@/src/api/queries/beds/types";
 import { useCreateBedActionTasksBulk } from "@/src/api/queries/beds/useCreateBedActionTasksBulk";
-import { useDeleteBed } from "@/src/api/queries/beds/useDeleteBed";
 import { useGetBed } from "@/src/api/queries/beds/useGetBed";
 import { useGetBedHarvestPrompts } from "@/src/api/queries/beds/useGetBedHarvestPrompts";
 import { Planting } from "@/src/api/queries/plantings/types";
@@ -33,8 +32,6 @@ import {
   Button,
   IconButton,
   MD3Theme,
-  Modal,
-  Portal,
   Snackbar,
   useTheme,
 } from "react-native-paper";
@@ -105,7 +102,6 @@ export default function BedDetailsScreen() {
     : actionTaskId;
   const router = useRouter();
   const { data, isLoading, error, refetch } = useGetBed(resolvedBedId ?? null);
-  const deleteBed = useDeleteBed();
   const { data: harvestPromptsResponse, refetch: refetchHarvestPrompts } =
     useGetBedHarvestPrompts(resolvedBedId ?? null);
   const {
@@ -133,7 +129,6 @@ export default function BedDetailsScreen() {
     () => plantingPages?.pages.flatMap((page) => page.items) ?? [],
     [plantingPages?.pages],
   );
-  const [actionsVisible, setActionsVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [promptQueue, setPromptQueue] = useState<HarvestPromptItem[]>([]);
   const [lastPromptSignature, setLastPromptSignature] = useState("");
@@ -271,25 +266,6 @@ export default function BedDetailsScreen() {
     return parts.length > 0 ? parts.join(" × ") : "Brak danych";
   }, [bed]);
 
-  const handleDelete = () => {
-    Alert.alert("Usunąć grządkę?", "Tej operacji nie można cofnąć.", [
-      { text: "Anuluj", style: "cancel" },
-      {
-        text: "Usuń",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            if (!resolvedBedId) return;
-            await deleteBed.mutateAsync(resolvedBedId);
-            router.replace("/(tabs)/beds");
-          } catch (err) {
-            Alert.alert("Błąd", String(getResponseError(err)));
-          }
-        },
-      },
-    ]);
-  };
-
   if (isLoading) {
     return (
       <View style={styles.center}>
@@ -322,7 +298,10 @@ export default function BedDetailsScreen() {
               <Text style={styles.subtitle}>{bed.locationLabel}</Text>
             ) : null}
           </View>
-          <IconButton icon="cog" onPress={() => setActionsVisible(true)} />
+          <IconButton
+            icon="pencil"
+            onPress={() => router.push(`/(tabs)/beds/${bed.id}/edit`)}
+          />
         </View>
       </View>
 
@@ -517,41 +496,6 @@ export default function BedDetailsScreen() {
         )}
       </View>
 
-      <Portal>
-        <Modal
-          visible={actionsVisible}
-          onDismiss={() => setActionsVisible(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <Text style={styles.modalTitle}>Akcje</Text>
-          <View style={styles.modalActionsColumn}>
-            <Button
-              mode="contained"
-              onPress={() => {
-                setActionsVisible(false);
-                router.push(`/(tabs)/beds/${bed.id}/edit`);
-              }}
-            >
-              Edytuj
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={() => {
-                setActionsVisible(false);
-                handleDelete();
-              }}
-              textColor={theme.colors.error}
-              style={styles.deleteButton}
-            >
-              Usuń
-            </Button>
-            <Button mode="text" onPress={() => setActionsVisible(false)}>
-              Zamknij
-            </Button>
-          </View>
-        </Modal>
-      </Portal>
-
       <HarvestConfirmationModal
         visible={harvestConfirmationVisible}
         plantingTitle={activeHarvestPrompt?.title ?? ""}
@@ -721,10 +665,6 @@ const makeStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurfaceVariant,
       marginBottom: 4,
     },
-    deleteButton: {
-      borderWidth: 1,
-      borderColor: theme.colors.error,
-    },
     center: {
       flex: 1,
       justifyContent: "center",
@@ -748,21 +688,6 @@ const makeStyles = (theme: MD3Theme) =>
     secondaryButtonText: {
       color: theme.colors.onSurface,
       fontWeight: "600",
-    },
-    modal: {
-      backgroundColor: theme.colors.surface,
-      marginHorizontal: 16,
-      borderRadius: 16,
-      padding: 16,
-      gap: 12,
-    },
-    modalTitle: {
-      fontSize: 18,
-      fontWeight: "700",
-      color: theme.colors.onSurface,
-    },
-    modalActionsColumn: {
-      gap: 10,
     },
     taskRow: {
       borderTopWidth: 1,

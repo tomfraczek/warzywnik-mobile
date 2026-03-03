@@ -28,7 +28,6 @@ export default function BedsListScreen() {
   const bedsQuery = useGetBeds({
     q: searchInput.trim() || undefined,
     limit: 50,
-    isActive: true,
   });
   const plantingsQuery = useGetPlantings({ limit: 100 });
 
@@ -94,7 +93,7 @@ export default function BedsListScreen() {
                     <Text style={styles.bedName}>{item.name}</Text>
                     <StatusBadge
                       label={item.isActive === false ? "Nieaktywna" : "Aktywna"}
-                      tone={item.isActive === false ? "neutral" : "success"}
+                      tone={item.isActive === false ? "inactive" : "success"}
                     />
                   </View>
 
