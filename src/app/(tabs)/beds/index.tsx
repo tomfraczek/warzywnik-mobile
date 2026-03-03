@@ -28,6 +28,7 @@ export default function BedsListScreen() {
   const bedsQuery = useGetBeds({
     q: searchInput.trim() || undefined,
     limit: 50,
+    isActive: true,
   });
   const plantingsQuery = useGetPlantings({ limit: 100 });
 
