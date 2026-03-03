@@ -85,7 +85,9 @@ export default function AlertDetailsScreen() {
                   <Text style={styles.technicalText}>
                     dayPart: {dayPart || "-"}
                   </Text>
-                  <Text style={styles.technicalText}>scope: {scope || "-"}</Text>
+                  <Text style={styles.technicalText}>
+                    scope: {scope || "-"}
+                  </Text>
                 </View>
               ) : null}
             </View>

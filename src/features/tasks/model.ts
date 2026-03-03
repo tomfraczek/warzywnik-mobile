@@ -164,7 +164,9 @@ export const isWeatherWarningTask = (task: TaskItem) => {
   return source?.toUpperCase() === "WEATHER_WARNING";
 };
 
-export const getTaskTechnicalDetails = (task: TaskItem): TaskTechnicalDetails => {
+export const getTaskTechnicalDetails = (
+  task: TaskItem,
+): TaskTechnicalDetails => {
   return {
     targetType: resolveTaskTargetType(task),
     scope: getTaskMeta(task, "scope", "targetType", "target_type"),

@@ -9,8 +9,8 @@ import { TaskItem as MeTaskItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { Screen } from "@/src/components/Screen";
 import {
-  getTaskTechnicalDetails,
   getTaskMeta,
+  getTaskTechnicalDetails,
   isWeatherWarningTask,
   resolveTaskPresentation,
   sortTasksByDueAt,
@@ -305,9 +305,7 @@ export default function PlannerTasksScreen() {
                 </Button>
               </View>
 
-              {__DEV__ ? (
-                <TaskTechnicalDetails task={item} />
-              ) : null}
+              {__DEV__ ? <TaskTechnicalDetails task={item} /> : null}
             </Surface>
           );
         }}
@@ -332,7 +330,9 @@ function TaskTechnicalDetails({ item }: { item: MeTaskItem }) {
           <Text style={styles.technicalText}>
             targetType: {technical.targetType}
           </Text>
-          <Text style={styles.technicalText}>scope: {technical.scope ?? "-"}</Text>
+          <Text style={styles.technicalText}>
+            scope: {technical.scope ?? "-"}
+          </Text>
           <Text style={styles.technicalText}>
             horizon: {technical.horizon ?? "-"}
           </Text>
