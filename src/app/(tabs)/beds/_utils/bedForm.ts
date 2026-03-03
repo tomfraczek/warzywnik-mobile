@@ -1,4 +1,9 @@
-import { Bed, CreateBedDto, UpdateBedDto } from "@/src/api/queries/beds/types";
+import {
+  Bed,
+  CreateBedDto,
+  CultivationEnvironment,
+  UpdateBedDto,
+} from "@/src/api/queries/beds/types";
 
 export type BedFormValues = {
   name: string;
@@ -7,6 +12,7 @@ export type BedFormValues = {
   lengthCm: string;
   widthCm: string;
   depthCm: string;
+  cultivationEnvironment: CultivationEnvironment;
   soilId: string | null;
   soilName: string | null;
   isActive: boolean;
@@ -24,6 +30,7 @@ export const createEmptyBedFormValues = (): BedFormValues => ({
   lengthCm: "",
   widthCm: "",
   depthCm: "",
+  cultivationEnvironment: "GROUND_OUTDOOR",
   soilId: null,
   soilName: null,
   isActive: true,
@@ -41,6 +48,7 @@ export const bedToFormValues = (bed: Bed): BedFormValues => ({
   lengthCm: bed.lengthCm != null ? String(bed.lengthCm) : "",
   widthCm: bed.widthCm != null ? String(bed.widthCm) : "",
   depthCm: bed.depthCm != null ? String(bed.depthCm) : "",
+  cultivationEnvironment: bed.cultivationEnvironment ?? "GROUND_OUTDOOR",
   soilId: bed.soilId ?? bed.soil?.id ?? null,
   soilName: bed.soil?.name ?? (bed as any)?.soilName ?? null,
   isActive: bed.isActive ?? true,
@@ -118,6 +126,8 @@ export const buildCreateBedPayload = (values: BedFormValues): CreateBedDto => {
   const depthCm = toOptionalNumber(values.depthCm);
   if (depthCm != null) payload.depthCm = depthCm;
 
+  payload.cultivationEnvironment = values.cultivationEnvironment;
+
   if (values.soilId) payload.soilId = values.soilId;
 
   if (values.soilTestingEnabled) {
@@ -141,6 +151,7 @@ const normalizeComparable = (values: BedFormValues) => ({
   lengthCm: toOptionalNumber(values.lengthCm),
   widthCm: toOptionalNumber(values.widthCm),
   depthCm: toOptionalNumber(values.depthCm),
+  cultivationEnvironment: values.cultivationEnvironment,
   soilId: values.soilId ?? null,
   isActive: values.isActive,
   soilTestingEnabled: values.soilTestingEnabled,

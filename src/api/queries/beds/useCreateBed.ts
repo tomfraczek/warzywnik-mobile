@@ -14,6 +14,8 @@ export const useCreateBed = () => {
     mutationFn: createBed,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: bedKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["me", "warnings"] });
+      queryClient.invalidateQueries({ queryKey: ["me", "tasks"] });
     },
   });
 };

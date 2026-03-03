@@ -1,11 +1,16 @@
 import {
   TaskItem,
+  WarningDayPart,
+  WarningHorizon,
   WarningItem,
   WarningScope,
 } from "@/src/api/queries/users/meTypes";
 
 type WarningRelations = {
   scope: WarningScope;
+  horizon: WarningHorizon | null;
+  dayPart: WarningDayPart | null;
+  dayLabel: string | null;
   bedId: string | null;
   bedName: string | null;
   plantingId: string | null;
@@ -22,6 +27,7 @@ type PlantingLookup = {
 
 const TOKEN_PATTERN = /\{[^{}]+\}/g;
 const TOKEN_EXISTS_PATTERN = /\{[^{}]+\}/;
+const UNKNOWN_BED_NAME_PATTERN = /nieznana\s+grz[aą]dka|unknown\s+bed/i;
 
 export const asNonEmptyString = (value: unknown) => {
   if (typeof value !== "string") return null;
@@ -86,6 +92,61 @@ const inferScope = (
   return "USER";
 };
 
+const normalizeHorizon = (raw: string | null): WarningHorizon | null => {
+  const normalized = raw?.trim().toUpperCase();
+  if (normalized === "RADAR") return "RADAR";
+  if (normalized === "OPERATIONAL") return "OPERATIONAL";
+  return null;
+};
+
+const normalizeDayPart = (raw: string | null): WarningDayPart | null => {
+  const normalized = raw?.trim().toUpperCase();
+  if (normalized === "DAY") return "DAY";
+  if (normalized === "NIGHT") return "NIGHT";
+  return null;
+};
+
+const resolveWarningHorizon = (
+  warning: WarningItem,
+  details: Record<string, unknown> | null,
+) => {
+  return normalizeHorizon(
+    asNonEmptyString(warning.horizon) ?? asNonEmptyString(details?.horizon),
+  );
+};
+
+const resolveWarningDayPart = (
+  warning: WarningItem,
+  details: Record<string, unknown> | null,
+) => {
+  return normalizeDayPart(
+    asNonEmptyString(warning.dayPart) ?? asNonEmptyString(details?.dayPart),
+  );
+};
+
+const resolveWarningDayLabel = (
+  warning: WarningItem,
+  details: Record<string, unknown> | null,
+) => {
+  const raw =
+    asNonEmptyString((warning as Record<string, unknown>).day) ??
+    asNonEmptyString(details?.day) ??
+    asNonEmptyString((warning as Record<string, unknown>).timeBucket) ??
+    asNonEmptyString(details?.timeBucket);
+
+  if (!raw) return null;
+  const normalized = raw.toUpperCase();
+  if (normalized === "TODAY") return "Dziś";
+  if (normalized === "TOMORROW") return "Jutro";
+  return raw;
+};
+
+const normalizeBedName = (value: string | null) => {
+  if (!value) return null;
+  if (UNKNOWN_BED_NAME_PATTERN.test(value)) return null;
+  return value;
+};
+
 export const getWarningRelations = (
   warning: WarningItem,
   bedsById: Map<string, string>,
@@ -104,8 +165,9 @@ export const getWarningRelations = (
     asNonEmptyString(details?.bedName) ??
     asNonEmptyString(details?.bed_name);
 
-  const bedName =
-    directBedName ?? (bedId ? (bedsById.get(bedId) ?? null) : null);
+  const bedName = normalizeBedName(
+    directBedName ?? (bedId ? (bedsById.get(bedId) ?? null) : null),
+  );
 
   const plantingId =
     asNonEmptyString(warning.plantingId) ??
@@ -125,7 +187,7 @@ export const getWarningRelations = (
 
   const resolvedBedId = bedId ?? planting?.bedId ?? null;
   const resolvedBedName =
-    bedName ??
+    normalizeBedName(bedName) ??
     planting?.bedName ??
     (resolvedBedId ? (bedsById.get(resolvedBedId) ?? null) : null);
 
@@ -137,6 +199,9 @@ export const getWarningRelations = (
 
   return {
     scope: inferScope(warning, details),
+    horizon: resolveWarningHorizon(warning, details),
+    dayPart: resolveWarningDayPart(warning, details),
+    dayLabel: resolveWarningDayLabel(warning, details),
     bedId: resolvedBedId,
     bedName: resolvedBedName,
     plantingId,
@@ -146,23 +211,47 @@ export const getWarningRelations = (
 };
 
 const resolveWarningScopeLabel = (relations: WarningRelations) => {
-  if (relations.scope === "USER") return "Globalne";
-  if (relations.scope === "BED") return "Grządka";
-  return "Uprawa";
+  if (relations.horizon === "RADAR") return "Radar";
+  if (relations.horizon === "OPERATIONAL") return "Operacyjne";
+  return relations.scope === "USER"
+    ? "Globalne"
+    : relations.scope === "BED"
+      ? "Grządka"
+      : "Uprawa";
 };
 
 const resolveWarningContextLabel = (relations: WarningRelations) => {
-  if (relations.scope === "USER") return null;
+  const dayPartLabel =
+    relations.dayPart === "DAY"
+      ? "w dzień"
+      : relations.dayPart === "NIGHT"
+        ? "w nocy"
+        : null;
+
+  const timingLabel =
+    relations.horizon === "OPERATIONAL"
+      ? [relations.dayLabel, dayPartLabel].filter(Boolean).join(" • ") ||
+        "Dziś/Jutro"
+      : null;
+
+  if (relations.scope === "USER") {
+    const locationLabel = "Dotyczy wszystkich grządek";
+    return timingLabel ? `${locationLabel} • ${timingLabel}` : locationLabel;
+  }
 
   if (relations.scope === "BED") {
-    return relations.bedName ?? "Grządka";
+    const bedLabel = relations.bedName ?? "Grządka";
+    return timingLabel ? `${bedLabel} • ${timingLabel}` : bedLabel;
   }
 
   if (relations.vegetableName && relations.bedName) {
-    return `${relations.vegetableName} • ${relations.bedName}`;
+    const base = `${relations.vegetableName} • ${relations.bedName}`;
+    return timingLabel ? `${base} • ${timingLabel}` : base;
   }
 
-  return relations.vegetableName ?? relations.bedName ?? "Uprawa";
+  const base =
+    relations.vegetableName ?? relations.bedName ?? "Uprawa • Grządka";
+  return timingLabel ? `${base} • ${timingLabel}` : base;
 };
 
 const fallbackMessageByScope = (relations: WarningRelations) => {
@@ -234,6 +323,7 @@ export const resolveWarningPresentation = (
 
   return {
     ...relations,
+    isActionable: relations.horizon === "OPERATIONAL",
     scopeLabel: resolveWarningScopeLabel(relations),
     contextLabel: resolveWarningContextLabel(relations),
     title,
@@ -269,9 +359,12 @@ const isWeatherWarningTask = (task: TaskItem) => {
 export const findMatchingWeatherTask = (
   warning: WarningItem,
   bedsById: Map<string, string>,
+  plantingsById: Map<string, PlantingLookup> | undefined,
   tasks: TaskItem[],
 ) => {
-  const relations = getWarningRelations(warning, bedsById);
+  const relations = getWarningRelations(warning, bedsById, plantingsById);
+
+  if (relations.horizon === "RADAR") return null;
 
   const weatherPendingTasks = tasks.filter(
     (task) => isTaskPending(task) && isWeatherWarningTask(task),

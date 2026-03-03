@@ -1,4 +1,5 @@
 import { BedFormValues } from "@/src/app/(tabs)/beds/_utils/bedForm";
+import { CultivationEnvironment } from "@/src/api/queries/beds/types";
 import { radius, spacing } from "@/src/theme/ui";
 import { memo } from "react";
 import {
@@ -12,6 +13,18 @@ import {
   View,
 } from "react-native";
 import { MD3Theme, useTheme } from "react-native-paper";
+
+const CULTIVATION_ENVIRONMENT_OPTIONS: Array<{
+  value: CultivationEnvironment;
+  label: string;
+}> = [
+  { value: "GROUND_OUTDOOR", label: "Grunt (na zewnątrz)" },
+  { value: "RAISED_BED_OUTDOOR", label: "Podwyższona grządka" },
+  { value: "POT_OUTDOOR", label: "Donica (na zewnątrz)" },
+  { value: "POT_INDOOR", label: "Donica (w domu)" },
+  { value: "GREENHOUSE", label: "Szklarnia" },
+  { value: "TUNNEL", label: "Tunel" },
+];
 
 type BedFormProps = {
   values: BedFormValues;
@@ -65,6 +78,34 @@ function BedFormComponent({
           placeholder="Np. przy szklarni"
           placeholderTextColor={theme.colors.onSurfaceVariant}
         />
+
+        <Text style={styles.label}>Środowisko uprawy</Text>
+        <View style={styles.optionList}>
+          {CULTIVATION_ENVIRONMENT_OPTIONS.map((option) => {
+            const selected = values.cultivationEnvironment === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                style={[
+                  styles.optionButton,
+                  selected ? styles.optionButtonActive : null,
+                ]}
+                onPress={() =>
+                  onChange({ cultivationEnvironment: option.value })
+                }
+              >
+                <Text
+                  style={[
+                    styles.optionLabel,
+                    selected ? styles.optionLabelActive : null,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -298,6 +339,31 @@ const makeStyles = (theme: MD3Theme) =>
       alignItems: "center",
       justifyContent: "space-between",
       paddingVertical: spacing.xs,
+    },
+    optionList: {
+      gap: spacing.xs,
+      marginBottom: spacing.sm,
+    },
+    optionButton: {
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+      borderRadius: radius.md,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      backgroundColor: theme.colors.surface,
+    },
+    optionButtonActive: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryContainer,
+    },
+    optionLabel: {
+      fontSize: 13,
+      color: theme.colors.onSurface,
+      fontWeight: "500",
+    },
+    optionLabelActive: {
+      color: theme.colors.primary,
+      fontWeight: "700",
     },
     metrics: {
       marginTop: spacing.sm,

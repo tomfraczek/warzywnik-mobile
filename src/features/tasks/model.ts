@@ -1,4 +1,8 @@
-import { TaskItem } from "@/src/api/queries/users/meTypes";
+import {
+  TaskItem,
+  WarningDayPart,
+  WarningHorizon,
+} from "@/src/api/queries/users/meTypes";
 
 type TaskRecord = Record<string, unknown>;
 
@@ -23,8 +27,18 @@ export type TaskPresentation = {
   bedName: string | null;
   plantingId: string | null;
   vegetableName: string | null;
+  horizon: WarningHorizon | null;
+  dayPart: WarningDayPart | null;
+  dayLabel: string | null;
   locationLabel: string;
   cropLabel: string | null;
+};
+
+export type TaskTechnicalDetails = {
+  targetType: TaskTargetType;
+  scope: string | null;
+  horizon: WarningHorizon | null;
+  dayPart: WarningDayPart | null;
 };
 
 const asRecord = (value: unknown): TaskRecord | null => {
@@ -59,6 +73,53 @@ const normalizeTargetType = (raw: string | null): TaskTargetType | null => {
   if (normalized === "BED") return "bed";
   if (normalized === "PLANTING") return "planting";
   return null;
+};
+
+const normalizeHorizon = (raw: string | null): WarningHorizon | null => {
+  const normalized = raw?.trim().toUpperCase();
+  if (normalized === "RADAR") return "RADAR";
+  if (normalized === "OPERATIONAL") return "OPERATIONAL";
+  return null;
+};
+
+const normalizeDayPart = (raw: string | null): WarningDayPart | null => {
+  const normalized = raw?.trim().toUpperCase();
+  if (normalized === "DAY") return "DAY";
+  if (normalized === "NIGHT") return "NIGHT";
+  return null;
+};
+
+const resolveTaskHorizon = (task: TaskItem): WarningHorizon | null => {
+  return normalizeHorizon(getTaskMeta(task, "horizon", "warningHorizon"));
+};
+
+const resolveTaskDayPart = (task: TaskItem): WarningDayPart | null => {
+  return normalizeDayPart(getTaskMeta(task, "dayPart", "day_part"));
+};
+
+const resolveTaskDayLabel = (task: TaskItem) => {
+  const raw = getTaskMeta(task, "day", "timeBucket", "period", "window");
+  if (!raw) return null;
+  const upper = raw.toUpperCase();
+  if (upper === "TODAY") return "Dziś";
+  if (upper === "TOMORROW") return "Jutro";
+  return raw;
+};
+
+const resolveUserTaskLocationLabel = (task: TaskItem) => {
+  const locationHint = getTaskMeta(
+    task,
+    "locationLabel",
+    "location",
+    "locationName",
+    "areaLabel",
+  );
+
+  if (!locationHint) {
+    return "(wszystkie grządki)";
+  }
+
+  return `(wszystkie grządki) • (${locationHint})`;
 };
 
 export const resolveTaskTargetType = (task: TaskItem): TaskTargetType => {
@@ -103,6 +164,15 @@ export const isWeatherWarningTask = (task: TaskItem) => {
   return source?.toUpperCase() === "WEATHER_WARNING";
 };
 
+export const getTaskTechnicalDetails = (task: TaskItem): TaskTechnicalDetails => {
+  return {
+    targetType: resolveTaskTargetType(task),
+    scope: getTaskMeta(task, "scope", "targetType", "target_type"),
+    horizon: resolveTaskHorizon(task),
+    dayPart: resolveTaskDayPart(task),
+  };
+};
+
 export const resolveTaskPresentation = (
   task: TaskItem,
   lookups: {
@@ -111,6 +181,9 @@ export const resolveTaskPresentation = (
   },
 ): TaskPresentation => {
   const targetType = resolveTaskTargetType(task);
+  const horizon = resolveTaskHorizon(task);
+  const dayPart = resolveTaskDayPart(task);
+  const dayLabel = resolveTaskDayLabel(task);
 
   const directBedId = getTaskMeta(task, "bedId", "bed_id");
   const directPlantingId = getTaskMeta(task, "plantingId", "planting_id");
@@ -141,7 +214,10 @@ export const resolveTaskPresentation = (
       bedName,
       plantingId: directPlantingId,
       vegetableName,
-      locationLabel: "Wszystkie grządki",
+      horizon,
+      dayPart,
+      dayLabel,
+      locationLabel: resolveUserTaskLocationLabel(task),
       cropLabel: null,
     };
   }
@@ -153,6 +229,9 @@ export const resolveTaskPresentation = (
       bedName,
       plantingId: directPlantingId,
       vegetableName,
+      horizon,
+      dayPart,
+      dayLabel,
       locationLabel: bedName ?? "Grządka",
       cropLabel: null,
     };
@@ -164,6 +243,9 @@ export const resolveTaskPresentation = (
     bedName,
     plantingId: directPlantingId,
     vegetableName,
+    horizon,
+    dayPart,
+    dayLabel,
     locationLabel: bedName ?? "Grządka",
     cropLabel: vegetableName ?? "Uprawa",
   };

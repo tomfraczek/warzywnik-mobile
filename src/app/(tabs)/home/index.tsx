@@ -15,13 +15,11 @@ import { TaskItem } from "@/src/components/ui/TaskItem";
 import { WarningCard } from "@/src/components/ui/WarningCard";
 import { useSettings } from "@/src/context/SettingsProvider";
 import {
-  isTaskPending,
   resolveTaskPresentation,
   sortTasksByDueAt,
 } from "@/src/features/tasks/model";
 import {
   asNonEmptyString,
-  findMatchingWeatherTask,
   resolveWarningPresentation,
 } from "@/src/features/warnings/model";
 import { radius, spacing } from "@/src/theme/ui";
@@ -67,7 +65,7 @@ export default function HomeScreen() {
     isError: isWeatherError,
     error: weatherError,
   } = useGetMyWeather();
-  const { data: tasksData, isLoading: tasksLoading } = useGetMyTasks();
+  const { data: tasksData, isLoading: tasksLoading } = useGetMyTasks("pending");
   const { data: warningsData, isLoading: warningsLoading } = useGetMyWarnings();
   const bedsQuery = useGetBeds({ limit: 100 });
   const plantingsQuery = useGetPlantings({ limit: 100 });
@@ -130,7 +128,7 @@ export default function HomeScreen() {
     [warningsData?.items],
   );
   const nearestPendingTasks = useMemo(() => {
-    return sortTasksByDueAt(tasks.filter(isTaskPending)).slice(0, 3);
+    return sortTasksByDueAt(tasks).slice(0, 3);
   }, [tasks]);
   const tips: ArticleListItem[] =
     articlesData?.pages.flatMap((page) => page.items).slice(0, 2) ?? [];
@@ -171,19 +169,27 @@ export default function HomeScreen() {
         source: "WEATHER_WARNING",
         scope: "USER",
         scopeHint: "Zadanie dotyczy wszystkich grządek",
+        operationalOnly: "1",
       },
     });
   };
 
   const handleWarningPress = (warning: (typeof warningCards)[number]) => {
-    const matchedTask = findMatchingWeatherTask(
-      warning.warning,
-      bedsById,
-      tasks,
-    );
+    if (
+      warning.presentation.scope === "PLANTING" &&
+      warning.presentation.plantingId
+    ) {
+      router.push(`/plantings/${warning.presentation.plantingId}`);
+      return;
+    }
 
-    if (matchedTask) {
-      handleTaskPress(matchedTask);
+    if (warning.presentation.scope === "BED" && warning.presentation.bedId) {
+      router.push(`/(tabs)/beds/${warning.presentation.bedId}`);
+      return;
+    }
+
+    if (warning.presentation.scope === "USER") {
+      router.push("/(tabs)/home/weather");
       return;
     }
 
@@ -198,6 +204,9 @@ export default function HomeScreen() {
         bedName: warning.presentation.bedName ?? "",
         plantingId: warning.presentation.plantingId ?? "",
         vegetableName: warning.presentation.vegetableName ?? "",
+        code: asNonEmptyString(warning.warning.code) ?? "",
+        horizon: warning.presentation.horizon ?? "",
+        dayPart: warning.presentation.dayPart ?? "",
       },
     });
   };
@@ -361,6 +370,11 @@ export default function HomeScreen() {
                         severity={item.warning.severity}
                         scopeLabel={item.presentation.scopeLabel}
                         contextLabel={item.presentation.contextLabel}
+                        ctaLabel={
+                          item.presentation.isActionable
+                            ? "Przejdź do działania"
+                            : "Zobacz prognozę"
+                        }
                         onPress={() => handleWarningPress(item)}
                       />
                     );

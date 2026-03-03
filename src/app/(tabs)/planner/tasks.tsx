@@ -5,11 +5,12 @@ import { Bed } from "@/src/api/queries/beds/types";
 import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
 import { Planting } from "@/src/api/queries/plantings/types";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
+import { TaskItem as MeTaskItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { Screen } from "@/src/components/Screen";
 import {
+  getTaskTechnicalDetails,
   getTaskMeta,
-  isTaskPending,
   isWeatherWarningTask,
   resolveTaskPresentation,
   sortTasksByDueAt,
@@ -17,11 +18,12 @@ import {
 import { asNonEmptyString } from "@/src/features/warnings/model";
 import { radius, spacing } from "@/src/theme/ui";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Pressable,
   StyleSheet,
   View,
 } from "react-native";
@@ -39,6 +41,7 @@ export default function PlannerTasksScreen() {
     source?: string | string[];
     scope?: string | string[];
     scopeHint?: string | string[];
+    operationalOnly?: string | string[];
   }>();
   const focusedTaskId = asParam(params.taskId);
   const sourceFilter = asParam(params.source)?.toUpperCase() ?? "";
@@ -47,8 +50,9 @@ export default function PlannerTasksScreen() {
     (asParam(params.scope)?.toUpperCase() === "USER"
       ? "Zadanie dotyczy wszystkich grządek"
       : "");
+  const operationalOnly = asParam(params.operationalOnly) === "1";
 
-  const tasksQuery = useGetMyTasks();
+  const tasksQuery = useGetMyTasks("pending");
   const bedsQuery = useGetBeds({ limit: 100 });
   const plantingsQuery = useGetPlantings({ limit: 100 });
   const updateActionTask = useUpdateActionTask();
@@ -102,9 +106,8 @@ export default function PlannerTasksScreen() {
   }, [bedsById, plantingsQuery.data?.pages]);
 
   const tasks = useMemo(() => {
-    const pending = (tasksQuery.data?.items ?? []).filter(isTaskPending);
-    const filtered = sourceFilter
-      ? pending.filter((task) =>
+    const filteredBySource = sourceFilter
+      ? (tasksQuery.data?.items ?? []).filter((task) =>
           sourceFilter === "WEATHER_WARNING"
             ? isWeatherWarningTask(task)
             : getTaskMeta(
@@ -114,7 +117,14 @@ export default function PlannerTasksScreen() {
                 "task_source",
               )?.toUpperCase() === sourceFilter,
         )
-      : pending;
+      : (tasksQuery.data?.items ?? []);
+
+    const filtered = operationalOnly
+      ? filteredBySource.filter((task) => {
+          const technical = getTaskTechnicalDetails(task);
+          return technical.horizon === "OPERATIONAL";
+        })
+      : filteredBySource;
 
     const sorted = sortTasksByDueAt(filtered);
     if (!focusedTaskId) return sorted;
@@ -128,7 +138,7 @@ export default function PlannerTasksScreen() {
       ...sorted.slice(0, focusedIndex),
       ...sorted.slice(focusedIndex + 1),
     ];
-  }, [tasksQuery.data?.items, focusedTaskId, sourceFilter]);
+  }, [tasksQuery.data?.items, focusedTaskId, sourceFilter, operationalOnly]);
 
   const handleDone = (taskId: string) => {
     updateActionTask
@@ -193,7 +203,9 @@ export default function PlannerTasksScreen() {
           <View style={styles.header}>
             <Text style={styles.title}>Lista zadań</Text>
             <Text style={styles.subtitle}>
-              Twoje bieżące zadania do wykonania
+              {operationalOnly
+                ? "Operacyjne zadania pogodowe (dziś/jutro)"
+                : "Twoje bieżące zadania do wykonania"}
             </Text>
             {scopeHint ? (
               <Text style={styles.scopeHint}>{scopeHint}</Text>
@@ -236,6 +248,17 @@ export default function PlannerTasksScreen() {
                 {presentation.cropLabel ? ` • ${presentation.cropLabel}` : ""}
               </Text>
 
+              {presentation.horizon === "OPERATIONAL" ? (
+                <Text style={styles.taskMetaStrong}>
+                  {presentation.dayLabel ?? "Dziś/Jutro"}
+                  {presentation.dayPart === "DAY"
+                    ? " • w dzień"
+                    : presentation.dayPart === "NIGHT"
+                      ? " • w nocy"
+                      : ""}
+                </Text>
+              ) : null}
+
               <View style={styles.actionsRow}>
                 {presentation.targetType === "planting" &&
                 presentation.plantingId ? (
@@ -258,6 +281,14 @@ export default function PlannerTasksScreen() {
                     Grządka
                   </Button>
                 ) : null}
+                {presentation.targetType === "user" ? (
+                  <Button
+                    mode="outlined"
+                    onPress={() => router.push("/(tabs)/home/weather")}
+                  >
+                    Lokalizacja
+                  </Button>
+                ) : null}
                 <Button
                   mode="outlined"
                   onPress={() => handleDelete(item.id)}
@@ -273,11 +304,44 @@ export default function PlannerTasksScreen() {
                   Done
                 </Button>
               </View>
+
+              {__DEV__ ? (
+                <TaskTechnicalDetails task={item} />
+              ) : null}
             </Surface>
           );
         }}
       />
     </Screen>
+  );
+}
+
+function TaskTechnicalDetails({ item }: { item: MeTaskItem }) {
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
+  const [open, setOpen] = useState(false);
+  const technical = getTaskTechnicalDetails(item);
+
+  return (
+    <View style={styles.technicalBox}>
+      <Pressable onPress={() => setOpen((prev) => !prev)}>
+        <Text style={styles.technicalToggle}>Szczegóły techniczne</Text>
+      </Pressable>
+      {open ? (
+        <View style={styles.technicalContent}>
+          <Text style={styles.technicalText}>
+            targetType: {technical.targetType}
+          </Text>
+          <Text style={styles.technicalText}>scope: {technical.scope ?? "-"}</Text>
+          <Text style={styles.technicalText}>
+            horizon: {technical.horizon ?? "-"}
+          </Text>
+          <Text style={styles.technicalText}>
+            dayPart: {technical.dayPart ?? "-"}
+          </Text>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -333,6 +397,11 @@ const makeStyles = (theme: MD3Theme) =>
       fontSize: 12,
       color: theme.colors.onSurfaceVariant,
     },
+    taskMetaStrong: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: theme.colors.primary,
+    },
     actionsRow: {
       flexDirection: "row",
       flexWrap: "wrap",
@@ -360,5 +429,24 @@ const makeStyles = (theme: MD3Theme) =>
     errorText: {
       color: theme.colors.error,
       textAlign: "center",
+    },
+    technicalBox: {
+      marginTop: spacing.xs,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.outlineVariant,
+      paddingTop: spacing.xs,
+      gap: spacing.xs,
+    },
+    technicalToggle: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: theme.colors.primary,
+    },
+    technicalContent: {
+      gap: spacing.xs,
+    },
+    technicalText: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
     },
   });

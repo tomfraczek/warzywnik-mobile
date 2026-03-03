@@ -1,6 +1,7 @@
 import { Screen } from "@/src/components/Screen";
 import { radius, spacing } from "@/src/theme/ui";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, MD3Theme, Surface, Text, useTheme } from "react-native-paper";
 
@@ -21,6 +22,9 @@ export default function AlertDetailsScreen() {
     bedName?: string | string[];
     plantingId?: string | string[];
     vegetableName?: string | string[];
+    code?: string | string[];
+    horizon?: string | string[];
+    dayPart?: string | string[];
   }>();
 
   const title = asParam(params.title) ?? "Alert pogodowy";
@@ -31,6 +35,10 @@ export default function AlertDetailsScreen() {
   const bedName = asParam(params.bedName) ?? "";
   const plantingId = asParam(params.plantingId) ?? "";
   const vegetableName = asParam(params.vegetableName) ?? "";
+  const code = asParam(params.code) ?? "";
+  const horizon = asParam(params.horizon) ?? "";
+  const dayPart = asParam(params.dayPart) ?? "";
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
 
   const concernLabel =
     scope === "PLANTING"
@@ -41,7 +49,7 @@ export default function AlertDetailsScreen() {
         ? bedName
           ? `Grządka: ${bedName}`
           : "Grządka"
-        : "Globalne";
+        : "Dotyczy wszystkich grządek";
 
   return (
     <Screen safeAreaEdges={["top", "left", "right"]}>
@@ -58,26 +66,42 @@ export default function AlertDetailsScreen() {
             <Text style={styles.concernLabel}>Dotyczy</Text>
             <Text style={styles.concernValue}>{concernLabel}</Text>
           </View>
+
+          {__DEV__ ? (
+            <View style={styles.technicalBox}>
+              <Button
+                mode="text"
+                compact
+                onPress={() => setShowTechnicalDetails((value) => !value)}
+              >
+                Szczegóły techniczne
+              </Button>
+              {showTechnicalDetails ? (
+                <View style={styles.technicalContent}>
+                  <Text style={styles.technicalText}>code: {code || "-"}</Text>
+                  <Text style={styles.technicalText}>
+                    horizon: {horizon || "-"}
+                  </Text>
+                  <Text style={styles.technicalText}>
+                    dayPart: {dayPart || "-"}
+                  </Text>
+                  <Text style={styles.technicalText}>scope: {scope || "-"}</Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
         </Surface>
 
         <View style={styles.actions}>
           <Button
             mode="contained"
             onPress={() =>
-              router.push({
-                pathname: "/(tabs)/planner/tasks",
-                params:
-                  scope === "USER"
-                    ? {
-                        source: "WEATHER_WARNING",
-                        scope: "USER",
-                        scopeHint: "Zadanie dotyczy wszystkich grządek",
-                      }
-                    : undefined,
-              })
+              scope === "USER"
+                ? router.push("/(tabs)/home/weather")
+                : router.push("/(tabs)/planner/tasks")
             }
           >
-            Przejdź do zadań
+            {scope === "USER" ? "Przejdź do pogody" : "Przejdź do zadań"}
           </Button>
 
           {bedId ? (
@@ -153,5 +177,19 @@ const makeStyles = (theme: MD3Theme) =>
     },
     actions: {
       gap: spacing.sm,
+    },
+    technicalBox: {
+      marginTop: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.outlineVariant,
+      paddingTop: spacing.xs,
+    },
+    technicalContent: {
+      marginTop: spacing.xs,
+      gap: spacing.xs,
+    },
+    technicalText: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
     },
   });

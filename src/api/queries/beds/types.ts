@@ -3,6 +3,14 @@ export type SoilSummary = {
   name: string;
 };
 
+export type CultivationEnvironment =
+  | "GROUND_OUTDOOR"
+  | "RAISED_BED_OUTDOOR"
+  | "POT_OUTDOOR"
+  | "POT_INDOOR"
+  | "GREENHOUSE"
+  | "TUNNEL";
+
 export type Bed = {
   id: string;
   name: string;
@@ -11,6 +19,7 @@ export type Bed = {
   lengthCm?: number | null;
   widthCm?: number | null;
   depthCm?: number | null;
+  cultivationEnvironment?: CultivationEnvironment | null;
   soilId?: string | null;
   soil?: SoilSummary | null;
   soilTestingEnabled?: boolean | null;
@@ -30,6 +39,7 @@ export type CreateBedDto = {
   lengthCm?: number;
   widthCm?: number;
   depthCm?: number;
+  cultivationEnvironment?: CultivationEnvironment;
   soilId?: string | null;
   soilTestingEnabled?: boolean;
   measuredN?: number | null;

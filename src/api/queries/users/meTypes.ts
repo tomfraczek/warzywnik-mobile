@@ -13,6 +13,8 @@ export type WeatherType =
 export type WeatherBasis = "FRESH" | "STALE" | "NONE";
 export type WeatherProvider = "OPEN_METEO";
 export type WarningScope = "USER" | "BED" | "PLANTING";
+export type WarningHorizon = "RADAR" | "OPERATIONAL";
+export type WarningDayPart = "DAY" | "NIGHT";
 
 export type WeatherHourlyItem = {
   time: string;
@@ -82,9 +84,13 @@ export type WarningItem = {
   message: string;
   hint?: string | null;
   scope?: WarningScope | string;
+  horizon?: WarningHorizon | string;
+  dayPart?: WarningDayPart | string;
   details?:
     | (Record<string, unknown> & {
         scope?: WarningScope | string;
+        horizon?: WarningHorizon | string;
+        dayPart?: WarningDayPart | string;
         bedId?: string | null;
         bedName?: string | null;
         plantingId?: string | null;
@@ -100,6 +106,7 @@ export type WarningsResponse = {
 };
 
 export type TaskSource = "WEATHER_WARNING" | string;
+export type TaskStatusFilter = "pending" | "done" | "all";
 
 export type TaskItem = {
   id: string;
@@ -108,6 +115,8 @@ export type TaskItem = {
   dueAt?: string;
   status: string;
   source?: TaskSource;
+  horizon?: WarningHorizon | string;
+  dayPart?: WarningDayPart | string;
   bedId?: string | null;
   plantingId?: string | null;
   dedupeKey?: string | null;

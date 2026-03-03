@@ -21,6 +21,8 @@ export const useUpdateBed = (id: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: bedKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: bedKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["me", "warnings"] });
+      queryClient.invalidateQueries({ queryKey: ["me", "tasks"] });
     },
   });
 };
