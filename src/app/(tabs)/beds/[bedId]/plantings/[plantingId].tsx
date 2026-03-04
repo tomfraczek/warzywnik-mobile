@@ -338,7 +338,9 @@ export default function PlantingDetailsScreen() {
           <Text style={styles.sectionTitle}>Historia</Text>
           <SegmentedButtons
             value={historySegment}
-            onValueChange={(value) => setHistorySegment(value as HistorySegment)}
+            onValueChange={(value) =>
+              setHistorySegment(value as HistorySegment)
+            }
             buttons={[
               { value: "history", label: "Wykonane + anulowane" },
               { value: "done", label: "Wykonane" },
@@ -355,7 +357,10 @@ export default function PlantingDetailsScreen() {
               <Text style={styles.errorText}>
                 {String(getResponseError(plantingTasksQuery.error))}
               </Text>
-              <Button mode="outlined" onPress={() => plantingTasksQuery.refetch()}>
+              <Button
+                mode="outlined"
+                onPress={() => plantingTasksQuery.refetch()}
+              >
                 Spróbuj ponownie
               </Button>
             </View>
@@ -378,7 +383,9 @@ export default function PlantingDetailsScreen() {
                   Źródło: {getTaskSourceLabel(task.source)}
                 </Text>
                 {task.description ? (
-                  <Text style={styles.taskHistoryDescription}>{task.description}</Text>
+                  <Text style={styles.taskHistoryDescription}>
+                    {task.description}
+                  </Text>
                 ) : null}
               </View>
               <StatusBadge

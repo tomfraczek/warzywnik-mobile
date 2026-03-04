@@ -21,8 +21,8 @@ import {
   formatTaskHorizon,
   formatTaskScope,
   formatTaskTargetType,
-  getTaskTechnicalDetails,
   getTaskMeta,
+  getTaskTechnicalDetails,
   resolveTaskPresentation,
 } from "@/src/features/tasks/model";
 import { asNonEmptyString } from "@/src/features/warnings/model";
@@ -284,7 +284,11 @@ export default function PlannerScreen() {
                   const dueAt = getTaskMeta(task, "dueAt", "due_at");
 
                   return (
-                    <Surface key={task.id} style={styles.taskCard} elevation={0}>
+                    <Surface
+                      key={task.id}
+                      style={styles.taskCard}
+                      elevation={0}
+                    >
                       <Text style={styles.taskTitle}>{task.title}</Text>
 
                       {typeof task.description === "string" &&
@@ -321,7 +325,9 @@ export default function PlannerScreen() {
                           <Button
                             mode="outlined"
                             onPress={() =>
-                              router.push(`/plantings/${presentation.plantingId}`)
+                              router.push(
+                                `/plantings/${presentation.plantingId}`,
+                              )
                             }
                           >
                             Uprawa
@@ -409,12 +415,18 @@ export default function PlannerScreen() {
                     day.date;
 
                   return (
-                    <Surface key={task.id} style={styles.taskCard} elevation={0}>
+                    <Surface
+                      key={task.id}
+                      style={styles.taskCard}
+                      elevation={0}
+                    >
                       <Text style={styles.taskTitle}>{task.title}</Text>
                       <Text style={styles.taskMeta}>Termin: {dueAt}</Text>
                       <Text style={styles.taskMeta}>
                         {presentation.locationLabel}
-                        {presentation.cropLabel ? ` • ${presentation.cropLabel}` : ""}
+                        {presentation.cropLabel
+                          ? ` • ${presentation.cropLabel}`
+                          : ""}
                       </Text>
 
                       {presentation.horizon === "OPERATIONAL" ? (
@@ -434,13 +446,16 @@ export default function PlannerScreen() {
                           <Button
                             mode="outlined"
                             onPress={() =>
-                              router.push(`/plantings/${presentation.plantingId}`)
+                              router.push(
+                                `/plantings/${presentation.plantingId}`,
+                              )
                             }
                           >
                             Uprawa
                           </Button>
                         ) : null}
-                        {presentation.targetType === "bed" && presentation.bedId ? (
+                        {presentation.targetType === "bed" &&
+                        presentation.bedId ? (
                           <Button
                             mode="outlined"
                             onPress={() =>
@@ -474,7 +489,9 @@ export default function PlannerScreen() {
                         </Button>
                       </View>
 
-                      {__DEV__ ? <TaskTechnicalDetails item={plannerTask} /> : null}
+                      {__DEV__ ? (
+                        <TaskTechnicalDetails item={plannerTask} />
+                      ) : null}
                     </Surface>
                   );
                 })}

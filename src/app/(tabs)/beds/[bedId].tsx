@@ -185,7 +185,8 @@ export default function BedDetailsScreen() {
     [bedTasksResponse?.items],
   );
   const pendingTasks = useMemo(
-    () => sortTasksByDueAt(bedTasks.filter((task) => task.status === "pending")),
+    () =>
+      sortTasksByDueAt(bedTasks.filter((task) => task.status === "pending")),
     [bedTasks],
   );
   const historyTasks = useMemo(() => {
@@ -241,7 +242,8 @@ export default function BedDetailsScreen() {
     [plantings],
   );
 
-  const hasAttentionItems = harvestPrompts.length > 0 || pendingTasks.length > 0;
+  const hasAttentionItems =
+    harvestPrompts.length > 0 || pendingTasks.length > 0;
 
   const handleHarvestNo = async () => {
     if (!activeHarvestPrompt) return;
@@ -598,7 +600,9 @@ export default function BedDetailsScreen() {
               <Text style={styles.taskMeta}>
                 Data: {formatDate(getTaskRecordDate(task))}
               </Text>
-              <Text style={styles.taskMeta}>Źródło: {getTaskSourceLabel(task.source)}</Text>
+              <Text style={styles.taskMeta}>
+                Źródło: {getTaskSourceLabel(task.source)}
+              </Text>
             </View>
 
             <StatusBadge

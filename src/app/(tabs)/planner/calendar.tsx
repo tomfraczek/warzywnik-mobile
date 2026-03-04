@@ -3,8 +3,8 @@ import { useDeleteActionTask } from "@/src/api/queries/actionTasks/useDeleteActi
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
 import { Bed } from "@/src/api/queries/beds/types";
 import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
-import { useGetCalendar } from "@/src/api/queries/calendar/useGetCalendar";
 import { CalendarTaskItem } from "@/src/api/queries/calendar/types";
+import { useGetCalendar } from "@/src/api/queries/calendar/useGetCalendar";
 import { Planting } from "@/src/api/queries/plantings/types";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { TaskItem as MeTaskItem } from "@/src/api/queries/users/meTypes";
@@ -223,7 +223,11 @@ export default function PlannerCalendarScreen() {
                       day.date;
 
                     return (
-                      <Surface key={task.id} style={styles.taskCard} elevation={0}>
+                      <Surface
+                        key={task.id}
+                        style={styles.taskCard}
+                        elevation={0}
+                      >
                         <Text style={styles.itemTitle}>{task.title}</Text>
                         <Text style={styles.itemMeta}>Termin: {dueAt}</Text>
                         <Text style={styles.itemMeta}>
@@ -250,7 +254,9 @@ export default function PlannerCalendarScreen() {
                             <Button
                               mode="outlined"
                               onPress={() =>
-                                router.push(`/plantings/${presentation.plantingId}`)
+                                router.push(
+                                  `/plantings/${presentation.plantingId}`,
+                                )
                               }
                             >
                               Uprawa
@@ -261,7 +267,9 @@ export default function PlannerCalendarScreen() {
                             <Button
                               mode="outlined"
                               onPress={() =>
-                                router.push(`/(tabs)/beds/${presentation.bedId}`)
+                                router.push(
+                                  `/(tabs)/beds/${presentation.bedId}`,
+                                )
                               }
                             >
                               Grządka
@@ -270,7 +278,9 @@ export default function PlannerCalendarScreen() {
                           {presentation.targetType === "user" ? (
                             <Button
                               mode="outlined"
-                              onPress={() => router.push("/(tabs)/home/weather")}
+                              onPress={() =>
+                                router.push("/(tabs)/home/weather")
+                              }
                             >
                               Lokalizacja
                             </Button>
@@ -291,7 +301,9 @@ export default function PlannerCalendarScreen() {
                           </Button>
                         </View>
 
-                        {__DEV__ ? <TaskTechnicalDetails item={plannerTask} /> : null}
+                        {__DEV__ ? (
+                          <TaskTechnicalDetails item={plannerTask} />
+                        ) : null}
                       </Surface>
                     );
                   })}
