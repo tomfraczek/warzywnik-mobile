@@ -1,10 +1,21 @@
 import { TaskListStatusFilter } from "./types";
 
+type ActionTaskRangeParams = {
+  from?: string;
+  to?: string;
+};
+
 export const actionTaskKeys = {
   all: ["action-tasks"] as const,
-  bed: (bedId: string, status?: TaskListStatusFilter) =>
-    ["action-tasks", "bed", bedId, { status }] as const,
-  planting: (plantingId: string, status?: TaskListStatusFilter) =>
-    ["action-tasks", "planting", plantingId, { status }] as const,
+  bed: (
+    bedId: string,
+    status?: TaskListStatusFilter,
+    range?: ActionTaskRangeParams,
+  ) => ["action-tasks", "bed", bedId, { status, ...range }] as const,
+  planting: (
+    plantingId: string,
+    status?: TaskListStatusFilter,
+    range?: ActionTaskRangeParams,
+  ) => ["action-tasks", "planting", plantingId, { status, ...range }] as const,
   detail: (id: string) => ["action-tasks", "detail", id] as const,
 };

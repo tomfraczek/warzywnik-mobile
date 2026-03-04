@@ -175,6 +175,32 @@ export const getTaskTechnicalDetails = (
   };
 };
 
+export const formatTaskTargetType = (targetType: TaskTargetType) => {
+  if (targetType === "user") return "Użytkownik";
+  if (targetType === "bed") return "Grządka";
+  return "Uprawa";
+};
+
+export const formatTaskScope = (scope: string | null) => {
+  const normalized = scope?.trim().toUpperCase();
+  if (normalized === "USER") return "Użytkownik";
+  if (normalized === "BED") return "Grządka";
+  if (normalized === "PLANTING") return "Uprawa";
+  return "Brak";
+};
+
+export const formatTaskHorizon = (horizon: WarningHorizon | null) => {
+  if (horizon === "RADAR") return "Radarowy";
+  if (horizon === "OPERATIONAL") return "Operacyjny";
+  return "Brak";
+};
+
+export const formatTaskDayPart = (dayPart: WarningDayPart | null) => {
+  if (dayPart === "DAY") return "Dzień";
+  if (dayPart === "NIGHT") return "Noc";
+  return "Brak";
+};
+
 export const resolveTaskPresentation = (
   task: TaskItem,
   lookups: {

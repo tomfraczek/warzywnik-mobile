@@ -17,6 +17,7 @@ import { usePostHarvestConfirmation } from "@/src/api/queries/plantings/usePostH
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { HarvestConfirmationModal } from "@/src/app/(tabs)/beds/_components/HarvestConfirmationModal";
 import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostHarvestActionsModal";
+import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { memo, useEffect, useMemo, useState } from "react";
 import {
@@ -32,6 +33,7 @@ import {
   Button,
   IconButton,
   MD3Theme,
+  SegmentedButtons,
   Snackbar,
   useTheme,
 } from "react-native-paper";
@@ -54,6 +56,38 @@ const sortTasksByDueAt = (tasks: ActionTask[]) =>
     const bDue = b.dueAt ?? "9999-12-31";
     return aDue.localeCompare(bDue);
   });
+
+const getTaskRecordDate = (task: ActionTask) =>
+  task.doneAt ?? task.dueAt ?? task.createdAt ?? task.updatedAt ?? null;
+
+const sortTaskHistoryDesc = (tasks: ActionTask[]) =>
+  [...tasks].sort((a, b) => {
+    const aDate = getTaskRecordDate(a) ?? "0000-01-01";
+    const bDate = getTaskRecordDate(b) ?? "0000-01-01";
+    return bDate.localeCompare(aDate);
+  });
+
+const getTaskSourceLabel = (source?: ActionTask["source"]) => {
+  if (source === "MANUAL") return "Manualne";
+  if (source === "VEGETABLE_RULE") return "Automatyczne";
+  if (source === "WEATHER_WARNING") return "Pogodowe";
+  return "Nieznane";
+};
+
+const getTaskStatusLabel = (status: ActionTask["status"]) => {
+  if (status === "done") return "Wykonane";
+  if (status === "canceled") return "Anulowane";
+  return "Oczekujące";
+};
+
+const getTaskStatusTone = (status: ActionTask["status"]) => {
+  if (status === "done") return "success" as const;
+  if (status === "canceled") return "inactive" as const;
+  return "warning" as const;
+};
+
+type HistoryStatusFilter = "all" | "done" | "canceled" | "pending";
+type HistorySourceFilter = "all" | "manual" | "automatyczne" | "pogodowe";
 
 type PlantingRowProps = {
   planting: Planting;
@@ -121,7 +155,7 @@ export default function BedDetailsScreen() {
     refetch: refetchBedTasks,
     isLoading: isBedTasksLoading,
     error: bedTasksError,
-  } = useGetBedActionTasks(resolvedBedId ?? null, "pending");
+  } = useGetBedActionTasks(resolvedBedId ?? null, "all");
   const updateActionTask = useUpdateActionTask();
 
   const bed = data as Bed | undefined;
@@ -133,6 +167,10 @@ export default function BedDetailsScreen() {
   const [promptQueue, setPromptQueue] = useState<HarvestPromptItem[]>([]);
   const [lastPromptSignature, setLastPromptSignature] = useState("");
   const [postHarvestModalVisible, setPostHarvestModalVisible] = useState(false);
+  const [historyStatusFilter, setHistoryStatusFilter] =
+    useState<HistoryStatusFilter>("all");
+  const [historySourceFilter, setHistorySourceFilter] =
+    useState<HistorySourceFilter>("all");
 
   const [postHarvestActions, setPostHarvestActions] = useState<
     ActionTemplate[]
@@ -143,9 +181,30 @@ export default function BedDetailsScreen() {
     [harvestPromptsResponse?.items],
   );
   const bedTasks = useMemo(
-    () => sortTasksByDueAt(bedTasksResponse?.items ?? []),
+    () => bedTasksResponse?.items ?? [],
     [bedTasksResponse?.items],
   );
+  const pendingTasks = useMemo(
+    () => sortTasksByDueAt(bedTasks.filter((task) => task.status === "pending")),
+    [bedTasks],
+  );
+  const historyTasks = useMemo(() => {
+    const statusFiltered = bedTasks.filter((task) => {
+      if (historyStatusFilter === "all") return true;
+      return task.status === historyStatusFilter;
+    });
+
+    const sourceFiltered = statusFiltered.filter((task) => {
+      if (historySourceFilter === "all") return true;
+      if (historySourceFilter === "manual") return task.source === "MANUAL";
+      if (historySourceFilter === "automatyczne") {
+        return task.source === "VEGETABLE_RULE";
+      }
+      return task.source === "WEATHER_WARNING";
+    });
+
+    return sortTaskHistoryDesc(sourceFiltered);
+  }, [bedTasks, historySourceFilter, historyStatusFilter]);
   const harvestPromptSignature = useMemo(
     () =>
       harvestPrompts
@@ -182,7 +241,7 @@ export default function BedDetailsScreen() {
     [plantings],
   );
 
-  const hasAttentionItems = harvestPrompts.length > 0 || bedTasks.length > 0;
+  const hasAttentionItems = harvestPrompts.length > 0 || pendingTasks.length > 0;
 
   const handleHarvestNo = async () => {
     if (!activeHarvestPrompt) return;
@@ -432,11 +491,11 @@ export default function BedDetailsScreen() {
           </View>
         ) : null}
 
-        {!isBedTasksLoading && !bedTasksError && bedTasks.length === 0 ? (
+        {!isBedTasksLoading && !bedTasksError && pendingTasks.length === 0 ? (
           <Text style={styles.valueText}>Brak zadań do wykonania.</Text>
         ) : null}
 
-        {bedTasks.map((task) => {
+        {pendingTasks.map((task) => {
           const isHighlighted = highlightedActionTaskId === task.id;
           return (
             <View
@@ -480,7 +539,78 @@ export default function BedDetailsScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Historia</Text>
+        <Text style={styles.sectionTitle}>Historia zabiegów</Text>
+
+        <Text style={styles.filterLabel}>Status</Text>
+        <SegmentedButtons
+          value={historyStatusFilter}
+          onValueChange={(value) =>
+            setHistoryStatusFilter(value as HistoryStatusFilter)
+          }
+          buttons={[
+            { value: "all", label: "Wszystkie" },
+            { value: "done", label: "Wykonane" },
+            { value: "canceled", label: "Anulowane" },
+            { value: "pending", label: "Oczekujące" },
+          ]}
+          style={styles.filterButtons}
+        />
+
+        <Text style={styles.filterLabel}>Typ</Text>
+        <SegmentedButtons
+          value={historySourceFilter}
+          onValueChange={(value) =>
+            setHistorySourceFilter(value as HistorySourceFilter)
+          }
+          buttons={[
+            { value: "all", label: "Wszystkie" },
+            { value: "manual", label: "Manualne" },
+            { value: "automatyczne", label: "Automatyczne" },
+            { value: "pogodowe", label: "Pogodowe" },
+          ]}
+          style={styles.filterButtons}
+        />
+
+        {isBedTasksLoading ? <ActivityIndicator /> : null}
+
+        {bedTasksError ? (
+          <View style={styles.inlineErrorBox}>
+            <Text style={styles.errorText}>
+              {String(getResponseError(bedTasksError))}
+            </Text>
+            <Button mode="outlined" onPress={() => refetchBedTasks()}>
+              Spróbuj ponownie
+            </Button>
+          </View>
+        ) : null}
+
+        {!isBedTasksLoading && !bedTasksError && historyTasks.length === 0 ? (
+          <Text style={styles.valueText}>Brak historii zabiegów.</Text>
+        ) : null}
+
+        {historyTasks.map((task) => (
+          <View key={`history-${task.id}`} style={styles.historyRow}>
+            <View style={styles.taskMain}>
+              <Text style={styles.taskTitle}>{task.title}</Text>
+              {task.description ? (
+                <Text style={styles.taskDescription}>{task.description}</Text>
+              ) : null}
+              <Text style={styles.taskMeta}>
+                Data: {formatDate(getTaskRecordDate(task))}
+              </Text>
+              <Text style={styles.taskMeta}>Źródło: {getTaskSourceLabel(task.source)}</Text>
+            </View>
+
+            <StatusBadge
+              label={getTaskStatusLabel(task.status)}
+              tone={getTaskStatusTone(task.status)}
+            />
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Historia upraw</Text>
         {cancelledPlantings.length === 0 ? (
           <Text style={styles.valueText}>Brak zakończonych upraw.</Text>
         ) : (
@@ -720,5 +850,24 @@ const makeStyles = (theme: MD3Theme) =>
       flexDirection: "row",
       justifyContent: "flex-end",
       gap: 8,
+    },
+    filterLabel: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+      marginBottom: 6,
+      marginTop: 2,
+    },
+    filterButtons: {
+      marginBottom: 10,
+      alignSelf: "flex-start",
+    },
+    historyRow: {
+      borderTopWidth: 1,
+      borderColor: theme.colors.outline,
+      paddingVertical: 10,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: 10,
     },
   });

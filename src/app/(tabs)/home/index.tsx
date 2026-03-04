@@ -166,10 +166,8 @@ export default function HomeScreen() {
     router.push({
       pathname: "/(tabs)/planner/tasks",
       params: {
-        source: "WEATHER_WARNING",
-        scope: "USER",
+        taskId: task.id,
         scopeHint: "Zadanie dotyczy wszystkich grządek",
-        operationalOnly: "1",
       },
     });
   };

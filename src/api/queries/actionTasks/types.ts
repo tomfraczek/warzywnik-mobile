@@ -1,6 +1,6 @@
 export type ActionTaskStatus = "pending" | "done" | "canceled";
 
-export type TaskListStatusFilter = "pending" | "done" | "all";
+export type TaskListStatusFilter = "pending" | "done" | "canceled" | "all";
 
 export type TaskEntityStatusLike = ActionTaskStatus | "canceled";
 
@@ -9,10 +9,21 @@ export type ActionTask = {
   title: string;
   description?: string | null;
   dueAt?: string | null;
+  doneAt?: string | null;
   status: ActionTaskStatus;
+  source?: "MANUAL" | "VEGETABLE_RULE" | "WEATHER_WARNING";
+  targetType?: "user" | "bed" | "planting";
   bedId?: string | null;
   plantingId?: string | null;
   actionTemplateId?: string | null;
+  actionTemplate?: {
+    id: string;
+    name: string;
+    type?: string;
+    scope?: string;
+  } | null;
+  createdAt?: string;
+  updatedAt?: string;
   isManuallyRescheduled?: boolean;
 };
 
@@ -55,7 +66,12 @@ export const normalizeTaskListStatusFilter = (
   status?: TaskListStatusFilter | TaskEntityStatusLike | "planned",
 ): TaskListStatusFilter | undefined => {
   if (!status) return undefined;
-  if (status === "pending" || status === "done" || status === "all") {
+  if (
+    status === "pending" ||
+    status === "done" ||
+    status === "canceled" ||
+    status === "all"
+  ) {
     return status;
   }
   if (status === "planned") return "pending";

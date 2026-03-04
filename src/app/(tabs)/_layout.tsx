@@ -1,10 +1,11 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Tabs, useRouter } from "expo-router";
+import { Tabs, usePathname, useRouter } from "expo-router";
 import { MD3Theme, useTheme } from "react-native-paper";
 
 export default function TabsLayout() {
   const theme = useTheme<MD3Theme>();
   const router = useRouter();
+  const pathname = usePathname();
 
   return (
     <Tabs
@@ -45,6 +46,18 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="planner"
+        listeners={{
+          tabPress: (event) => {
+            const isPlannerRoute = pathname.startsWith("/(tabs)/planner");
+            const isPlannerRoot =
+              pathname === "/(tabs)/planner" || pathname === "/(tabs)/planner/";
+
+            if (isPlannerRoute && !isPlannerRoot) {
+              event.preventDefault();
+              router.replace("/(tabs)/planner");
+            }
+          },
+        }}
         options={{
           title: "Kalendarz",
           tabBarIcon: ({ color, size }) => (

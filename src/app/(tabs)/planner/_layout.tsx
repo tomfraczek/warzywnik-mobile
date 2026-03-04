@@ -14,7 +14,19 @@ export default function PlannerLayout() {
         name="index"
         options={{ title: "Kalendarz", headerShown: false }}
       />
-      <Stack.Screen name="tasks" options={{ title: "Lista zadań" }} />
+      <Stack.Screen
+        name="tasks"
+        options={{
+          title: "Lista zadań",
+          header: ({ options }) => (
+            <CustomHeader
+              title={options.title?.toString()}
+              showBack
+              backRoute="/(tabs)/planner"
+            />
+          ),
+        }}
+      />
       <Stack.Screen name="calendar" options={{ title: "Kalendarz" }} />
     </Stack>
   );

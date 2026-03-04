@@ -1,9 +1,19 @@
 export type CalendarTaskItem = {
   id: string;
   title: string;
+  status?: "pending" | "done" | "canceled";
   dueAt?: string | null;
+  doneAt?: string | null;
+  createdAt?: string;
   bedId?: string | null;
   plantingId?: string | null;
+  source?: string;
+  actionTemplate?: {
+    id: string;
+    name: string;
+    scope?: string;
+    type?: string;
+  } | null;
 };
 
 export type CalendarHarvestWindowItem = {

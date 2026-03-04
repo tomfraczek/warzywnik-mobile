@@ -9,6 +9,10 @@ import { TaskItem as MeTaskItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { Screen } from "@/src/components/Screen";
 import {
+  formatTaskDayPart,
+  formatTaskHorizon,
+  formatTaskScope,
+  formatTaskTargetType,
   getTaskMeta,
   getTaskTechnicalDetails,
   isWeatherWarningTask,
@@ -328,16 +332,16 @@ function TaskTechnicalDetails({ item }: { item: MeTaskItem }) {
       {open ? (
         <View style={styles.technicalContent}>
           <Text style={styles.technicalText}>
-            targetType: {technical.targetType}
+            Typ celu: {formatTaskTargetType(technical.targetType)}
           </Text>
           <Text style={styles.technicalText}>
-            scope: {technical.scope ?? "-"}
+            Zakres: {formatTaskScope(technical.scope)}
           </Text>
           <Text style={styles.technicalText}>
-            horizon: {technical.horizon ?? "-"}
+            Horyzont: {formatTaskHorizon(technical.horizon)}
           </Text>
           <Text style={styles.technicalText}>
-            dayPart: {technical.dayPart ?? "-"}
+            Pora dnia: {formatTaskDayPart(technical.dayPart)}
           </Text>
         </View>
       ) : null}

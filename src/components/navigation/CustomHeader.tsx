@@ -7,7 +7,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 type CustomHeaderProps = {
   title?: string;
   showBack?: boolean;
-  backRoute?: "/(tabs)/home" | "/(tabs)/profile";
+  backRoute?:
+    | "/(tabs)/home"
+    | "/(tabs)/beds"
+    | "/(tabs)/planner"
+    | "/(tabs)/education"
+    | "/(tabs)/profile";
   rightAction?: ReactNode;
 };
 

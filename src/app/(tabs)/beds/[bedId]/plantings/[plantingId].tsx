@@ -1,4 +1,6 @@
 import { getResponseError } from "@/src/api/axios";
+import { ActionTask } from "@/src/api/queries/actionTasks/types";
+import { useGetPlantingActionTasks } from "@/src/api/queries/actionTasks/useGetPlantingActionTasks";
 import { useSearchDiseases } from "@/src/api/queries/diseases/useSearchDiseases";
 import {
   DiseaseSeverity,
@@ -12,6 +14,7 @@ import { useDeletePlanting } from "@/src/api/queries/plantings/useDeletePlanting
 import { useGetPlanting } from "@/src/api/queries/plantings/useGetPlanting";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { Screen } from "@/src/components/Screen";
+import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { isAxiosError } from "axios";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
@@ -58,6 +61,37 @@ const parseIsoDate = (value?: string | null) => {
   return Number.isNaN(d.getTime()) ? undefined : d;
 };
 
+const getTaskRecordDate = (task: ActionTask) =>
+  task.doneAt ?? task.dueAt ?? task.createdAt ?? task.updatedAt ?? null;
+
+const sortTaskHistoryDesc = (tasks: ActionTask[]) =>
+  [...tasks].sort((a, b) => {
+    const aDate = getTaskRecordDate(a) ?? "0000-01-01";
+    const bDate = getTaskRecordDate(b) ?? "0000-01-01";
+    return bDate.localeCompare(aDate);
+  });
+
+const getTaskStatusLabel = (status: ActionTask["status"]) => {
+  if (status === "done") return "Wykonane";
+  if (status === "canceled") return "Anulowane";
+  return "Oczekujące";
+};
+
+const getTaskStatusTone = (status: ActionTask["status"]) => {
+  if (status === "done") return "success" as const;
+  if (status === "canceled") return "inactive" as const;
+  return "warning" as const;
+};
+
+const getTaskSourceLabel = (source?: ActionTask["source"]) => {
+  if (source === "MANUAL") return "Manualne";
+  if (source === "VEGETABLE_RULE") return "Automatyczne";
+  if (source === "WEATHER_WARNING") return "Pogodowe";
+  return "Nieznane";
+};
+
+type HistorySegment = "history" | "done" | "canceled" | "pending";
+
 export default function PlantingDetailsScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
@@ -72,6 +106,10 @@ export default function PlantingDetailsScreen() {
   const router = useRouter();
   const { data, isLoading, error, refetch } = useGetPlanting(
     resolvedPlantingId ?? null,
+  );
+  const plantingTasksQuery = useGetPlantingActionTasks(
+    resolvedPlantingId ?? null,
+    "all",
   );
   const deletePlanting = useDeletePlanting(resolvedBedId);
   const diseasesQuery = useGetPlantingDiseases(
@@ -106,6 +144,8 @@ export default function PlantingDetailsScreen() {
   const [observedAt, setObservedAt] = useState<string | null>(null);
   const [observedOpen, setObservedOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [historySegment, setHistorySegment] =
+    useState<HistorySegment>("history");
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const searchQueryResult = useSearchDiseases(searchQuery);
 
@@ -114,6 +154,16 @@ export default function PlantingDetailsScreen() {
   const commonDiseases = vegetable?.commonDiseases ?? [];
   const searchItems = searchQueryResult.data ?? [];
   const activeDiseases = (diseasesQuery.data ?? []) as PlantingDisease[];
+  const historyTasks = useMemo(() => {
+    const allTasks = (plantingTasksQuery.data?.items ?? []) as ActionTask[];
+    const filtered = allTasks.filter((task) => {
+      if (historySegment === "history") {
+        return task.status === "done" || task.status === "canceled";
+      }
+      return task.status === historySegment;
+    });
+    return sortTaskHistoryDesc(filtered);
+  }, [historySegment, plantingTasksQuery.data?.items]);
 
   const handleDelete = () => {
     Alert.alert("Usunąć uprawę?", "Tej operacji nie można cofnąć.", [
@@ -282,6 +332,61 @@ export default function PlantingDetailsScreen() {
           <Text style={styles.valueText}>
             {planting.notes ? planting.notes : "Brak"}
           </Text>
+        </Surface>
+
+        <Surface style={styles.section} elevation={0}>
+          <Text style={styles.sectionTitle}>Historia</Text>
+          <SegmentedButtons
+            value={historySegment}
+            onValueChange={(value) => setHistorySegment(value as HistorySegment)}
+            buttons={[
+              { value: "history", label: "Wykonane + anulowane" },
+              { value: "done", label: "Wykonane" },
+              { value: "canceled", label: "Anulowane" },
+              { value: "pending", label: "Oczekujące" },
+            ]}
+            style={styles.segmentedButtons}
+          />
+
+          {plantingTasksQuery.isLoading ? <ActivityIndicator /> : null}
+
+          {plantingTasksQuery.error ? (
+            <View>
+              <Text style={styles.errorText}>
+                {String(getResponseError(plantingTasksQuery.error))}
+              </Text>
+              <Button mode="outlined" onPress={() => plantingTasksQuery.refetch()}>
+                Spróbuj ponownie
+              </Button>
+            </View>
+          ) : null}
+
+          {!plantingTasksQuery.isLoading &&
+          !plantingTasksQuery.error &&
+          historyTasks.length === 0 ? (
+            <Text style={styles.emptyText}>Brak historii zabiegów.</Text>
+          ) : null}
+
+          {historyTasks.map((task) => (
+            <View key={task.id} style={styles.taskHistoryRow}>
+              <View style={styles.taskHistoryMain}>
+                <Text style={styles.taskHistoryDate}>
+                  {formatDate(getTaskRecordDate(task))}
+                </Text>
+                <Text style={styles.taskHistoryTitle}>{task.title}</Text>
+                <Text style={styles.taskHistoryMeta}>
+                  Źródło: {getTaskSourceLabel(task.source)}
+                </Text>
+                {task.description ? (
+                  <Text style={styles.taskHistoryDescription}>{task.description}</Text>
+                ) : null}
+              </View>
+              <StatusBadge
+                label={getTaskStatusLabel(task.status)}
+                tone={getTaskStatusTone(task.status)}
+              />
+            </View>
+          ))}
         </Surface>
 
         <Surface style={styles.section} elevation={0}>
@@ -773,5 +878,35 @@ const makeStyles = (theme: MD3Theme) =>
     },
     segmentedButtons: {
       alignSelf: "flex-start",
+    },
+    taskHistoryRow: {
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.outline,
+      paddingVertical: 10,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: 10,
+    },
+    taskHistoryMain: {
+      flex: 1,
+      gap: 4,
+    },
+    taskHistoryDate: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+    },
+    taskHistoryTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.colors.onSurface,
+    },
+    taskHistoryMeta: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+    },
+    taskHistoryDescription: {
+      fontSize: 13,
+      color: theme.colors.onSurface,
     },
   });
