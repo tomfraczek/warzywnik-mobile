@@ -27,7 +27,6 @@ import {
 } from "@/src/features/tasks/model";
 import { asNonEmptyString } from "@/src/features/warnings/model";
 import { radius, spacing } from "@/src/theme/ui";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
@@ -59,6 +58,27 @@ const toEpoch = (value: string) => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+const toLocalDateKey = (value: string | null | undefined) => {
+  if (!value) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return formatDate(parsed);
+};
+
+const normalizeTaskStatus = (
+  status: string | null | undefined,
+): "pending" | "done" | "canceled" => {
+  const normalized = status?.trim().toLowerCase();
+  if (normalized === "done") return "done";
+  if (normalized === "canceled") return "canceled";
+  return "pending";
+};
+
 const asPlannerTaskItem = (task: CalendarTaskItem): MeTaskItem => {
   return {
     ...task,
@@ -72,6 +92,12 @@ export default function PlannerScreen() {
   const styles = makeStyles(theme);
   const router = useRouter();
   const [showCanceledHistory, setShowCanceledHistory] = useState(false);
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+  const todayKey = formatDate(todayDate);
+  const tomorrowDate = new Date(todayDate);
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowKey = formatDate(tomorrowDate);
 
   const range = useMemo(() => {
     const from = new Date();
@@ -88,7 +114,7 @@ export default function PlannerScreen() {
     const to = new Date();
     to.setHours(0, 0, 0, 0);
     const from = new Date(to);
-    from.setDate(from.getDate() - 90);
+    from.setDate(from.getDate() - 30);
     return {
       from: formatDate(from),
       to: formatDate(to),
@@ -165,7 +191,7 @@ export default function PlannerScreen() {
       .map((day) => {
         const items = day.tasks
           .filter((task) => {
-            const status = task.status ?? "pending";
+            const status = normalizeTaskStatus(task.status);
             if (status === "done") return true;
             if (status === "canceled") return showCanceledHistory;
             return false;
@@ -187,24 +213,95 @@ export default function PlannerScreen() {
     return grouped;
   }, [calendarHistoryQuery.data?.days, showCanceledHistory]);
 
-  const latestTasks = useMemo(() => {
+  const todayTomorrowBuckets = useMemo(() => {
     const toDateValue = (task: MeTaskItem) => {
       const raw = getTaskMeta(
         task,
-        "createdAt",
-        "created_at",
         "dueAt",
         "due_at",
+        "createdAt",
+        "created_at",
       );
       if (!raw) return 0;
       const value = Date.parse(raw);
       return Number.isNaN(value) ? 0 : value;
     };
 
-    return [...(tasksQuery.data?.items ?? [])]
-      .sort((a, b) => toDateValue(b) - toDateValue(a))
-      .slice(0, 3);
-  }, [tasksQuery.data?.items]);
+    const today: MeTaskItem[] = [];
+    const tomorrow: MeTaskItem[] = [];
+
+    [...(tasksQuery.data?.items ?? [])]
+      .filter((task) => normalizeTaskStatus(task.status) === "pending")
+      .sort((a, b) => toDateValue(a) - toDateValue(b))
+      .forEach((task) => {
+        const dueAt = getTaskMeta(task, "dueAt", "due_at");
+        const localDueDate = toLocalDateKey(dueAt);
+        if (!localDueDate) return;
+
+        if (localDueDate === todayKey) {
+          today.push(task);
+          return;
+        }
+
+        if (localDueDate === tomorrowKey) {
+          tomorrow.push(task);
+        }
+      });
+
+    const limit = 4;
+    const todayPreview = today.slice(0, limit);
+    const tomorrowPreview = tomorrow.slice(
+      0,
+      Math.max(limit - todayPreview.length, 0),
+    );
+
+    return {
+      today,
+      tomorrow,
+      todayPreview,
+      tomorrowPreview,
+      total: today.length + tomorrow.length,
+      limit,
+    };
+  }, [tasksQuery.data?.items, todayKey, tomorrowKey]);
+
+  const upcomingTimeline = useMemo(() => {
+    return timeline
+      .map((day) => {
+        const tasks = day.tasks.filter((task) => {
+          if (normalizeTaskStatus(task.status) !== "pending") return false;
+          const localDueDate = toLocalDateKey(task.dueAt ?? day.date);
+          if (!localDueDate) return true;
+          return localDueDate !== todayKey && localDueDate !== tomorrowKey;
+        });
+
+        return {
+          ...day,
+          tasks,
+        };
+      })
+      .filter((day) => day.tasks.length > 0 || day.harvestWindows.length > 0);
+  }, [timeline, todayKey, tomorrowKey]);
+
+  const shouldShowTasksCta = useMemo(() => {
+    const hasTasksListScreen = true;
+    return (
+      hasTasksListScreen ||
+      todayTomorrowBuckets.total > todayTomorrowBuckets.limit
+    );
+  }, [todayTomorrowBuckets.limit, todayTomorrowBuckets.total]);
+
+  const hasUpcomingEvents = useMemo(() => {
+    return upcomingTimeline.some(
+      (day) => day.tasks.length > 0 || day.harvestWindows.length > 0,
+    );
+  }, [upcomingTimeline]);
+
+  const formatDueDateText = (task: MeTaskItem, fallback?: string) => {
+    const raw = getTaskMeta(task, "dueAt", "due_at") ?? fallback;
+    const localDate = toLocalDateKey(raw);
+    return localDate ?? "Brak";
+  };
 
   const handleDone = (taskId: string) => {
     updateActionTask
@@ -259,143 +356,143 @@ export default function PlannerScreen() {
   return (
     <Screen safeAreaEdges={["top", "left", "right"]}>
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.dayBlock}>
-          <View style={styles.timelineHeader}>
-            <View style={styles.timelineDot} />
-            <Text style={styles.dayLabel}>Lista zadań</Text>
-          </View>
-
-          <View style={styles.dayContent}>
-            <View style={styles.stack}>
-              {tasksQuery.isLoading ? (
-                <View style={styles.inlineLoader}>
-                  <ActivityIndicator />
-                </View>
-              ) : latestTasks.length === 0 ? (
-                <Card>
-                  <Text style={styles.emptyText}>Brak aktywnych zadań.</Text>
-                </Card>
-              ) : (
-                latestTasks.map((task) => {
-                  const presentation = resolveTaskPresentation(task, {
-                    bedsById,
-                    plantingsById,
-                  });
-                  const dueAt = getTaskMeta(task, "dueAt", "due_at");
-
-                  return (
-                    <Surface
-                      key={task.id}
-                      style={styles.taskCard}
-                      elevation={0}
-                    >
-                      <Text style={styles.taskTitle}>{task.title}</Text>
-
-                      {typeof task.description === "string" &&
-                      task.description.trim().length > 0 ? (
-                        <Text style={styles.taskDescription}>
-                          {task.description}
-                        </Text>
-                      ) : null}
-
-                      <Text style={styles.taskMeta}>
-                        Termin: {dueAt ? dueAt.split("T")[0] : "Brak"}
-                      </Text>
-                      <Text style={styles.taskMeta}>
-                        {presentation.locationLabel}
-                        {presentation.cropLabel
-                          ? ` • ${presentation.cropLabel}`
-                          : ""}
-                      </Text>
-
-                      {presentation.horizon === "OPERATIONAL" ? (
-                        <Text style={styles.taskMetaStrong}>
-                          {presentation.dayLabel ?? "Dziś/Jutro"}
-                          {presentation.dayPart === "DAY"
-                            ? " • w dzień"
-                            : presentation.dayPart === "NIGHT"
-                              ? " • w nocy"
-                              : ""}
-                        </Text>
-                      ) : null}
-
-                      <View style={styles.actionsRow}>
-                        {presentation.targetType === "planting" &&
-                        presentation.plantingId ? (
-                          <Button
-                            mode="outlined"
-                            onPress={() =>
-                              router.push(
-                                `/plantings/${presentation.plantingId}`,
-                              )
-                            }
-                          >
-                            Uprawa
-                          </Button>
-                        ) : null}
-                        {presentation.targetType === "bed" &&
-                        presentation.bedId ? (
-                          <Button
-                            mode="outlined"
-                            onPress={() =>
-                              router.push(`/(tabs)/beds/${presentation.bedId}`)
-                            }
-                          >
-                            Grządka
-                          </Button>
-                        ) : null}
-                        {presentation.targetType === "user" ? (
-                          <Button
-                            mode="outlined"
-                            onPress={() => router.push("/(tabs)/home/weather")}
-                          >
-                            Lokalizacja
-                          </Button>
-                        ) : null}
-                        <Button
-                          mode="outlined"
-                          onPress={() => handleDelete(task.id)}
-                          disabled={deleteActionTask.isPending}
-                        >
-                          Usuń
-                        </Button>
-                        <Button
-                          mode="contained"
-                          onPress={() => handleDone(task.id)}
-                          disabled={updateActionTask.isPending}
-                        >
-                          Done
-                        </Button>
-                      </View>
-
-                      {__DEV__ ? <TaskTechnicalDetails item={task} /> : null}
-                    </Surface>
-                  );
-                })
-              )}
-
-              <Button
-                mode="outlined"
-                onPress={() => router.push("/(tabs)/planner/tasks")}
-              >
-                Pokaż wszystkie
-              </Button>
+        <Text style={styles.title}>Dziś i jutro</Text>
+        {tasksQuery.isLoading ? (
+          <Card>
+            <View style={styles.inlineLoader}>
+              <ActivityIndicator />
             </View>
-          </View>
-        </View>
+          </Card>
+        ) : todayTomorrowBuckets.total === 0 ? (
+          <Card>
+            <Text style={styles.emptyText}>Brak zadań na dziś i jutro.</Text>
+          </Card>
+        ) : (
+          <View style={styles.stack}>
+            {todayTomorrowBuckets.todayPreview.length > 0 ? (
+              <View style={styles.dayBlock}>
+                <View style={styles.timelineHeader}>
+                  <View style={styles.timelineDot} />
+                  <Text style={styles.dayLabel}>Dziś</Text>
+                </View>
+                <View style={styles.dayContent}>
+                  {todayTomorrowBuckets.todayPreview.map((task) => {
+                    const presentation = resolveTaskPresentation(task, {
+                      bedsById,
+                      plantingsById,
+                    });
 
-        <Text style={styles.title}>Kalendarz zadań</Text>
-        <Text style={styles.subtitle}>
-          Dynamiczna oś czasu zadań systemowych i zbiorów
-        </Text>
-        {timeline.length === 0 ? (
+                    return (
+                      <Surface
+                        key={task.id}
+                        style={styles.taskCard}
+                        elevation={0}
+                      >
+                        <Text style={styles.taskTitle}>{task.title}</Text>
+                        <Text style={styles.taskMeta}>
+                          Termin: {formatDueDateText(task)}
+                        </Text>
+                        <Text style={styles.taskMeta}>
+                          {presentation.locationLabel}
+                          {presentation.cropLabel
+                            ? ` • ${presentation.cropLabel}`
+                            : ""}
+                        </Text>
+
+                        <View style={styles.actionsRow}>
+                          <Button
+                            mode="outlined"
+                            onPress={() => handleDelete(task.id)}
+                            disabled={deleteActionTask.isPending}
+                          >
+                            Usuń
+                          </Button>
+                          <Button
+                            mode="contained"
+                            onPress={() => handleDone(task.id)}
+                            disabled={updateActionTask.isPending}
+                          >
+                            Done
+                          </Button>
+                        </View>
+                      </Surface>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+
+            {todayTomorrowBuckets.tomorrowPreview.length > 0 ? (
+              <View style={styles.dayBlock}>
+                <View style={styles.timelineHeader}>
+                  <View style={styles.timelineDot} />
+                  <Text style={styles.dayLabel}>Jutro</Text>
+                </View>
+                <View style={styles.dayContent}>
+                  {todayTomorrowBuckets.tomorrowPreview.map((task) => {
+                    const presentation = resolveTaskPresentation(task, {
+                      bedsById,
+                      plantingsById,
+                    });
+
+                    return (
+                      <Surface
+                        key={task.id}
+                        style={styles.taskCard}
+                        elevation={0}
+                      >
+                        <Text style={styles.taskTitle}>{task.title}</Text>
+                        <Text style={styles.taskMeta}>
+                          Termin: {formatDueDateText(task)}
+                        </Text>
+                        <Text style={styles.taskMeta}>
+                          {presentation.locationLabel}
+                          {presentation.cropLabel
+                            ? ` • ${presentation.cropLabel}`
+                            : ""}
+                        </Text>
+
+                        <View style={styles.actionsRow}>
+                          <Button
+                            mode="outlined"
+                            onPress={() => handleDelete(task.id)}
+                            disabled={deleteActionTask.isPending}
+                          >
+                            Usuń
+                          </Button>
+                          <Button
+                            mode="contained"
+                            onPress={() => handleDone(task.id)}
+                            disabled={updateActionTask.isPending}
+                          >
+                            Done
+                          </Button>
+                        </View>
+                      </Surface>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+
+            {shouldShowTasksCta ? (
+              <Pressable onPress={() => router.push("/(tabs)/planner/tasks")}>
+                <Text style={styles.smallCta}>Zobacz wszystkie zadania →</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        )}
+
+        <Text style={styles.title}>Nadchodzące wydarzenia</Text>
+        <Text style={styles.subtitle}>Zdarzenia generowane automatycznie</Text>
+        {!hasUpcomingEvents ? (
           <Card>
             <Text style={styles.emptyText}>
               Brak zaplanowanych wydarzeń w najbliższych 30 dniach.
             </Text>
           </Card>
         ) : (
-          timeline.map((day) => (
+          upcomingTimeline.map((day) => (
             <View key={day.date} style={styles.dayBlock}>
               <View style={styles.timelineHeader}>
                 <View style={styles.timelineDot} />
@@ -409,10 +506,6 @@ export default function PlannerScreen() {
                     bedsById,
                     plantingsById,
                   });
-                  const dueAt =
-                    getTaskMeta(plannerTask, "dueAt", "due_at") ??
-                    task.dueAt ??
-                    day.date;
 
                   return (
                     <Surface
@@ -421,7 +514,10 @@ export default function PlannerScreen() {
                       elevation={0}
                     >
                       <Text style={styles.taskTitle}>{task.title}</Text>
-                      <Text style={styles.taskMeta}>Termin: {dueAt}</Text>
+                      <Text style={styles.taskMeta}>
+                        Termin:{" "}
+                        {formatDueDateText(plannerTask, task.dueAt ?? day.date)}
+                      </Text>
                       <Text style={styles.taskMeta}>
                         {presentation.locationLabel}
                         {presentation.cropLabel
@@ -517,19 +613,6 @@ export default function PlannerScreen() {
             </View>
           ))
         )}
-
-        <Card>
-          <View style={styles.footerHint}>
-            <MaterialCommunityIcons
-              name="robot-outline"
-              size={18}
-              color={theme.colors.onSurfaceVariant}
-            />
-            <Text style={styles.hintText}>
-              Widok generowany automatycznie przez silnik planowania Warzywnik.
-            </Text>
-          </View>
-        </Card>
 
         <Text style={styles.title}>Historia</Text>
         <View style={styles.historyFilterRow}>
@@ -662,6 +745,12 @@ const makeStyles = (theme: MD3Theme) =>
     stack: {
       gap: spacing.sm,
     },
+    smallCta: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.colors.primary,
+      marginTop: spacing.xs,
+    },
     inlineLoader: {
       alignItems: "center",
       justifyContent: "center",
@@ -765,16 +854,6 @@ const makeStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurface,
     },
     harvestMeta: {
-      fontSize: 12,
-      color: theme.colors.onSurfaceVariant,
-    },
-    footerHint: {
-      flexDirection: "row",
-      gap: spacing.sm,
-      alignItems: "center",
-    },
-    hintText: {
-      flex: 1,
       fontSize: 12,
       color: theme.colors.onSurfaceVariant,
     },

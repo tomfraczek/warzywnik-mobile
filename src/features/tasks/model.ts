@@ -119,7 +119,7 @@ const resolveUserTaskLocationLabel = (task: TaskItem) => {
     return "(wszystkie grządki)";
   }
 
-  return `(wszystkie grządki) • (${locationHint})`;
+  return `(lokalizacja: ${locationHint})`;
 };
 
 export const resolveTaskTargetType = (task: TaskItem): TaskTargetType => {

@@ -73,6 +73,8 @@ export default function HomeScreen() {
     limit: 5,
   });
 
+  console.log(warningsData);
+
   const bedsById = useMemo(() => {
     const map = new Map<string, string>();
     const beds = bedsQuery.data?.pages.flatMap((page) => page.items) ?? [];

@@ -161,24 +161,6 @@ function BedFormComponent({
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Status</Text>
-        <View style={styles.switchRow}>
-          <Text style={styles.label}>Aktywna grządka</Text>
-          <Switch
-            value={values.isActive}
-            onValueChange={(value) => onChange({ isActive: value })}
-            trackColor={{
-              false: theme.colors.surfaceVariant,
-              true: theme.colors.primaryContainer,
-            }}
-            thumbColor={
-              values.isActive ? theme.colors.primary : theme.colors.outline
-            }
-          />
-        </View>
-      </View>
-
-      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Badanie gleby</Text>
         <View style={styles.switchRow}>
           <Text style={styles.label}>Włącz badanie gleby</Text>

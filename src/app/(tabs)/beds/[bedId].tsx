@@ -11,6 +11,7 @@ import { Bed } from "@/src/api/queries/beds/types";
 import { useCreateBedActionTasksBulk } from "@/src/api/queries/beds/useCreateBedActionTasksBulk";
 import { useGetBed } from "@/src/api/queries/beds/useGetBed";
 import { useGetBedHarvestPrompts } from "@/src/api/queries/beds/useGetBedHarvestPrompts";
+import { useUpdateBed } from "@/src/api/queries/beds/useUpdateBed";
 import { Planting } from "@/src/api/queries/plantings/types";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { usePostHarvestConfirmation } from "@/src/api/queries/plantings/usePostHarvestConfirmation";
@@ -35,6 +36,7 @@ import {
   MD3Theme,
   SegmentedButtons,
   Snackbar,
+  Switch,
   useTheme,
 } from "react-native-paper";
 
@@ -156,6 +158,7 @@ export default function BedDetailsScreen() {
     isLoading: isBedTasksLoading,
     error: bedTasksError,
   } = useGetBedActionTasks(resolvedBedId ?? null, "all");
+  const updateBed = useUpdateBed(resolvedBedId ?? "");
   const updateActionTask = useUpdateActionTask();
 
   const bed = data as Bed | undefined;
@@ -317,6 +320,19 @@ export default function BedDetailsScreen() {
     }
   };
 
+  const handleToggleBedActive = async (value: boolean) => {
+    if (!resolvedBedId) return;
+
+    try {
+      await updateBed.mutateAsync({ isActive: value });
+      setSnackbarMessage(
+        value ? "Grządka została aktywowana." : "Grządka została wyłączona.",
+      );
+    } catch (err) {
+      Alert.alert("Błąd", String(getResponseError(err)));
+    }
+  };
+
   const dimensions = useMemo(() => {
     if (!bed) return null;
     const parts = [
@@ -374,6 +390,20 @@ export default function BedDetailsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Wymiary</Text>
         <Text style={styles.valueText}>{dimensions}</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Status grządki</Text>
+        <View style={styles.statusRow}>
+          <Text style={styles.valueText}>
+            {bed.isActive === false ? "Nieaktywna" : "Aktywna"}
+          </Text>
+          <Switch
+            value={bed.isActive !== false}
+            onValueChange={handleToggleBedActive}
+            disabled={updateBed.isPending}
+          />
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -743,6 +773,12 @@ const makeStyles = (theme: MD3Theme) =>
     valueText: {
       fontSize: 14,
       color: theme.colors.onSurface,
+    },
+    statusRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: 12,
     },
     inlineLoader: {
       marginVertical: 8,
