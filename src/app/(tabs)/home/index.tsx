@@ -1,25 +1,25 @@
 import { ArticleListItem } from "@/src/api/queries/articles/types";
 import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
+import { WarningItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { useGetMyWarnings } from "@/src/api/queries/users/useGetMyWarnings";
 import { useGetMyWeather } from "@/src/api/queries/users/useGetMyWeather";
-import { WarningItem } from "@/src/api/queries/users/meTypes";
 import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { WarningCard } from "@/src/components/ui/WarningCard";
 import { useSettings } from "@/src/context/SettingsProvider";
 import {
+  getTasksForToday,
+  getTasksForTomorrow,
+  isWeatherWarningTask,
+} from "@/src/features/tasks/model";
+import {
   getOperationalWarningsToday,
   getOperationalWarningsTomorrow,
   getRadarWarnings,
   resolveWarningPresentation,
 } from "@/src/features/warnings/model";
-import {
-  getTasksForToday,
-  getTasksForTomorrow,
-  isWeatherWarningTask,
-} from "@/src/features/tasks/model";
 import { getSeverityTone, radius, spacing } from "@/src/theme/ui";
 import {
   formatTemperature,
@@ -116,13 +116,15 @@ export default function HomeScreen() {
       0,
       Math.max(0, 3 - todaySlice.length),
     );
-    const radarSlice = radarWarnings.slice(0, Math.max(0, 2 - tomorrowSlice.length));
+    const radarSlice = radarWarnings.slice(
+      0,
+      Math.max(0, 2 - tomorrowSlice.length),
+    );
 
     if (todaySlice.length) groups.push({ label: "Dziś", items: todaySlice });
     if (tomorrowSlice.length)
       groups.push({ label: "Jutro", items: tomorrowSlice });
-    if (radarSlice.length)
-      groups.push({ label: "Radar", items: radarSlice });
+    if (radarSlice.length) groups.push({ label: "Radar", items: radarSlice });
 
     return groups;
   }, [operationalToday, operationalTomorrow, radarWarnings]);
@@ -136,10 +138,7 @@ export default function HomeScreen() {
   const handleWarningPress = (warning: WarningItem) => {
     const presentation = resolveWarningPresentation(warning);
 
-    if (
-      presentation.scope === "PLANTING" &&
-      presentation.plantingId
-    ) {
+    if (presentation.scope === "PLANTING" && presentation.plantingId) {
       router.push(`/plantings/${presentation.plantingId}`);
       return;
     }
@@ -330,7 +329,8 @@ export default function HomeScreen() {
                           <Text style={styles.taskMeta}>
                             Dziś
                             {task.bedId || task.plantingId
-                              ? " • " + (task.meta?.locationLabel ?? task.bedId ?? "")
+                              ? " • " +
+                                (task.meta?.locationLabel ?? task.bedId ?? "")
                               : ""}
                           </Text>
                         </View>
@@ -343,17 +343,15 @@ export default function HomeScreen() {
                         onPress={handleTaskPress}
                       >
                         <View
-                          style={[
-                            styles.taskDayDot,
-                            styles.taskDayDotTomorrow,
-                          ]}
+                          style={[styles.taskDayDot, styles.taskDayDotTomorrow]}
                         />
                         <View style={styles.taskContent}>
                           <Text style={styles.taskTitle}>{task.title}</Text>
                           <Text style={styles.taskMeta}>
                             Jutro
                             {task.bedId || task.plantingId
-                              ? " • " + (task.meta?.locationLabel ?? task.bedId ?? "")
+                              ? " • " +
+                                (task.meta?.locationLabel ?? task.bedId ?? "")
                               : ""}
                           </Text>
                         </View>

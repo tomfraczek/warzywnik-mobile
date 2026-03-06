@@ -1,14 +1,14 @@
-import { useGetMyWarnings } from "@/src/api/queries/users/useGetMyWarnings";
 import { WarningItem } from "@/src/api/queries/users/meTypes";
+import { useGetMyWarnings } from "@/src/api/queries/users/useGetMyWarnings";
 import { Screen } from "@/src/components/Screen";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
-import { getSeverityTone, radius, spacing, statusColors } from "@/src/theme/ui";
 import {
   getOperationalWarningsToday,
   getOperationalWarningsTomorrow,
   getRadarWarnings,
   resolveWarningPresentation,
 } from "@/src/features/warnings/model";
+import { getSeverityTone, radius, spacing, statusColors } from "@/src/theme/ui";
 import { formatDayPart, formatLocalDate } from "@/src/utils/date";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -132,13 +132,7 @@ function FullWarningCard({ warning, onPress }: FullWarningCardProps) {
 // Section header
 // ---------------------------------------------------------------------------
 
-function SectionHeader({
-  label,
-  count,
-}: {
-  label: string;
-  count: number;
-}) {
+function SectionHeader({ label, count }: { label: string; count: number }) {
   const theme = useTheme<MD3Theme>();
   const styles = makeSectionStyles(theme);
   return (
@@ -171,10 +165,7 @@ export default function WarningsScreen() {
     () => getOperationalWarningsTomorrow(warnings),
     [warnings],
   );
-  const radarWarnings = useMemo(
-    () => getRadarWarnings(warnings),
-    [warnings],
-  );
+  const radarWarnings = useMemo(() => getRadarWarnings(warnings), [warnings]);
 
   const hasAny =
     todayWarnings.length > 0 ||
@@ -183,10 +174,7 @@ export default function WarningsScreen() {
 
   const navigateToWarning = (warning: WarningItem) => {
     const presentation = resolveWarningPresentation(warning);
-    if (
-      presentation.scope === "PLANTING" &&
-      presentation.plantingId
-    ) {
+    if (presentation.scope === "PLANTING" && presentation.plantingId) {
       router.push(`/plantings/${presentation.plantingId}`);
       return;
     }
@@ -291,10 +279,7 @@ export default function WarningsScreen() {
             {/* TOMORROW */}
             {tomorrowWarnings.length > 0 ? (
               <View style={styles.section}>
-                <SectionHeader
-                  label="Jutro"
-                  count={tomorrowWarnings.length}
-                />
+                <SectionHeader label="Jutro" count={tomorrowWarnings.length} />
                 <View style={styles.list}>
                   {tomorrowWarnings.map((w) => (
                     <FullWarningCard

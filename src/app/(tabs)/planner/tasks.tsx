@@ -63,8 +63,7 @@ function WeatherTaskCard({ task, onDone, isDoneLoading }: TaskCardProps) {
       return String(affectedBedsCount) + " grządek";
     if (locationLabel) return locationLabel;
     if (task.bedId) return "Grządka " + String(task.bedId).slice(0, 6);
-    if (task.plantingId)
-      return "Uprawa " + String(task.plantingId).slice(0, 6);
+    if (task.plantingId) return "Uprawa " + String(task.plantingId).slice(0, 6);
     return null;
   })();
 
@@ -271,10 +270,7 @@ export default function PlannerTasksScreen() {
 
             {tomorrowTasks.length > 0 ? (
               <View style={styles.section}>
-                <SectionHeader
-                  label="Na jutro"
-                  count={tomorrowTasks.length}
-                />
+                <SectionHeader label="Na jutro" count={tomorrowTasks.length} />
                 <View style={styles.list}>
                   {tomorrowTasks.map((task) => (
                     <WeatherTaskCard

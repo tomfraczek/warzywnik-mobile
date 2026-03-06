@@ -4,7 +4,11 @@ import {
   WarningDayPart,
   WarningHorizon,
 } from "@/src/api/queries/users/meTypes";
-import { isoToLocalDateKey, getTodayKey, getTomorrowKey } from "@/src/utils/date";
+import {
+  getTodayKey,
+  getTomorrowKey,
+  isoToLocalDateKey,
+} from "@/src/utils/date";
 
 type TaskRecord = Record<string, unknown>;
 
@@ -295,7 +299,9 @@ export const resolveTaskPresentation = (
 export const getTasksForToday = (tasks: TaskItem[]): TaskItem[] => {
   const todayKey = getTodayKey();
   return sortTasksByDueAt(
-    tasks.filter((t) => isoToLocalDateKey(getTaskMeta(t, "dueAt", "due_at")) === todayKey),
+    tasks.filter(
+      (t) => isoToLocalDateKey(getTaskMeta(t, "dueAt", "due_at")) === todayKey,
+    ),
   );
 };
 
@@ -306,7 +312,8 @@ export const getTasksForTomorrow = (tasks: TaskItem[]): TaskItem[] => {
   const tomorrowKey = getTomorrowKey();
   return sortTasksByDueAt(
     tasks.filter(
-      (t) => isoToLocalDateKey(getTaskMeta(t, "dueAt", "due_at")) === tomorrowKey,
+      (t) =>
+        isoToLocalDateKey(getTaskMeta(t, "dueAt", "due_at")) === tomorrowKey,
     ),
   );
 };
