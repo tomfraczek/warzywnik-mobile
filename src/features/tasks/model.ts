@@ -1,8 +1,10 @@
 import {
   TaskItem,
+  TaskMetaDto,
   WarningDayPart,
   WarningHorizon,
 } from "@/src/api/queries/users/meTypes";
+import { isoToLocalDateKey, getTodayKey, getTomorrowKey } from "@/src/utils/date";
 
 type TaskRecord = Record<string, unknown>;
 
@@ -160,7 +162,10 @@ export const sortTasksByDueAt = (tasks: TaskItem[]) => {
 };
 
 export const isWeatherWarningTask = (task: TaskItem) => {
-  const source = getTaskMeta(task, "source", "taskSource", "task_source");
+  // Prefer the new direct field; fall back to meta-based lookup for compat.
+  const source =
+    asNonEmptyString(task.source) ??
+    getTaskMeta(task, "source", "taskSource", "task_source");
   return source?.toUpperCase() === "WEATHER_WARNING";
 };
 
@@ -278,3 +283,69 @@ export const resolveTaskPresentation = (
     cropLabel: vegetableName ?? "Uprawa",
   };
 };
+
+// ---------------------------------------------------------------------------
+// Day-based grouping selectors (use dueAt as the primary day source)
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns tasks whose `dueAt` converts to today's local date.
+ * The standard for "today" is the device's local timezone.
+ */
+export const getTasksForToday = (tasks: TaskItem[]): TaskItem[] => {
+  const todayKey = getTodayKey();
+  return sortTasksByDueAt(
+    tasks.filter((t) => isoToLocalDateKey(getTaskMeta(t, "dueAt", "due_at")) === todayKey),
+  );
+};
+
+/**
+ * Returns tasks whose `dueAt` converts to tomorrow's local date.
+ */
+export const getTasksForTomorrow = (tasks: TaskItem[]): TaskItem[] => {
+  const tomorrowKey = getTomorrowKey();
+  return sortTasksByDueAt(
+    tasks.filter(
+      (t) => isoToLocalDateKey(getTaskMeta(t, "dueAt", "due_at")) === tomorrowKey,
+    ),
+  );
+};
+
+/**
+ * Returns tasks whose `dueAt` is after tomorrow, or tasks with no `dueAt`.
+ */
+export const getTasksForLater = (tasks: TaskItem[]): TaskItem[] => {
+  const todayKey = getTodayKey();
+  const tomorrowKey = getTomorrowKey();
+  return sortTasksByDueAt(
+    tasks.filter((t) => {
+      const localDate = isoToLocalDateKey(getTaskMeta(t, "dueAt", "due_at"));
+      if (!localDate) return false; // no dueAt – omit from "later"
+      return localDate !== todayKey && localDate !== tomorrowKey;
+    }),
+  );
+};
+
+/** Returns tasks with no `dueAt` value. */
+export const getTasksWithNoDueDate = (tasks: TaskItem[]): TaskItem[] =>
+  tasks.filter((t) => !getTaskMeta(t, "dueAt", "due_at"));
+
+// ---------------------------------------------------------------------------
+// Meta helpers (new API: task.meta: TaskMetaDto)
+// ---------------------------------------------------------------------------
+
+/** Returns the warning code from task.meta, or null. */
+export const getTaskWarningCode = (task: TaskItem): string | null =>
+  (task.meta as TaskMetaDto | null)?.warningCode ?? null;
+
+/** Returns the affectsAllBeds flag from task.meta. */
+export const getTaskAffectsAllBeds = (task: TaskItem): boolean =>
+  (task.meta as TaskMetaDto | null)?.affectsAllBeds ?? false;
+
+/** Returns the affectedBedsCount from task.meta, or null. */
+export const getTaskAffectedBedsCount = (task: TaskItem): number | null =>
+  (task.meta as TaskMetaDto | null)?.affectedBedsCount ?? null;
+
+/** Returns the locationLabel from task.meta, or null. */
+export const getTaskLocationLabel = (task: TaskItem): string | null =>
+  (task.meta as TaskMetaDto | null)?.locationLabel ?? null;

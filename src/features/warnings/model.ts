@@ -1,39 +1,29 @@
 import {
-  TaskItem,
-  WarningDayPart,
-  WarningHorizon,
+  WarningSeverity,
   WarningItem,
   WarningScope,
+  WarningDayPart,
 } from "@/src/api/queries/users/meTypes";
+import {
+  formatDayPart,
+  formatLocalDate,
+  getLocalDayLabel,
+  isLocalDateToday,
+  isLocalDateTomorrow,
+} from "@/src/utils/date";
 
-type WarningRelations = {
-  scope: WarningScope;
-  horizon: WarningHorizon | null;
-  dayPart: WarningDayPart | null;
-  dayLabel: string | null;
-  bedId: string | null;
-  bedName: string | null;
-  plantingId: string | null;
-  vegetableName: string | null;
-  dedupeKey: string | null;
-};
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
 
-type PlantingLookup = {
-  id: string;
-  bedId: string | null;
-  bedName: string | null;
-  vegetableName: string | null;
-};
-
-const TOKEN_PATTERN = /\{[^{}]+\}/g;
-const TOKEN_EXISTS_PATTERN = /\{[^{}]+\}/;
-const UNKNOWN_BED_NAME_PATTERN = /nieznana\s+grz[aą]dka|unknown\s+bed/i;
-
-export const asNonEmptyString = (value: unknown) => {
+export const asNonEmptyString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 };
+
+const TOKEN_PATTERN = /\{[^{}]+\}/g;
+const TOKEN_EXISTS_PATTERN = /\{[^{}]+\}/;
 
 const escapeRegExp = (value: string) =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -41,8 +31,9 @@ const escapeRegExp = (value: string) =>
 const interpolateText = (
   text: string | null | undefined,
   values?: Record<string, unknown> | null,
-) => {
-  if (!text || !values) return text ?? "";
+): string => {
+  if (!text) return "";
+  if (!values) return text;
   return Object.entries(values).reduce((acc, [key, value]) => {
     const safeKey = escapeRegExp(key);
     const replacement =
@@ -53,368 +44,351 @@ const interpolateText = (
   }, text);
 };
 
-const stripTokens = (text: string | null | undefined) => {
+const stripTokens = (text: string | null | undefined): string => {
   const withoutTokens = (text ?? "").replace(TOKEN_PATTERN, "");
   return withoutTokens.replace(/\s{2,}/g, " ").trim();
 };
 
-const detailsFromWarning = (warning: WarningItem) => {
-  if (!warning.details || typeof warning.details !== "object") {
-    return null;
-  }
-  return warning.details as Record<string, unknown>;
-};
+// ---------------------------------------------------------------------------
+// Radar vs. operational classification
+// ---------------------------------------------------------------------------
 
-const inferScope = (
-  warning: WarningItem,
-  details: Record<string, unknown> | null,
-): WarningScope => {
-  const explicitScope =
-    asNonEmptyString(warning.scope) ?? asNonEmptyString(details?.scope);
+/**
+ * Known radar (cross-period) warning codes.
+ * Codes matching /_NEXT_/i are also treated as radar regardless of being
+ * listed here.
+ */
+const KNOWN_RADAR_CODES = new Set<string>([
+  "FROST_RISK_NEXT_7_DAYS",
+  "HARD_FROST_RISK_NEXT_7_DAYS",
+  "DROUGHT_RISK_NEXT_7_DAYS",
+  "HEAVY_RAIN_RISK_NEXT_48H",
+  "WIND_DAMAGE_RISK_NEXT_48H",
+  "FUNGAL_DISEASE_PRESSURE_HIGH",
+  "OVERWATERING_RISK",
+  "GERMINATION_TOO_COLD",
+]);
 
-  if (
-    explicitScope === "USER" ||
-    explicitScope === "BED" ||
-    explicitScope === "PLANTING"
-  ) {
-    return explicitScope;
-  }
+const isRadarCode = (code: string): boolean =>
+  KNOWN_RADAR_CODES.has(code) || /_NEXT_/i.test(code);
 
-  const hasPlanting =
-    asNonEmptyString(warning.plantingId) ??
-    asNonEmptyString(details?.plantingId);
-  if (hasPlanting) return "PLANTING";
-
-  const hasBed =
-    asNonEmptyString(warning.bedId) ?? asNonEmptyString(details?.bedId);
-  if (hasBed) return "BED";
-
-  return "USER";
-};
-
-const normalizeHorizon = (raw: string | null): WarningHorizon | null => {
-  const normalized = raw?.trim().toUpperCase();
-  if (normalized === "RADAR") return "RADAR";
-  if (normalized === "OPERATIONAL") return "OPERATIONAL";
-  return null;
-};
-
-const normalizeDayPart = (raw: string | null): WarningDayPart | null => {
-  const normalized = raw?.trim().toUpperCase();
-  if (normalized === "DAY") return "DAY";
-  if (normalized === "NIGHT") return "NIGHT";
-  return null;
-};
-
-const resolveWarningHorizon = (
-  warning: WarningItem,
-  details: Record<string, unknown> | null,
-) => {
-  return normalizeHorizon(
-    asNonEmptyString(warning.horizon) ?? asNonEmptyString(details?.horizon),
+/**
+ * Returns true when a warning should be displayed in the radar section.
+ *
+ * Rules (in priority order):
+ * 1. Code is a known radar code or matches *_NEXT_* → radar.
+ * 2. `localDate` is null → radar (no specific day target).
+ * 3. `localDate` is neither today nor tomorrow → treat as radar / future.
+ */
+export const isRadarWarning = (warning: WarningItem): boolean => {
+  if (isRadarCode(warning.code)) return true;
+  if (!warning.localDate) return true;
+  return (
+    !isLocalDateToday(warning.localDate) &&
+    !isLocalDateTomorrow(warning.localDate)
   );
 };
 
-const resolveWarningDayPart = (
-  warning: WarningItem,
-  details: Record<string, unknown> | null,
-) => {
-  return normalizeDayPart(
-    asNonEmptyString(warning.dayPart) ?? asNonEmptyString(details?.dayPart),
+// ---------------------------------------------------------------------------
+// Severity sorting
+// ---------------------------------------------------------------------------
+
+const SEVERITY_ORDER: Record<WarningSeverity, number> = {
+  CRITICAL: 0,
+  HIGH: 1,
+  MEDIUM: 2,
+  LOW: 3,
+};
+
+const DAY_PART_ORDER: Record<WarningDayPart, number> = {
+  DAY: 0,
+  NIGHT: 1,
+  ANY: 2,
+};
+
+/**
+ * Sorts warnings by:
+ * 1. severity descending (CRITICAL → HIGH → MEDIUM → LOW)
+ * 2. dayPart (DAY → NIGHT → ANY)
+ * 3. title alphabetically
+ */
+export const sortWarningsBySeverity = (
+  warnings: WarningItem[],
+): WarningItem[] =>
+  [...warnings].sort((a, b) => {
+    const sevA = SEVERITY_ORDER[a.severity as WarningSeverity] ?? 4;
+    const sevB = SEVERITY_ORDER[b.severity as WarningSeverity] ?? 4;
+    if (sevA !== sevB) return sevA - sevB;
+
+    const dpA = DAY_PART_ORDER[a.dayPart as WarningDayPart] ?? 3;
+    const dpB = DAY_PART_ORDER[b.dayPart as WarningDayPart] ?? 3;
+    if (dpA !== dpB) return dpA - dpB;
+
+    return (a.title ?? "").localeCompare(b.title ?? "", "pl");
+  });
+
+// ---------------------------------------------------------------------------
+// Grouping selectors
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns operational warnings whose `localDate` matches today.
+ * Sorted by severity descending.
+ */
+export const getOperationalWarningsToday = (
+  warnings: WarningItem[],
+): WarningItem[] =>
+  sortWarningsBySeverity(
+    warnings.filter(
+      (w) => !isRadarWarning(w) && isLocalDateToday(w.localDate),
+    ),
   );
-};
 
-const resolveWarningDayLabel = (
-  warning: WarningItem,
-  details: Record<string, unknown> | null,
-) => {
-  const raw =
-    asNonEmptyString((warning as Record<string, unknown>).day) ??
-    asNonEmptyString(details?.day) ??
-    asNonEmptyString((warning as Record<string, unknown>).timeBucket) ??
-    asNonEmptyString(details?.timeBucket);
-
-  if (!raw) return null;
-  const normalized = raw.toUpperCase();
-  if (normalized === "TODAY") return "Dziś";
-  if (normalized === "TOMORROW") return "Jutro";
-  return raw;
-};
-
-const normalizeBedName = (value: string | null) => {
-  if (!value) return null;
-  if (UNKNOWN_BED_NAME_PATTERN.test(value)) return null;
-  return value;
-};
-
-export const getWarningRelations = (
-  warning: WarningItem,
-  bedsById: Map<string, string>,
-  plantingsById?: Map<string, PlantingLookup>,
-): WarningRelations => {
-  const details = detailsFromWarning(warning);
-  const bedId =
-    asNonEmptyString(warning.bedId) ??
-    asNonEmptyString(warning.bed_id) ??
-    asNonEmptyString(details?.bedId) ??
-    asNonEmptyString(details?.bed_id);
-
-  const directBedName =
-    asNonEmptyString(warning.bedName) ??
-    asNonEmptyString(warning.bed_name) ??
-    asNonEmptyString(details?.bedName) ??
-    asNonEmptyString(details?.bed_name);
-
-  const bedName = normalizeBedName(
-    directBedName ?? (bedId ? (bedsById.get(bedId) ?? null) : null),
+/**
+ * Returns operational warnings whose `localDate` matches tomorrow.
+ * Sorted by severity descending.
+ */
+export const getOperationalWarningsTomorrow = (
+  warnings: WarningItem[],
+): WarningItem[] =>
+  sortWarningsBySeverity(
+    warnings.filter(
+      (w) => !isRadarWarning(w) && isLocalDateTomorrow(w.localDate),
+    ),
   );
 
-  const plantingId =
-    asNonEmptyString(warning.plantingId) ??
-    asNonEmptyString(warning.planting_id) ??
-    asNonEmptyString(details?.plantingId) ??
-    asNonEmptyString(details?.planting_id);
+/**
+ * Returns radar / cross-period warnings.
+ * Sorted by severity descending.
+ */
+export const getRadarWarnings = (warnings: WarningItem[]): WarningItem[] =>
+  sortWarningsBySeverity(warnings.filter(isRadarWarning));
 
-  const planting = plantingId ? (plantingsById?.get(plantingId) ?? null) : null;
+// ---------------------------------------------------------------------------
+// Presentation helpers
+// ---------------------------------------------------------------------------
 
-  const vegetableName =
-    asNonEmptyString(warning.vegetableName) ??
-    asNonEmptyString(warning.vegetable_name) ??
-    asNonEmptyString(details?.vegetableName) ??
-    asNonEmptyString(details?.vegetable_name) ??
-    planting?.vegetableName ??
-    null;
-
-  const resolvedBedId = bedId ?? planting?.bedId ?? null;
-  const resolvedBedName =
-    normalizeBedName(bedName) ??
-    planting?.bedName ??
-    (resolvedBedId ? (bedsById.get(resolvedBedId) ?? null) : null);
-
-  const dedupeKey =
-    asNonEmptyString(warning.dedupeKey) ??
-    asNonEmptyString(warning.dedupe_key) ??
-    asNonEmptyString(details?.dedupeKey) ??
-    asNonEmptyString(details?.dedupe_key);
-
-  return {
-    scope: inferScope(warning, details),
-    horizon: resolveWarningHorizon(warning, details),
-    dayPart: resolveWarningDayPart(warning, details),
-    dayLabel: resolveWarningDayLabel(warning, details),
-    bedId: resolvedBedId,
-    bedName: resolvedBedName,
-    plantingId,
-    vegetableName,
-    dedupeKey,
-  };
-};
-
-const resolveWarningScopeLabel = (relations: WarningRelations) => {
-  if (relations.horizon === "RADAR") return "Radar";
-  if (relations.horizon === "OPERATIONAL") return "Operacyjne";
-  return relations.scope === "USER"
-    ? "Globalne"
-    : relations.scope === "BED"
-      ? "Grządka"
-      : "Uprawa";
-};
-
-const resolveWarningContextLabel = (relations: WarningRelations) => {
-  const dayPartLabel =
-    relations.dayPart === "DAY"
-      ? "w dzień"
-      : relations.dayPart === "NIGHT"
-        ? "w nocy"
-        : null;
-
-  const timingLabel =
-    relations.horizon === "OPERATIONAL"
-      ? [relations.dayLabel, dayPartLabel].filter(Boolean).join(" • ") ||
-        "Dziś/Jutro"
-      : null;
-
-  if (relations.scope === "USER") {
-    const locationLabel = "Dotyczy wszystkich grządek";
-    return timingLabel ? `${locationLabel} • ${timingLabel}` : locationLabel;
+const fallbackMessageByScope = (
+  scope: WarningScope,
+  bedName: string | null,
+  vegetableName: string | null,
+): string => {
+  if (scope === "PLANTING") {
+    return vegetableName
+      ? `Warunki pogodowe mogą wpłynąć na uprawę ${vegetableName}.`
+      : "Warunki pogodowe mogą wpłynąć na tę uprawę.";
   }
-
-  if (relations.scope === "BED") {
-    const bedLabel = relations.bedName ?? "Grządka";
-    return timingLabel ? `${bedLabel} • ${timingLabel}` : bedLabel;
+  if (scope === "BED") {
+    return bedName
+      ? `Warunki pogodowe wymagają uwagi dla grządki ${bedName}.`
+      : "Warunki pogodowe wymagają uwagi dla jednej z Twoich grządek.";
   }
-
-  if (relations.vegetableName && relations.bedName) {
-    const base = `${relations.vegetableName} • ${relations.bedName}`;
-    return timingLabel ? `${base} • ${timingLabel}` : base;
-  }
-
-  const base =
-    relations.vegetableName ?? relations.bedName ?? "Uprawa • Grządka";
-  return timingLabel ? `${base} • ${timingLabel}` : base;
-};
-
-const fallbackMessageByScope = (relations: WarningRelations) => {
-  if (relations.scope === "PLANTING") {
-    if (relations.vegetableName) {
-      return `Warunki pogodowe mogą wpłynąć na uprawę ${relations.vegetableName}.`;
-    }
-    return "Warunki pogodowe mogą wpłynąć na tę uprawę.";
-  }
-
-  if (relations.scope === "BED") {
-    if (relations.bedName) {
-      return `Warunki pogodowe wymagają uwagi dla grządki ${relations.bedName}.`;
-    }
-    return "Warunki pogodowe wymagają uwagi dla jednej z Twoich grządek.";
-  }
-
   return "Warunki pogodowe w Twojej lokalizacji wymagają uwagi.";
 };
 
+const resolveScopeLabel = (
+  scope: WarningScope,
+  horizon: "RADAR" | "OPERATIONAL",
+): string => {
+  if (horizon === "RADAR") return "Radar";
+  if (scope === "USER") return "Globalne";
+  if (scope === "BED") return "Grządka";
+  return "Uprawa";
+};
+
+const resolveContextLabel = (
+  warning: WarningItem,
+  horizon: "RADAR" | "OPERATIONAL",
+  dayLabel: string | null,
+): string => {
+  const dayPartLabel = formatDayPart(warning.dayPart);
+  const timingLabel =
+    horizon === "OPERATIONAL"
+      ? [dayLabel, dayPartLabel].filter(Boolean).join(" \u2022 ") || null
+      : null;
+
+  if (warning.scope === "USER") {
+    const locationLabel = "Dotyczy wszystkich grz\u0105dek";
+    return timingLabel ? `${locationLabel} \u2022 ${timingLabel}` : locationLabel;
+  }
+
+  if (warning.scope === "BED") {
+    const bedLabel = warning.bedName ?? "Grz\u0105dka";
+    return timingLabel ? `${bedLabel} \u2022 ${timingLabel}` : bedLabel;
+  }
+
+  // PLANTING scope
+  if (warning.vegetableName && warning.bedName) {
+    const base = `${warning.vegetableName} \u2022 ${warning.bedName}`;
+    return timingLabel ? `${base} \u2022 ${timingLabel}` : base;
+  }
+  const base = warning.vegetableName ?? warning.bedName ?? "Uprawa";
+  return timingLabel ? `${base} \u2022 ${timingLabel}` : base;
+};
+
+// ---------------------------------------------------------------------------
+// Main presentation builder
+// ---------------------------------------------------------------------------
+
+export type WarningPresentation = {
+  scope: WarningScope;
+  bedId: string | null;
+  bedName: string | null;
+  plantingId: string | null;
+  vegetableName: string | null;
+  localDate: string | null;
+  dayPart: WarningDayPart | null;
+  validFrom: string | null;
+  validTo: string | null;
+  horizon: "RADAR" | "OPERATIONAL";
+  dayLabel: string | null;
+  isActionable: boolean;
+  scopeLabel: string;
+  contextLabel: string;
+  title: string;
+  message: string;
+  hint: string | null;
+};
+
+/**
+ * Builds the full presentation object for a warning.
+ *
+ * Uses `localDate`, `dayPart`, `scope`, `bedName`, and `vegetableName`
+ * directly from the new API contract.  `details` is used only for
+ * template-variable interpolation in title/message/hint.
+ *
+ * NO `bedsById` / `plantingsById` lookups required – the backend now
+ * provides all fields directly.
+ */
 export const resolveWarningPresentation = (
   warning: WarningItem,
-  bedsById: Map<string, string>,
-  plantingsById?: Map<string, PlantingLookup>,
-) => {
-  const details = detailsFromWarning(warning);
-  const relations = getWarningRelations(warning, bedsById, plantingsById);
+): WarningPresentation => {
+  const horizon: "RADAR" | "OPERATIONAL" = isRadarWarning(warning)
+    ? "RADAR"
+    : "OPERATIONAL";
 
   const values: Record<string, unknown> = {
-    ...(warning as Record<string, unknown>),
-    ...(details ?? {}),
-    bedId: relations.bedId,
-    bedName: relations.bedName,
-    plantingId: relations.plantingId,
-    vegetableName: relations.vegetableName,
-    scope: relations.scope,
+    ...(warning.details ?? {}),
+    bedId: warning.bedId,
+    bedName: warning.bedName,
+    plantingId: warning.plantingId,
+    vegetableName: warning.vegetableName,
+    scope: warning.scope,
   };
 
   const rawTitle = interpolateText(warning.title, values);
   const rawMessage = interpolateText(warning.message, values);
-  const rawHint = interpolateText(
-    asNonEmptyString((warning as Record<string, unknown>).hint) ?? warning.hint,
-    values,
-  );
+  const rawHint = interpolateText(warning.hint, values);
 
   const hasBrokenPlaceholder =
     TOKEN_EXISTS_PATTERN.test(rawTitle) ||
     TOKEN_EXISTS_PATTERN.test(rawMessage) ||
     TOKEN_EXISTS_PATTERN.test(rawHint);
 
+  const fallback = fallbackMessageByScope(
+    warning.scope,
+    warning.bedName,
+    warning.vegetableName,
+  );
+
   const title = hasBrokenPlaceholder
     ? stripTokens(rawTitle) || "Alert pogodowy"
     : rawTitle || "Alert pogodowy";
 
-  let message = hasBrokenPlaceholder
-    ? fallbackMessageByScope(relations)
-    : rawMessage || fallbackMessageByScope(relations);
+  let message = hasBrokenPlaceholder ? fallback : rawMessage || fallback;
 
   if (
-    relations.scope === "USER" &&
-    !relations.bedId &&
-    /w\s+grz[aą]dce/i.test(message)
+    warning.scope === "USER" &&
+    !warning.bedId &&
+    /w\s+grz[a\u0105]dce/i.test(message)
   ) {
-    message = fallbackMessageByScope(relations);
+    message = fallback;
   }
 
-  const hint =
-    hasBrokenPlaceholder || !rawHint ? stripTokens(rawHint) || null : rawHint;
+  const hint = hasBrokenPlaceholder
+    ? stripTokens(rawHint) || null
+    : rawHint || null;
+
+  const dayLabel = getLocalDayLabel(warning.localDate);
 
   return {
-    ...relations,
-    isActionable: relations.horizon === "OPERATIONAL",
-    scopeLabel: resolveWarningScopeLabel(relations),
-    contextLabel: resolveWarningContextLabel(relations),
+    scope: warning.scope,
+    bedId: warning.bedId,
+    bedName: warning.bedName,
+    plantingId: warning.plantingId,
+    vegetableName: warning.vegetableName,
+    localDate: warning.localDate,
+    dayPart: warning.dayPart,
+    validFrom: warning.validFrom,
+    validTo: warning.validTo,
+    horizon,
+    dayLabel,
+    isActionable: horizon === "OPERATIONAL",
+    scopeLabel: resolveScopeLabel(warning.scope, horizon),
+    contextLabel: resolveContextLabel(warning, horizon, dayLabel),
     title,
     message,
     hint,
-    hasBrokenPlaceholder,
   };
 };
 
-const getTaskField = (task: TaskItem, ...keys: string[]) => {
-  for (const key of keys) {
-    const value = task[key];
-    const normalized = asNonEmptyString(value);
-    if (normalized) return normalized;
-  }
-  return null;
-};
+// ---------------------------------------------------------------------------
+// Legacy helpers (backward compatibility)
+// ---------------------------------------------------------------------------
 
-const isTaskPending = (task: TaskItem) => {
-  const normalized = (task.status ?? "").toLowerCase();
-  return (
-    normalized !== "done" &&
-    normalized !== "canceled" &&
-    normalized !== "cancelled"
-  );
-};
+/**
+ * @deprecated `localDate` is now a direct API field.
+ * Kept to avoid import errors in code that still uses this function.
+ */
+export const getWarningRelations = (warning: WarningItem) => ({
+  scope: warning.scope,
+  horizon: isRadarWarning(warning)
+    ? ("RADAR" as const)
+    : ("OPERATIONAL" as const),
+  dayPart: warning.dayPart,
+  dayLabel: getLocalDayLabel(warning.localDate),
+  bedId: warning.bedId,
+  bedName: warning.bedName,
+  plantingId: warning.plantingId,
+  vegetableName: warning.vegetableName,
+  dedupeKey: warning.dedupeKey,
+  localDate: warning.localDate,
+});
 
-const isWeatherWarningTask = (task: TaskItem) => {
-  const source = getTaskField(task, "source", "taskSource", "task_source");
-  return source?.toUpperCase() === "WEATHER_WARNING";
-};
-
+/**
+ * @deprecated Use `meta.warningCode` and direct task fields instead of
+ * dedupeKey matching.
+ */
 export const findMatchingWeatherTask = (
   warning: WarningItem,
-  bedsById: Map<string, string>,
-  plantingsById: Map<string, PlantingLookup> | undefined,
-  tasks: TaskItem[],
+  _bedsById: unknown,
+  _plantingsById: unknown,
+  tasks: Array<{
+    id: string;
+    source?: string;
+    plantingId?: string | null;
+    bedId?: string | null;
+    status?: string;
+  }>,
 ) => {
-  const relations = getWarningRelations(warning, bedsById, plantingsById);
+  const isPending = (t: (typeof tasks)[number]) =>
+    (t.status ?? "").toLowerCase() === "pending";
+  const isWeatherTask = (t: (typeof tasks)[number]) =>
+    t.source?.toUpperCase() === "WEATHER_WARNING";
 
-  if (relations.horizon === "RADAR") return null;
+  const pending = tasks.filter((t) => isPending(t) && isWeatherTask(t));
 
-  const weatherPendingTasks = tasks.filter(
-    (task) => isTaskPending(task) && isWeatherWarningTask(task),
-  );
-
-  if (relations.plantingId) {
-    const matchByPlanting = weatherPendingTasks.find(
-      (task) =>
-        getTaskField(task, "plantingId", "planting_id") ===
-        relations.plantingId,
-    );
-    if (matchByPlanting) return matchByPlanting;
+  if (warning.plantingId) {
+    const match = pending.find((t) => t.plantingId === warning.plantingId);
+    if (match) return match;
   }
 
-  if (relations.bedId) {
-    const matchByBed = weatherPendingTasks.find(
-      (task) => getTaskField(task, "bedId", "bed_id") === relations.bedId,
-    );
-    if (matchByBed) return matchByBed;
-  }
-
-  const warningDedupeKey = relations.dedupeKey;
-  const warningCode = asNonEmptyString(warning.code);
-
-  if (
-    warningDedupeKey ||
-    warningCode ||
-    relations.bedId ||
-    relations.plantingId
-  ) {
-    const referenceParts = [
-      warningDedupeKey,
-      warningCode,
-      relations.bedId,
-      relations.plantingId,
-    ]
-      .filter((value): value is string => Boolean(value))
-      .map((value) => value.toLowerCase());
-
-    const dedupeMatch = weatherPendingTasks.find((task) => {
-      const taskDedupe =
-        getTaskField(task, "dedupeKey", "dedupe_key")?.toLowerCase() ?? "";
-      if (!taskDedupe) return false;
-      return referenceParts.some(
-        (part) => taskDedupe.includes(part) || part.includes(taskDedupe),
-      );
-    });
-
-    if (dedupeMatch) return dedupeMatch;
+  if (warning.bedId) {
+    const match = pending.find((t) => t.bedId === warning.bedId);
+    if (match) return match;
   }
 
   return null;
 };
+
+export { formatLocalDate, formatDayPart, getLocalDayLabel };

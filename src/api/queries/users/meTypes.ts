@@ -13,8 +13,13 @@ export type WeatherType =
 export type WeatherBasis = "FRESH" | "STALE" | "NONE";
 export type WeatherProvider = "OPEN_METEO";
 export type WarningScope = "USER" | "BED" | "PLANTING";
+export type WarningSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+/** @deprecated Horizon is now derived from code + localDate – not sent by the backend. */
 export type WarningHorizon = "RADAR" | "OPERATIONAL";
-export type WarningDayPart = "DAY" | "NIGHT";
+/** "ANY" means the alert applies to the full day (not just DAY or NIGHT part). */
+export type WarningDayPart = "DAY" | "NIGHT" | "ANY";
+/** Open string type – backend may emit new codes; treat unknowns gracefully. */
+export type WarningCode = string;
 
 export type WeatherHourlyItem = {
   time: string;
@@ -78,26 +83,27 @@ export type WeatherResponse = {
 };
 
 export type WarningItem = {
-  code: string;
-  severity: string;
+  dedupeKey: string;
+  code: WarningCode;
+  severity: WarningSeverity;
   title: string;
   message: string;
-  hint?: string | null;
-  scope?: WarningScope | string;
-  horizon?: WarningHorizon | string;
-  dayPart?: WarningDayPart | string;
-  details?:
-    | (Record<string, unknown> & {
-        scope?: WarningScope | string;
-        horizon?: WarningHorizon | string;
-        dayPart?: WarningDayPart | string;
-        bedId?: string | null;
-        bedName?: string | null;
-        plantingId?: string | null;
-        vegetableName?: string | null;
-      })
-    | null;
-} & Record<string, unknown>;
+  hint: string | null;
+  details: Record<string, unknown> | null;
+  scope: WarningScope;
+  bedId: string | null;
+  bedName: string | null;
+  plantingId: string | null;
+  vegetableName: string | null;
+  /** YYYY-MM-DD in the user's local timezone. Primary source of truth for grouping. */
+  localDate: string | null;
+  /** Which part of the day the alert covers. */
+  dayPart: WarningDayPart | null;
+  /** ISO 8601 UTC – start of the alert's validity window. */
+  validFrom: string | null;
+  /** ISO 8601 UTC – end of the alert's validity window. */
+  validTo: string | null;
+};
 
 export type WarningsResponse = {
   computedAt: string;
@@ -105,21 +111,34 @@ export type WarningsResponse = {
   items: WarningItem[];
 };
 
-export type TaskSource = "WEATHER_WARNING" | string;
+export type TaskSource = "WEATHER_WARNING" | "AUTOMATION" | string;
+export type TaskStatus = "PENDING" | "DONE" | "CANCELED";
+export type TaskTargetType = "USER" | "BED" | "PLANTING";
 export type TaskStatusFilter = "pending" | "done" | "all";
+
+/** Metadata attached to a task – provides context about scope and origin. */
+export type TaskMetaDto = {
+  scope?: WarningScope;
+  affectsAllBeds: boolean;
+  affectedBedIds?: string[];
+  affectedBedsCount?: number;
+  locationLabel?: string | null;
+  warningCode?: WarningCode;
+};
 
 export type TaskItem = {
   id: string;
   title: string;
   description?: string | null;
-  dueAt?: string;
+  dueAt?: string | null;
   status: string;
   source?: TaskSource;
-  horizon?: WarningHorizon | string;
-  dayPart?: WarningDayPart | string;
-  bedId?: string | null;
+  /** "USER" | "BED" | "PLANTING" – uppercase from the new API contract. */
+  targetType?: TaskTargetType | string;
   plantingId?: string | null;
-  dedupeKey?: string | null;
+  bedId?: string | null;
+  isManuallyRescheduled?: boolean;
+  meta?: TaskMetaDto | null;
 } & Record<string, unknown>;
 
 export type TasksResponse = {

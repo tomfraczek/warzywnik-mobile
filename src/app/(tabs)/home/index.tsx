@@ -1,28 +1,26 @@
 import { ArticleListItem } from "@/src/api/queries/articles/types";
 import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
-import { Bed } from "@/src/api/queries/beds/types";
-import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
-import { Planting } from "@/src/api/queries/plantings/types";
-import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
-import { TaskItem as MeTaskItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { useGetMyWarnings } from "@/src/api/queries/users/useGetMyWarnings";
 import { useGetMyWeather } from "@/src/api/queries/users/useGetMyWeather";
+import { WarningItem } from "@/src/api/queries/users/meTypes";
 import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
-import { TaskItem } from "@/src/components/ui/TaskItem";
 import { WarningCard } from "@/src/components/ui/WarningCard";
 import { useSettings } from "@/src/context/SettingsProvider";
 import {
-  resolveTaskPresentation,
-  sortTasksByDueAt,
-} from "@/src/features/tasks/model";
-import {
-  asNonEmptyString,
+  getOperationalWarningsToday,
+  getOperationalWarningsTomorrow,
+  getRadarWarnings,
   resolveWarningPresentation,
 } from "@/src/features/warnings/model";
-import { radius, spacing } from "@/src/theme/ui";
+import {
+  getTasksForToday,
+  getTasksForTomorrow,
+  isWeatherWarningTask,
+} from "@/src/features/tasks/model";
+import { getSeverityTone, radius, spacing } from "@/src/theme/ui";
 import {
   formatTemperature,
   getWeatherIconName,
@@ -67,147 +65,115 @@ export default function HomeScreen() {
   } = useGetMyWeather();
   const { data: tasksData, isLoading: tasksLoading } = useGetMyTasks("pending");
   const { data: warningsData, isLoading: warningsLoading } = useGetMyWarnings();
-  const bedsQuery = useGetBeds({ limit: 100 });
-  const plantingsQuery = useGetPlantings({ limit: 100 });
   const { data: articlesData, isLoading: articlesLoading } = useGetArticles({
     limit: 5,
   });
 
-  console.log(warningsData);
-
-  const bedsById = useMemo(() => {
-    const map = new Map<string, string>();
-    const beds = bedsQuery.data?.pages.flatMap((page) => page.items) ?? [];
-    beds.forEach((bed: Bed) => {
-      if (!bed?.id) return;
-      const name = asNonEmptyString(bed.name);
-      if (!name) return;
-      map.set(bed.id, name);
-    });
-    return map;
-  }, [bedsQuery.data?.pages]);
-
-  const plantingsById = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        id: string;
-        bedId: string | null;
-        bedName: string | null;
-        vegetableName: string | null;
-      }
-    >();
-
-    const plantings =
-      plantingsQuery.data?.pages.flatMap((page) => page.items) ?? [];
-
-    plantings.forEach((planting: Planting) => {
-      if (!planting?.id) return;
-
-      const bedId = asNonEmptyString(planting.bedId);
-      const bedName =
-        asNonEmptyString(planting.bedName) ??
-        (bedId ? (bedsById.get(bedId) ?? null) : null);
-      const vegetableName =
-        asNonEmptyString(planting.vegetableName) ??
-        asNonEmptyString(planting.name) ??
-        asNonEmptyString(planting.vegetable?.name);
-
-      map.set(planting.id, {
-        id: planting.id,
-        bedId,
-        bedName,
-        vegetableName,
-      });
-    });
-
-    return map;
-  }, [bedsById, plantingsQuery.data?.pages]);
-
-  const tasks = useMemo(() => tasksData?.items ?? [], [tasksData?.items]);
   const warnings = useMemo(
     () => warningsData?.items ?? [],
     [warningsData?.items],
   );
-  const nearestPendingTasks = useMemo(() => {
-    return sortTasksByDueAt(tasks).slice(0, 3);
-  }, [tasks]);
-  const tips: ArticleListItem[] =
-    articlesData?.pages.flatMap((page) => page.items).slice(0, 2) ?? [];
-  const isLoading =
-    weatherLoading && tasksLoading && warningsLoading && articlesLoading;
-  const warningCards = useMemo(
-    () =>
-      warnings.map((warning) => ({
-        warning,
-        presentation: resolveWarningPresentation(
-          warning,
-          bedsById,
-          plantingsById,
-        ),
-      })),
-    [warnings, bedsById, plantingsById],
+
+  const allPendingTasks = useMemo(
+    () => tasksData?.items ?? [],
+    [tasksData?.items],
   );
 
-  const handleTaskPress = (task: MeTaskItem) => {
-    const presentation = resolveTaskPresentation(task, {
-      bedsById,
-      plantingsById,
-    });
+  // Weather-task grouping – based on dueAt local date
+  const weatherTasksToday = useMemo(
+    () => getTasksForToday(allPendingTasks.filter(isWeatherWarningTask)),
+    [allPendingTasks],
+  );
+  const weatherTasksTomorrow = useMemo(
+    () => getTasksForTomorrow(allPendingTasks.filter(isWeatherWarningTask)),
+    [allPendingTasks],
+  );
 
-    if (presentation.targetType === "planting" && presentation.plantingId) {
+  // Warning grouping – based on localDate + code
+  const operationalToday = useMemo(
+    () => getOperationalWarningsToday(warnings),
+    [warnings],
+  );
+  const operationalTomorrow = useMemo(
+    () => getOperationalWarningsTomorrow(warnings),
+    [warnings],
+  );
+  const radarWarnings = useMemo(() => getRadarWarnings(warnings), [warnings]);
+
+  const hasAnyWarnings =
+    operationalToday.length > 0 ||
+    operationalTomorrow.length > 0 ||
+    radarWarnings.length > 0;
+
+  /**
+   * Home-screen preview: today first, then tomorrow, then 1-2 radar.
+   * Priority: show today if available, otherwise tomorrow, otherwise radar.
+   */
+  const previewGroups = useMemo(() => {
+    const groups: { label: string; items: WarningItem[] }[] = [];
+    const todaySlice = operationalToday.slice(0, 2);
+    const tomorrowSlice = operationalTomorrow.slice(
+      0,
+      Math.max(0, 3 - todaySlice.length),
+    );
+    const radarSlice = radarWarnings.slice(0, Math.max(0, 2 - tomorrowSlice.length));
+
+    if (todaySlice.length) groups.push({ label: "Dziś", items: todaySlice });
+    if (tomorrowSlice.length)
+      groups.push({ label: "Jutro", items: tomorrowSlice });
+    if (radarSlice.length)
+      groups.push({ label: "Radar", items: radarSlice });
+
+    return groups;
+  }, [operationalToday, operationalTomorrow, radarWarnings]);
+
+  const tips: ArticleListItem[] =
+    articlesData?.pages.flatMap((page) => page.items).slice(0, 2) ?? [];
+
+  const isLoading =
+    weatherLoading && tasksLoading && warningsLoading && articlesLoading;
+
+  const handleWarningPress = (warning: WarningItem) => {
+    const presentation = resolveWarningPresentation(warning);
+
+    if (
+      presentation.scope === "PLANTING" &&
+      presentation.plantingId
+    ) {
       router.push(`/plantings/${presentation.plantingId}`);
       return;
     }
-
-    if (presentation.targetType === "bed" && presentation.bedId) {
+    if (presentation.scope === "BED" && presentation.bedId) {
       router.push(`/(tabs)/beds/${presentation.bedId}`);
       return;
     }
-
+    if (presentation.scope === "USER") {
+      router.push("/(tabs)/home/warnings");
+      return;
+    }
     router.push({
-      pathname: "/(tabs)/planner/tasks",
+      pathname: "/(tabs)/home/alert-details",
       params: {
-        taskId: task.id,
-        scopeHint: "Zadanie dotyczy wszystkich grządek",
+        title: presentation.title,
+        message: presentation.message,
+        hint: presentation.hint ?? "",
+        scope: presentation.scope,
+        bedId: presentation.bedId ?? "",
+        bedName: presentation.bedName ?? "",
+        plantingId: presentation.plantingId ?? "",
+        vegetableName: presentation.vegetableName ?? "",
+        code: warning.code ?? "",
+        horizon: presentation.horizon ?? "",
+        dayPart: presentation.dayPart ?? "",
       },
     });
   };
 
-  const handleWarningPress = (warning: (typeof warningCards)[number]) => {
-    if (
-      warning.presentation.scope === "PLANTING" &&
-      warning.presentation.plantingId
-    ) {
-      router.push(`/plantings/${warning.presentation.plantingId}`);
-      return;
-    }
-
-    if (warning.presentation.scope === "BED" && warning.presentation.bedId) {
-      router.push(`/(tabs)/beds/${warning.presentation.bedId}`);
-      return;
-    }
-
-    if (warning.presentation.scope === "USER") {
-      router.push("/(tabs)/home/weather");
-      return;
-    }
-
+  const handleTaskPress = () => {
     router.push({
-      pathname: "/(tabs)/home/alert-details",
-      params: {
-        title: warning.presentation.title,
-        message: warning.presentation.message,
-        hint: warning.presentation.hint ?? "",
-        scope: warning.presentation.scope,
-        bedId: warning.presentation.bedId ?? "",
-        bedName: warning.presentation.bedName ?? "",
-        plantingId: warning.presentation.plantingId ?? "",
-        vegetableName: warning.presentation.vegetableName ?? "",
-        code: asNonEmptyString(warning.warning.code) ?? "",
-        horizon: warning.presentation.horizon ?? "",
-        dayPart: warning.presentation.dayPart ?? "",
-      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      pathname: "/(tabs)/planner/tasks" as any,
+      params: { source: "WEATHER_WARNING" },
     });
   };
 
@@ -326,59 +292,121 @@ export default function HomeScreen() {
             </Pressable>
 
             <Card
-              title="Najbliższe zadania"
-              subtitle="Rzeczy do zrobienia teraz"
+              title="Zadania pogodowe"
+              subtitle="Zaplanowane na dziś i jutro"
+              rightSlot={
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      pathname: "/(tabs)/planner/tasks" as any,
+                      params: { source: "WEATHER_WARNING" },
+                    })
+                  }
+                >
+                  <Text style={styles.cardCta}>Wszystkie →</Text>
+                </Pressable>
+              }
             >
               <View style={styles.stack}>
-                {nearestPendingTasks.length === 0 ? (
-                  <Text style={styles.placeholder}>Brak zadań na teraz.</Text>
+                {tasksLoading ? (
+                  <ActivityIndicator size="small" />
+                ) : weatherTasksToday.length === 0 &&
+                  weatherTasksTomorrow.length === 0 ? (
+                  <Text style={styles.placeholder}>
+                    Brak zadań pogodowych na najbliższe dni.
+                  </Text>
                 ) : (
-                  nearestPendingTasks.map((task) => {
-                    const presentation = resolveTaskPresentation(task, {
-                      bedsById,
-                      plantingsById,
-                    });
-
-                    return (
-                      <TaskItem
+                  <>
+                    {weatherTasksToday.slice(0, 2).map((task) => (
+                      <Pressable
                         key={task.id}
-                        title={task.title}
-                        status={task.status}
-                        bed={presentation.locationLabel}
-                        crop={presentation.cropLabel}
-                        onPress={() => handleTaskPress(task)}
-                      />
-                    );
-                  })
+                        style={styles.taskRow}
+                        onPress={handleTaskPress}
+                      >
+                        <View style={styles.taskDayDot} />
+                        <View style={styles.taskContent}>
+                          <Text style={styles.taskTitle}>{task.title}</Text>
+                          <Text style={styles.taskMeta}>
+                            Dziś
+                            {task.bedId || task.plantingId
+                              ? " • " + (task.meta?.locationLabel ?? task.bedId ?? "")
+                              : ""}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    ))}
+                    {weatherTasksTomorrow.slice(0, 2).map((task) => (
+                      <Pressable
+                        key={task.id}
+                        style={styles.taskRow}
+                        onPress={handleTaskPress}
+                      >
+                        <View
+                          style={[
+                            styles.taskDayDot,
+                            styles.taskDayDotTomorrow,
+                          ]}
+                        />
+                        <View style={styles.taskContent}>
+                          <Text style={styles.taskTitle}>{task.title}</Text>
+                          <Text style={styles.taskMeta}>
+                            Jutro
+                            {task.bedId || task.plantingId
+                              ? " • " + (task.meta?.locationLabel ?? task.bedId ?? "")
+                              : ""}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    ))}
+                  </>
                 )}
               </View>
             </Card>
 
-            <Card title="Alerty" subtitle="Co wymaga uwagi">
+            <Card
+              title="Alerty pogodowe"
+              subtitle="Aktywne alerty dla Twojego ogrodu"
+              rightSlot={
+                hasAnyWarnings ? (
+                  <Pressable
+                    onPress={() => router.push("/(tabs)/home/warnings")}
+                  >
+                    <Text style={styles.cardCta}>Wszystkie →</Text>
+                  </Pressable>
+                ) : undefined
+              }
+            >
               <View style={styles.stack}>
-                {warnings.length === 0 ? (
+                {warningsLoading ? (
+                  <ActivityIndicator size="small" />
+                ) : !hasAnyWarnings ? (
                   <Text style={styles.placeholder}>
-                    Brak aktywnych alertów.
+                    Brak aktywnych alertów pogodowych.
                   </Text>
                 ) : (
-                  warningCards.slice(0, 2).map((item) => {
-                    return (
-                      <WarningCard
-                        key={`${item.warning.code}-${item.warning.title}`}
-                        title={item.presentation.title}
-                        message={item.presentation.message}
-                        severity={item.warning.severity}
-                        scopeLabel={item.presentation.scopeLabel}
-                        contextLabel={item.presentation.contextLabel}
-                        ctaLabel={
-                          item.presentation.isActionable
-                            ? "Przejdź do działania"
-                            : "Zobacz prognozę"
-                        }
-                        onPress={() => handleWarningPress(item)}
-                      />
-                    );
-                  })
+                  previewGroups.map((group) =>
+                    group.items.map((warning) => {
+                      const presentation = resolveWarningPresentation(warning);
+                      const tone = getSeverityTone(warning.severity);
+                      return (
+                        <WarningCard
+                          key={warning.dedupeKey}
+                          title={presentation.title}
+                          message={presentation.message}
+                          severity={warning.severity}
+                          scopeLabel={`${group.label} · ${presentation.scopeLabel}`}
+                          contextLabel={presentation.contextLabel}
+                          ctaLabel={
+                            presentation.isActionable
+                              ? "Przejdź do działania"
+                              : "Zobacz prognozę"
+                          }
+                          onPress={() => handleWarningPress(warning)}
+                        />
+                      );
+                    }),
+                  )
                 )}
               </View>
             </Card>
@@ -515,6 +543,40 @@ const makeStyles = (theme: MD3Theme) =>
     },
     placeholder: {
       fontSize: 14,
+      color: theme.colors.onSurfaceVariant,
+    },
+    cardCta: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: theme.colors.primary,
+    },
+    taskRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    taskDayDot: {
+      width: 8,
+      height: 8,
+      borderRadius: radius.pill,
+      backgroundColor: theme.colors.primary,
+      marginTop: 5,
+    },
+    taskDayDotTomorrow: {
+      backgroundColor: theme.colors.secondary,
+    },
+    taskContent: {
+      flex: 1,
+      gap: 2,
+    },
+    taskTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.colors.onSurface,
+    },
+    taskMeta: {
+      fontSize: 12,
       color: theme.colors.onSurfaceVariant,
     },
     adviceCard: {
