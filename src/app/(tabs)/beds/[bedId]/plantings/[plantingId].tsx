@@ -1,20 +1,35 @@
 import { getResponseError } from "@/src/api/axios";
 import { ActionTask } from "@/src/api/queries/actionTasks/types";
 import { useGetPlantingActionTasks } from "@/src/api/queries/actionTasks/useGetPlantingActionTasks";
+import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
+import {
+  DiseaseOccurrence,
+  DiseaseOccurrenceStatus,
+  DiseaseSeverity,
+} from "@/src/api/queries/diseaseOccurrences/types";
+import { useCreatePlantingDiseaseOccurrence } from "@/src/api/queries/diseaseOccurrences/useCreateBedDiseaseOccurrence";
+import { useDeleteDiseaseOccurrence } from "@/src/api/queries/diseaseOccurrences/useDeleteDiseaseOccurrence";
+import { useGetPlantingDiseaseOccurrences } from "@/src/api/queries/diseaseOccurrences/useGetBedDiseaseOccurrences";
+import { useUpdateDiseaseOccurrence } from "@/src/api/queries/diseaseOccurrences/useUpdateDiseaseOccurrence";
 import { useSearchDiseases } from "@/src/api/queries/diseases/useSearchDiseases";
 import {
-  DiseaseSeverity,
-  PlantingDisease,
-} from "@/src/api/queries/plantingDiseases/types";
-import { useCreatePlantingDisease } from "@/src/api/queries/plantingDiseases/useCreatePlantingDisease";
-import { useGetPlantingDiseases } from "@/src/api/queries/plantingDiseases/useGetPlantingDiseases";
-import { useUpdatePlantingDisease } from "@/src/api/queries/plantingDiseases/useUpdatePlantingDisease";
-import { Planting } from "@/src/api/queries/plantings/types";
+  PestOccurrence,
+  PestOccurrenceStatus,
+} from "@/src/api/queries/pestOccurrences/types";
+import { useCreatePlantingPestOccurrence } from "@/src/api/queries/pestOccurrences/useCreateBedPestOccurrence";
+import { useDeletePestOccurrence } from "@/src/api/queries/pestOccurrences/useDeletePestOccurrence";
+import { useGetPlantingPestOccurrences } from "@/src/api/queries/pestOccurrences/useGetBedPestOccurrences";
+import { useUpdatePestOccurrence } from "@/src/api/queries/pestOccurrences/useUpdatePestOccurrence";
+import { useGetPests } from "@/src/api/queries/pests/useGetPests";
+import {
+  HarvestResultRecord,
+  Planting,
+} from "@/src/api/queries/plantings/types";
+import { useDeleteHarvestResultRecord } from "@/src/api/queries/plantings/useDeleteHarvestResultRecord";
 import { useDeletePlanting } from "@/src/api/queries/plantings/useDeletePlanting";
 import { useGetPlanting } from "@/src/api/queries/plantings/useGetPlanting";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { Screen } from "@/src/components/Screen";
-import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { isAxiosError } from "axios";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
@@ -41,11 +56,22 @@ import {
   useTheme,
 } from "react-native-paper";
 import { DatePickerModal } from "react-native-paper-dates";
+import { PlantingHarvestResultCard } from "./_components/PlantingHarvestResultCard";
+import { PlantingHarvestResultForm } from "./_components/PlantingHarvestResultForm";
+import { PlantingSeasonSection } from "./_components/PlantingSeasonSection";
+import { PlantingTimelineSection } from "./_components/PlantingTimelineSection";
 
 const formatDate = (value?: string | null) => {
   if (!value) return "Brak";
   return value.split("T")[0];
 };
+
+const sortTasksByDueAt = (tasks: ActionTask[]) =>
+  [...tasks].sort((a, b) => {
+    const aDue = a.dueAt ?? "9999-12-31";
+    const bDue = b.dueAt ?? "9999-12-31";
+    return aDue.localeCompare(bDue);
+  });
 
 const isoToDateOnly = (iso?: string | null) => {
   if (!iso) return "";
@@ -61,64 +87,80 @@ const parseIsoDate = (value?: string | null) => {
   return Number.isNaN(d.getTime()) ? undefined : d;
 };
 
-const getTaskRecordDate = (task: ActionTask) =>
-  task.doneAt ?? task.dueAt ?? task.createdAt ?? task.updatedAt ?? null;
-
-const sortTaskHistoryDesc = (tasks: ActionTask[]) =>
-  [...tasks].sort((a, b) => {
-    const aDate = getTaskRecordDate(a) ?? "0000-01-01";
-    const bDate = getTaskRecordDate(b) ?? "0000-01-01";
-    return bDate.localeCompare(aDate);
-  });
-
-const getTaskStatusLabel = (status: ActionTask["status"]) => {
-  if (status === "done") return "Wykonane";
-  if (status === "canceled") return "Anulowane";
-  return "Oczekujące";
+const getStatusLabel = (
+  status: DiseaseOccurrenceStatus | PestOccurrenceStatus,
+) => {
+  if (status === "suspected") return "Podejrzenie";
+  if (status === "confirmed") return "Potwierdzony";
+  return "Opanowany";
 };
-
-const getTaskStatusTone = (status: ActionTask["status"]) => {
-  if (status === "done") return "success" as const;
-  if (status === "canceled") return "inactive" as const;
-  return "warning" as const;
-};
-
-const getTaskSourceLabel = (source?: ActionTask["source"]) => {
-  if (source === "MANUAL") return "Manualne";
-  if (source === "VEGETABLE_RULE") return "Automatyczne";
-  if (source === "WEATHER_WARNING") return "Pogodowe";
-  return "Nieznane";
-};
-
-type HistorySegment = "history" | "done" | "canceled" | "pending";
 
 export default function PlantingDetailsScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
-  const { bedId, plantingId } = useLocalSearchParams<{
+  const { bedId, plantingId, actionTaskId } = useLocalSearchParams<{
     bedId?: string | string[];
     plantingId?: string | string[];
+    actionTaskId?: string | string[];
   }>();
   const resolvedBedId = Array.isArray(bedId) ? bedId[0] : bedId;
   const resolvedPlantingId = Array.isArray(plantingId)
     ? plantingId[0]
     : plantingId;
+  const highlightedActionTaskId = Array.isArray(actionTaskId)
+    ? actionTaskId[0]
+    : actionTaskId;
   const router = useRouter();
+
   const { data, isLoading, error, refetch } = useGetPlanting(
     resolvedPlantingId ?? null,
   );
-  const plantingTasksQuery = useGetPlantingActionTasks(
-    resolvedPlantingId ?? null,
-    "all",
-  );
   const deletePlanting = useDeletePlanting(resolvedBedId);
-  const diseasesQuery = useGetPlantingDiseases(
-    resolvedPlantingId
-      ? { plantingId: resolvedPlantingId, status: "active" }
-      : null,
+  const {
+    data: plantingTasksResponse,
+    refetch: refetchPlantingTasks,
+    isLoading: isPlantingTasksLoading,
+    error: plantingTasksError,
+  } = useGetPlantingActionTasks(resolvedPlantingId ?? null, "pending");
+  const updateActionTask = useUpdateActionTask();
+
+  const [problemsTab, setProblemsTab] = useState<"diseases" | "pests">(
+    "diseases",
   );
-  const createDisease = useCreatePlantingDisease(resolvedPlantingId ?? null);
-  const updateDisease = useUpdatePlantingDisease(resolvedPlantingId ?? null);
+  const [problemStatus, setProblemStatus] = useState<"active" | "resolved">(
+    "active",
+  );
+  const [actionsVisible, setActionsVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
+  const [harvestFormVisible, setHarvestFormVisible] = useState(false);
+  const [editingHarvestRecord, setEditingHarvestRecord] =
+    useState<HarvestResultRecord | null>(null);
+
+  const diseaseOccurrencesQuery = useGetPlantingDiseaseOccurrences(
+    resolvedPlantingId ?? null,
+    problemStatus,
+  );
+  const pestOccurrencesQuery = useGetPlantingPestOccurrences(
+    resolvedPlantingId ?? null,
+    problemStatus,
+  );
+
+  const createDiseaseOccurrence = useCreatePlantingDiseaseOccurrence(
+    resolvedPlantingId ?? null,
+  );
+  const updateDiseaseOccurrence = useUpdateDiseaseOccurrence();
+  const deleteDiseaseOccurrence = useDeleteDiseaseOccurrence();
+
+  const createPestOccurrence = useCreatePlantingPestOccurrence(
+    resolvedPlantingId ?? null,
+  );
+  const updatePestOccurrence = useUpdatePestOccurrence();
+  const deletePestOccurrence = useDeletePestOccurrence();
+  const deleteHarvestResultRecord = useDeleteHarvestResultRecord(
+    resolvedPlantingId ?? "",
+    resolvedBedId,
+  );
 
   const planting = data as Planting | undefined;
   const {
@@ -126,44 +168,63 @@ export default function PlantingDetailsScreen() {
     isLoading: isVegetableLoading,
     error: vegetableError,
   } = useGetVegetable(planting?.vegetableId ?? null);
-  const [reportVisible, setReportVisible] = useState(false);
-  const [actionsVisible, setActionsVisible] = useState(false);
+
+  const [diseaseModalVisible, setDiseaseModalVisible] = useState(false);
   const [selectedDiseaseId, setSelectedDiseaseId] = useState<string | null>(
     null,
   );
   const [selectedDiseaseName, setSelectedDiseaseName] = useState<string | null>(
     null,
   );
-  const [reportStatus, setReportStatus] = useState<"suspected" | "confirmed">(
-    "suspected",
-  );
+  const [diseaseStatus, setDiseaseStatus] =
+    useState<DiseaseOccurrenceStatus>("suspected");
   const [severity, setSeverity] = useState<DiseaseSeverity | undefined>(
     undefined,
   );
-  const [note, setNote] = useState("");
+  const [diseaseNote, setDiseaseNote] = useState("");
   const [observedAt, setObservedAt] = useState<string | null>(null);
   const [observedOpen, setObservedOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [historySegment, setHistorySegment] =
-    useState<HistorySegment>("history");
-  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
-  const searchQueryResult = useSearchDiseases(searchQuery);
+  const [diseaseSearch, setDiseaseSearch] = useState("");
+
+  const [pestModalVisible, setPestModalVisible] = useState(false);
+  const [selectedPestId, setSelectedPestId] = useState<string | null>(null);
+  const [selectedPestName, setSelectedPestName] = useState<string | null>(null);
+  const [pestStatus, setPestStatus] =
+    useState<PestOccurrenceStatus>("suspected");
+  const [pestNote, setPestNote] = useState("");
+  const [pestSearch, setPestSearch] = useState("");
+
+  const [editVisible, setEditVisible] = useState(false);
+  const [editType, setEditType] = useState<"disease" | "pest" | null>(null);
+  const [editOccurrenceId, setEditOccurrenceId] = useState<string | null>(null);
+  const [editStatus, setEditStatus] = useState<
+    DiseaseOccurrenceStatus | PestOccurrenceStatus
+  >("suspected");
+  const [editNote, setEditNote] = useState("");
 
   const observedDate = useMemo(() => parseIsoDate(observedAt), [observedAt]);
-
+  const searchDiseasesQuery = useSearchDiseases(diseaseSearch);
   const commonDiseases = vegetable?.commonDiseases ?? [];
-  const searchItems = searchQueryResult.data ?? [];
-  const activeDiseases = (diseasesQuery.data ?? []) as PlantingDisease[];
-  const historyTasks = useMemo(() => {
-    const allTasks = (plantingTasksQuery.data?.items ?? []) as ActionTask[];
-    const filtered = allTasks.filter((task) => {
-      if (historySegment === "history") {
-        return task.status === "done" || task.status === "canceled";
-      }
-      return task.status === historySegment;
-    });
-    return sortTaskHistoryDesc(filtered);
-  }, [historySegment, plantingTasksQuery.data?.items]);
+  const diseaseSearchItems = searchDiseasesQuery.data ?? [];
+
+  const pestDictionaryQuery = useGetPests({
+    page: 1,
+    limit: 50,
+    q: pestSearch.trim() || undefined,
+  });
+  const pestSearchItems = pestDictionaryQuery.data?.items ?? [];
+
+  const diseaseOccurrences = (diseaseOccurrencesQuery.data ??
+    []) as DiseaseOccurrence[];
+  const pestOccurrences = (pestOccurrencesQuery.data ?? []) as PestOccurrence[];
+  const plantingTasks = useMemo(
+    () => sortTasksByDueAt(plantingTasksResponse?.items ?? []),
+    [plantingTasksResponse?.items],
+  );
+
+  const vegetableName = isVegetableLoading
+    ? "Ładowanie..."
+    : (vegetable?.name ?? (vegetableError ? "Brak danych" : "Brak danych"));
 
   const handleDelete = () => {
     Alert.alert("Usunąć uprawę?", "Tej operacji nie można cofnąć.", [
@@ -186,6 +247,199 @@ export default function PlantingDetailsScreen() {
         },
       },
     ]);
+  };
+
+  const handleMarkTaskDone = async (taskId: string) => {
+    try {
+      await updateActionTask.mutateAsync({
+        id: taskId,
+        payload: { status: "done" },
+      });
+      setSnackbarMessage("Zadanie oznaczone jako wykonane.");
+      await refetchPlantingTasks();
+    } catch (err) {
+      Alert.alert("Błąd", String(getResponseError(err)));
+    }
+  };
+
+  const handleRescheduleTask = async (taskId: string, dueAt: string) => {
+    try {
+      await updateActionTask.mutateAsync({
+        id: taskId,
+        payload: { dueAt },
+      });
+      setSnackbarMessage("Termin zadania został zmieniony.");
+      await refetchPlantingTasks();
+    } catch (err) {
+      Alert.alert("Błąd", String(getResponseError(err)));
+    }
+  };
+
+  const resetDiseaseModal = () => {
+    setSelectedDiseaseId(null);
+    setSelectedDiseaseName(null);
+    setDiseaseStatus("suspected");
+    setSeverity(undefined);
+    setDiseaseNote("");
+    setObservedAt(null);
+    setDiseaseSearch("");
+  };
+
+  const resetPestModal = () => {
+    setSelectedPestId(null);
+    setSelectedPestName(null);
+    setPestStatus("suspected");
+    setPestNote("");
+    setPestSearch("");
+  };
+
+  const handleCreateDisease = async () => {
+    if (!selectedDiseaseId) {
+      setSnackbarMessage("Wybierz chorobę.");
+      return;
+    }
+    try {
+      await createDiseaseOccurrence.mutateAsync({
+        diseaseId: selectedDiseaseId,
+        status: diseaseStatus,
+        severity,
+        observedAt: observedAt ?? undefined,
+        notes: diseaseNote.trim() ? diseaseNote.trim() : null,
+      });
+      setDiseaseModalVisible(false);
+      resetDiseaseModal();
+      setSnackbarMessage("Dodano chorobę.");
+    } catch (err) {
+      if (isAxiosError(err) && err.response?.status === 409) {
+        setSnackbarMessage("To wystąpienie już jest aktywne dla tej uprawy");
+        return;
+      }
+      Alert.alert("Błąd", String(getResponseError(err)));
+    }
+  };
+
+  const handleCreatePest = async () => {
+    if (!selectedPestId) {
+      setSnackbarMessage("Wybierz szkodnika.");
+      return;
+    }
+    try {
+      await createPestOccurrence.mutateAsync({
+        pestId: selectedPestId,
+        status: pestStatus,
+        notes: pestNote.trim() ? pestNote.trim() : null,
+      });
+      setPestModalVisible(false);
+      resetPestModal();
+      setSnackbarMessage("Dodano szkodnika.");
+    } catch (err) {
+      if (isAxiosError(err) && err.response?.status === 409) {
+        setSnackbarMessage("To wystąpienie już jest aktywne dla tej uprawy");
+        return;
+      }
+      Alert.alert("Błąd", String(getResponseError(err)));
+    }
+  };
+
+  const openEditDisease = (occurrence: DiseaseOccurrence) => {
+    setEditType("disease");
+    setEditOccurrenceId(occurrence.id);
+    setEditStatus(occurrence.status);
+    setEditNote(occurrence.notes ?? "");
+    setEditVisible(true);
+  };
+
+  const openEditPest = (occurrence: PestOccurrence) => {
+    setEditType("pest");
+    setEditOccurrenceId(occurrence.id);
+    setEditStatus(occurrence.status);
+    setEditNote(occurrence.notes ?? "");
+    setEditVisible(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editType || !editOccurrenceId) return;
+    try {
+      const payload = {
+        status: editStatus,
+        notes: editNote.trim() ? editNote.trim() : null,
+      };
+      if (editType === "disease") {
+        await updateDiseaseOccurrence.mutateAsync({
+          id: editOccurrenceId,
+          payload,
+        });
+      } else {
+        await updatePestOccurrence.mutateAsync({
+          id: editOccurrenceId,
+          payload,
+        });
+      }
+      setEditVisible(false);
+      setSnackbarMessage("Zapisano zmiany.");
+    } catch (err) {
+      Alert.alert("Błąd", String(getResponseError(err)));
+    }
+  };
+
+  const handleDeleteOccurrence = () => {
+    if (!editType || !editOccurrenceId) return;
+    Alert.alert("Usunąć wystąpienie?", "Tej operacji nie można cofnąć.", [
+      { text: "Anuluj", style: "cancel" },
+      {
+        text: "Usuń",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            if (editType === "disease") {
+              await deleteDiseaseOccurrence.mutateAsync(editOccurrenceId);
+            } else {
+              await deletePestOccurrence.mutateAsync(editOccurrenceId);
+            }
+            setEditVisible(false);
+            setSnackbarMessage("Usunięto wystąpienie.");
+          } catch (err) {
+            Alert.alert("Błąd", String(getResponseError(err)));
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleEditHarvestRecord = (record: HarvestResultRecord) => {
+    setEditingHarvestRecord(record);
+    setHarvestFormVisible(true);
+  };
+
+  const handleDeleteHarvestRecord = (record: HarvestResultRecord) => {
+    if (!record.id || record.id.startsWith("legacy-")) return;
+    Alert.alert("Usunąć rekord zbioru?", "Tej operacji nie można cofnąć.", [
+      { text: "Anuluj", style: "cancel" },
+      {
+        text: "Usuń",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteHarvestResultRecord.mutateAsync(record.id);
+            setSnackbarMessage("Usunięto rekord zbioru.");
+          } catch (err) {
+            Alert.alert("Błąd", String(getResponseError(err)));
+          }
+        },
+      },
+    ]);
+  };
+
+  const severityLabels: Record<DiseaseSeverity, string> = {
+    low: "Niskie",
+    medium: "Umiarkowane",
+    high: "Silne",
+  };
+
+  const getSeverityColor = (value: DiseaseSeverity) => {
+    if (value === "high") return theme.colors.error;
+    if (value === "medium") return theme.colors.secondary;
+    return theme.colors.primary;
   };
 
   if (isLoading) {
@@ -213,93 +467,6 @@ export default function PlantingDetailsScreen() {
     );
   }
 
-  const vegetableName = isVegetableLoading
-    ? "Ładowanie..."
-    : (vegetable?.name ?? (vegetableError ? "Brak danych" : "Brak danych"));
-
-  const handleMarkResolved = (disease: PlantingDisease) => {
-    Alert.alert("Oznaczyć jako wyleczoną?", "Ta akcja zamknie chorobę.", [
-      { text: "Anuluj", style: "cancel" },
-      {
-        text: "Wyleczone",
-        onPress: async () => {
-          try {
-            await updateDisease.mutateAsync({
-              diseaseId: disease.id,
-              payload: { status: "resolved" },
-            });
-          } catch (err) {
-            Alert.alert("Błąd", String(getResponseError(err)));
-          }
-        },
-      },
-    ]);
-  };
-
-  const handleConfirm = async (disease: PlantingDisease) => {
-    try {
-      await updateDisease.mutateAsync({
-        diseaseId: disease.id,
-        payload: { status: "confirmed" },
-      });
-    } catch (err) {
-      const errorMessage = String(getResponseError(err));
-      if (
-        (isAxiosError(err) && err.response?.status === 409) ||
-        errorMessage.includes("Active disease occurrence already exists")
-      ) {
-        setSnackbarMessage("Ta choroba jest już aktywna dla tej uprawy.");
-        return;
-      }
-      Alert.alert("Błąd", errorMessage);
-    }
-  };
-
-  const handleCreateDisease = async () => {
-    if (!selectedDiseaseId) {
-      setSnackbarMessage("Wybierz chorobę.");
-      return;
-    }
-    try {
-      await createDisease.mutateAsync({
-        diseaseId: selectedDiseaseId,
-        status: reportStatus,
-        severity,
-        observedAt,
-        notes: note.trim() ? note.trim() : null,
-      });
-      setReportVisible(false);
-      setSelectedDiseaseId(null);
-      setSelectedDiseaseName(null);
-      setNote("");
-      setSeverity(undefined);
-      setObservedAt(null);
-      setSearchQuery("");
-      setReportStatus("suspected");
-      setSnackbarMessage("Dodano chorobę.");
-    } catch {
-      Alert.alert("Błąd", "Wybrana choroba jest już zgłoszona dla tej uprawy.");
-    }
-  };
-
-  const getStatusLabel = (status: PlantingDisease["status"]) => {
-    if (status === "confirmed") return "Potwierdzona";
-    if (status === "suspected") return "Podejrzenie";
-    return "Wyleczona";
-  };
-
-  const severityLabels: Record<DiseaseSeverity, string> = {
-    low: "Niskie",
-    medium: "Umiarkowane",
-    high: "Silne",
-  };
-
-  const getSeverityColor = (value: DiseaseSeverity) => {
-    if (value === "high") return theme.colors.error;
-    if (value === "medium") return theme.colors.secondary;
-    return theme.colors.primary;
-  };
-
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.container}>
@@ -307,6 +474,7 @@ export default function PlantingDetailsScreen() {
           <Text style={styles.headerTitle}>Szczegóły uprawy</Text>
           <IconButton icon="cog" onPress={() => setActionsVisible(true)} />
         </View>
+
         <Surface style={styles.section} elevation={0}>
           <Text style={styles.sectionTitle}>Warzywo</Text>
           <Text style={styles.valueText}>{vegetableName}</Text>
@@ -320,11 +488,93 @@ export default function PlantingDetailsScreen() {
         <Surface style={styles.section} elevation={0}>
           <Text style={styles.sectionTitle}>Daty</Text>
           <Text style={styles.valueText}>
-            Planowana: {formatDate(planting.plannedStartDate)}
+            Metoda startu: {planting.startMethod ?? "Brak"}
           </Text>
           <Text style={styles.valueText}>
-            Rzeczywista: {formatDate(planting.actualStartDate)}
+            Data siewu: {formatDate(planting.sowedAt)}
           </Text>
+        </Surface>
+
+        <PlantingHarvestResultCard
+          planting={planting}
+          onAddPress={() => {
+            setEditingHarvestRecord(null);
+            setHarvestFormVisible(true);
+          }}
+          onEditPress={handleEditHarvestRecord}
+          onDeletePress={handleDeleteHarvestRecord}
+          deletingRecordId={
+            deleteHarvestResultRecord.isPending
+              ? (deleteHarvestResultRecord.variables ?? null)
+              : null
+          }
+        />
+
+        <Surface style={styles.section} elevation={0}>
+          <Text style={styles.sectionTitle}>Tasks to do</Text>
+          {isPlantingTasksLoading ? <ActivityIndicator /> : null}
+
+          {plantingTasksError ? (
+            <View>
+              <Text style={styles.errorText}>
+                {String(getResponseError(plantingTasksError))}
+              </Text>
+              <Button mode="outlined" onPress={() => refetchPlantingTasks()}>
+                Spróbuj ponownie
+              </Button>
+            </View>
+          ) : null}
+
+          {!isPlantingTasksLoading &&
+          !plantingTasksError &&
+          plantingTasks.length === 0 ? (
+            <Text style={styles.emptyText}>Brak zadań do wykonania.</Text>
+          ) : null}
+
+          {plantingTasks.map((task) => {
+            const isHighlighted = highlightedActionTaskId === task.id;
+
+            return (
+              <View
+                key={task.id}
+                style={[
+                  styles.taskRow,
+                  isHighlighted ? styles.taskRowHighlighted : null,
+                ]}
+              >
+                <View style={styles.taskMain}>
+                  <Text style={styles.taskTitle}>{task.title}</Text>
+                  {task.description ? (
+                    <Text style={styles.taskDescription}>
+                      {task.description}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.taskMeta}>
+                    Termin: {formatDate(task.dueAt)}
+                  </Text>
+                </View>
+
+                <View style={styles.taskActions}>
+                  <Button
+                    mode="outlined"
+                    compact
+                    onPress={() => setRescheduleTaskId(task.id)}
+                    disabled={updateActionTask.isPending}
+                  >
+                    Przełóż
+                  </Button>
+                  <Button
+                    mode="contained"
+                    compact
+                    onPress={() => handleMarkTaskDone(task.id)}
+                    disabled={updateActionTask.isPending}
+                  >
+                    Done
+                  </Button>
+                </View>
+              </View>
+            );
+          })}
         </Surface>
 
         <Surface style={styles.section} elevation={0}>
@@ -334,166 +584,213 @@ export default function PlantingDetailsScreen() {
           </Text>
         </Surface>
 
+        {resolvedPlantingId ? (
+          <PlantingSeasonSection plantingId={resolvedPlantingId} />
+        ) : null}
+
         <Surface style={styles.section} elevation={0}>
-          <Text style={styles.sectionTitle}>Historia</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Problemy</Text>
+            <Button
+              mode="text"
+              onPress={() =>
+                problemsTab === "diseases"
+                  ? setDiseaseModalVisible(true)
+                  : setPestModalVisible(true)
+              }
+            >
+              {problemsTab === "diseases" ? "Dodaj chorobę" : "Dodaj szkodnika"}
+            </Button>
+          </View>
+
           <SegmentedButtons
-            value={historySegment}
+            value={problemsTab}
             onValueChange={(value) =>
-              setHistorySegment(value as HistorySegment)
+              setProblemsTab(value as "diseases" | "pests")
             }
             buttons={[
-              { value: "history", label: "Wykonane + anulowane" },
-              { value: "done", label: "Wykonane" },
-              { value: "canceled", label: "Anulowane" },
-              { value: "pending", label: "Oczekujące" },
+              { value: "diseases", label: "Choroby" },
+              { value: "pests", label: "Szkodniki" },
             ]}
             style={styles.segmentedButtons}
           />
 
-          {plantingTasksQuery.isLoading ? <ActivityIndicator /> : null}
+          <Button
+            mode="text"
+            onPress={() =>
+              setProblemStatus((prev) =>
+                prev === "active" ? "resolved" : "active",
+              )
+            }
+            style={styles.toggleButton}
+          >
+            {problemStatus === "active" ? "Pokaż opanowane" : "Pokaż aktywne"}
+          </Button>
 
-          {plantingTasksQuery.error ? (
+          {problemsTab === "diseases" ? (
+            diseaseOccurrencesQuery.isLoading ? (
+              <ActivityIndicator />
+            ) : diseaseOccurrencesQuery.error ? (
+              <View>
+                <Text style={styles.errorText}>
+                  {String(getResponseError(diseaseOccurrencesQuery.error))}
+                </Text>
+                <Button
+                  mode="outlined"
+                  onPress={() => diseaseOccurrencesQuery.refetch()}
+                >
+                  Spróbuj ponownie
+                </Button>
+              </View>
+            ) : diseaseOccurrences.length === 0 ? (
+              <Text style={styles.emptyText}>
+                Brak chorób dla wybranego filtra.
+              </Text>
+            ) : (
+              diseaseOccurrences.map((occurrence) => (
+                <Surface
+                  key={occurrence.id}
+                  style={styles.problemCard}
+                  elevation={0}
+                >
+                  <View style={styles.problemHeader}>
+                    <View style={styles.problemTitleRow}>
+                      <Text style={styles.problemTitle}>
+                        {occurrence.disease?.name ?? "Nieznana choroba"}
+                      </Text>
+                      <View style={styles.chipsContainer}>
+                        <Chip mode="outlined" style={styles.statusChip}>
+                          {getStatusLabel(occurrence.status)}
+                        </Chip>
+                        {occurrence.severity ? (
+                          <Chip
+                            mode="outlined"
+                            style={[
+                              styles.severityChip,
+                              {
+                                borderColor: getSeverityColor(
+                                  occurrence.severity,
+                                ),
+                              },
+                            ]}
+                            textStyle={{
+                              color: getSeverityColor(occurrence.severity),
+                            }}
+                          >
+                            {severityLabels[occurrence.severity]}
+                          </Chip>
+                        ) : null}
+                      </View>
+                      <Text style={styles.problemMeta}>
+                        Zaobserwowano: {formatDate(occurrence.observedAt)}
+                      </Text>
+                      {occurrence.nextCheckAt ? (
+                        <Text style={styles.problemMeta}>
+                          Kontrola: {formatDate(occurrence.nextCheckAt)}
+                        </Text>
+                      ) : null}
+                      {occurrence.notes ? (
+                        <Text style={styles.problemNotes}>
+                          {occurrence.notes}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <IconButton
+                      icon="chevron-right"
+                      onPress={() => {
+                        const targetId =
+                          occurrence.disease?.id ?? occurrence.diseaseId;
+                        if (!targetId) return;
+                        router.push(`/(tabs)/education/diseases/${targetId}`);
+                      }}
+                      disabled={
+                        !(occurrence.disease?.id ?? occurrence.diseaseId)
+                      }
+                    />
+                  </View>
+                  <View style={styles.problemActions}>
+                    <Button
+                      mode="outlined"
+                      onPress={() => openEditDisease(occurrence)}
+                    >
+                      Zmień status / notatkę
+                    </Button>
+                  </View>
+                </Surface>
+              ))
+            )
+          ) : pestOccurrencesQuery.isLoading ? (
+            <ActivityIndicator />
+          ) : pestOccurrencesQuery.error ? (
             <View>
               <Text style={styles.errorText}>
-                {String(getResponseError(plantingTasksQuery.error))}
+                {String(getResponseError(pestOccurrencesQuery.error))}
               </Text>
               <Button
                 mode="outlined"
-                onPress={() => plantingTasksQuery.refetch()}
+                onPress={() => pestOccurrencesQuery.refetch()}
               >
                 Spróbuj ponownie
               </Button>
             </View>
-          ) : null}
-
-          {!plantingTasksQuery.isLoading &&
-          !plantingTasksQuery.error &&
-          historyTasks.length === 0 ? (
-            <Text style={styles.emptyText}>Brak historii zabiegów.</Text>
-          ) : null}
-
-          {historyTasks.map((task) => (
-            <View key={task.id} style={styles.taskHistoryRow}>
-              <View style={styles.taskHistoryMain}>
-                <Text style={styles.taskHistoryDate}>
-                  {formatDate(getTaskRecordDate(task))}
-                </Text>
-                <Text style={styles.taskHistoryTitle}>{task.title}</Text>
-                <Text style={styles.taskHistoryMeta}>
-                  Źródło: {getTaskSourceLabel(task.source)}
-                </Text>
-                {task.description ? (
-                  <Text style={styles.taskHistoryDescription}>
-                    {task.description}
-                  </Text>
-                ) : null}
-              </View>
-              <StatusBadge
-                label={getTaskStatusLabel(task.status)}
-                tone={getTaskStatusTone(task.status)}
-              />
-            </View>
-          ))}
-        </Surface>
-
-        <Surface style={styles.section} elevation={0}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Zdrowie rośliny</Text>
-            <IconButton icon="plus" onPress={() => setReportVisible(true)} />
-          </View>
-          <Text style={styles.sectionSubtitle}>Choroby</Text>
-
-          {diseasesQuery.isLoading ? (
-            <ActivityIndicator />
-          ) : diseasesQuery.error ? (
-            <View>
-              <Text style={styles.errorText}>
-                {String(getResponseError(diseasesQuery.error))}
-              </Text>
-              <Button mode="outlined" onPress={() => diseasesQuery.refetch()}>
-                Spróbuj ponownie
-              </Button>
-            </View>
-          ) : activeDiseases.length === 0 ? (
-            <Text style={styles.emptyText}>Brak aktywnych chorób.</Text>
+          ) : pestOccurrences.length === 0 ? (
+            <Text style={styles.emptyText}>
+              Brak szkodników dla wybranego filtra.
+            </Text>
           ) : (
-            activeDiseases.map((disease) => (
+            pestOccurrences.map((occurrence) => (
               <Surface
-                key={disease.id}
-                style={styles.diseaseCard}
+                key={occurrence.id}
+                style={styles.problemCard}
                 elevation={0}
               >
-                <View style={styles.diseaseHeader}>
-                  <View style={styles.diseaseTitleRow}>
-                    <Text style={styles.diseaseTitle}>
-                      {disease.disease?.name ?? "Nieznana choroba"}
+                <View style={styles.problemHeader}>
+                  <View style={styles.problemTitleRow}>
+                    <Text style={styles.problemTitle}>
+                      {occurrence.pest?.name ?? "Nieznany szkodnik"}
                     </Text>
                     <View style={styles.chipsContainer}>
                       <Chip mode="outlined" style={styles.statusChip}>
-                        {getStatusLabel(disease.status)}
+                        {getStatusLabel(occurrence.status)}
                       </Chip>
-                      {disease.severity ? (
-                        <Chip
-                          mode="outlined"
-                          style={[
-                            styles.severityChip,
-                            { borderColor: getSeverityColor(disease.severity) },
-                          ]}
-                          textStyle={{
-                            color: getSeverityColor(disease.severity),
-                          }}
-                        >
-                          {severityLabels[disease.severity]}
-                        </Chip>
-                      ) : null}
                     </View>
-                    <Text style={styles.diseaseMeta}>
-                      Zaobserwowano: {formatDate(disease.observedAt)}
-                    </Text>
-                    {disease.nextCheckAt ? (
-                      <Text style={styles.diseaseMeta}>
-                        Kolejna kontrola: {formatDate(disease.nextCheckAt)}
+                    {occurrence.nextCheckAt ? (
+                      <Text style={styles.problemMeta}>
+                        Kontrola: {formatDate(occurrence.nextCheckAt)}
                       </Text>
                     ) : null}
-                    {disease.status === "resolved" ? (
-                      <Text style={styles.diseaseMeta}>
-                        Przypomnienia zostały zatrzymane.
+                    {occurrence.notes ? (
+                      <Text style={styles.problemNotes}>
+                        {occurrence.notes}
                       </Text>
-                    ) : null}
-                    {disease.notes ? (
-                      <Text style={styles.diseaseNotes}>{disease.notes}</Text>
                     ) : null}
                   </View>
                   <IconButton
                     icon="chevron-right"
                     onPress={() => {
-                      const targetId = disease.disease?.id ?? disease.diseaseId;
+                      const targetId = occurrence.pest?.id ?? occurrence.pestId;
                       if (!targetId) return;
-                      router.push(`/(tabs)/education/diseases/${targetId}`);
+                      router.push(`/(tabs)/education/pests/${targetId}`);
                     }}
-                    disabled={!(disease.disease?.id ?? disease.diseaseId)}
+                    disabled={!(occurrence.pest?.id ?? occurrence.pestId)}
                   />
                 </View>
-                <View style={styles.diseaseActions}>
-                  {disease.status === "suspected" ? (
-                    <Button
-                      mode="outlined"
-                      onPress={() => handleConfirm(disease)}
-                    >
-                      Potwierdź
-                    </Button>
-                  ) : null}
+                <View style={styles.problemActions}>
                   <Button
-                    mode="contained"
-                    onPress={() => handleMarkResolved(disease)}
+                    mode="outlined"
+                    onPress={() => openEditPest(occurrence)}
                   >
-                    Wyleczone
+                    Zmień status / notatkę
                   </Button>
                 </View>
               </Surface>
             ))
           )}
         </Surface>
+
+        {resolvedPlantingId ? (
+          <PlantingTimelineSection plantingId={resolvedPlantingId} />
+        ) : null}
       </ScrollView>
 
       <Portal>
@@ -536,14 +833,17 @@ export default function PlantingDetailsScreen() {
 
       <Portal>
         <Modal
-          visible={reportVisible}
-          onDismiss={() => setReportVisible(false)}
+          visible={diseaseModalVisible}
+          onDismiss={() => {
+            setDiseaseModalVisible(false);
+            resetDiseaseModal();
+          }}
           contentContainerStyle={styles.modal}
         >
-          <Text style={styles.modalTitle}>Zgłoś chorobę</Text>
+          <Text style={styles.modalTitle}>Dodaj chorobę</Text>
 
           {selectedDiseaseId && selectedDiseaseName ? (
-            <View style={styles.selectedDiseaseRow}>
+            <View style={styles.selectedRow}>
               <Chip mode="flat" style={styles.selectedChip}>
                 {selectedDiseaseName}
               </Chip>
@@ -572,7 +872,7 @@ export default function PlantingDetailsScreen() {
                     onPress={() => {
                       setSelectedDiseaseId(disease.id);
                       setSelectedDiseaseName(disease.name);
-                      setSearchQuery("");
+                      setDiseaseSearch("");
                     }}
                   >
                     {disease.name}
@@ -586,26 +886,26 @@ export default function PlantingDetailsScreen() {
             <TextInput
               mode="outlined"
               label="Szukaj choroby"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
+              value={diseaseSearch}
+              onChangeText={setDiseaseSearch}
               style={styles.modalInput}
             />
           ) : null}
 
-          {!selectedDiseaseId && searchQuery.trim().length >= 2 ? (
+          {!selectedDiseaseId && diseaseSearch.trim().length >= 2 ? (
             <View style={styles.searchResults}>
-              {searchQueryResult.isLoading ? (
+              {searchDiseasesQuery.isLoading ? (
                 <ActivityIndicator />
-              ) : searchItems.length === 0 ? (
+              ) : diseaseSearchItems.length === 0 ? (
                 <Text style={styles.emptyText}>Brak wyników.</Text>
               ) : (
-                searchItems.map((item) => (
+                diseaseSearchItems.map((item) => (
                   <Pressable
                     key={item.id}
                     onPress={() => {
                       setSelectedDiseaseId(item.id);
                       setSelectedDiseaseName(item.name);
-                      setSearchQuery("");
+                      setDiseaseSearch("");
                     }}
                     style={styles.searchRow}
                   >
@@ -618,13 +918,13 @@ export default function PlantingDetailsScreen() {
 
           <Text style={styles.modalLabel}>Status</Text>
           <SegmentedButtons
-            value={reportStatus}
+            value={diseaseStatus}
             onValueChange={(value) =>
-              setReportStatus(value as "suspected" | "confirmed")
+              setDiseaseStatus(value as DiseaseOccurrenceStatus)
             }
             buttons={[
               { value: "suspected", label: "Podejrzenie" },
-              { value: "confirmed", label: "Potwierdzona" },
+              { value: "confirmed", label: "Potwierdzony" },
             ]}
             style={styles.segmentedButtons}
           />
@@ -632,7 +932,9 @@ export default function PlantingDetailsScreen() {
           <Text style={styles.modalLabel}>Nasilenie (opcjonalnie)</Text>
           <SegmentedButtons
             value={severity ?? ""}
-            onValueChange={(value) => setSeverity(value as DiseaseSeverity)}
+            onValueChange={(value) =>
+              setSeverity(value ? (value as DiseaseSeverity) : undefined)
+            }
             buttons={[
               { value: "low", label: "Niskie" },
               { value: "medium", label: "Umiarkowane" },
@@ -660,23 +962,195 @@ export default function PlantingDetailsScreen() {
           <TextInput
             mode="outlined"
             label="Notatka"
-            value={note}
-            onChangeText={setNote}
+            value={diseaseNote}
+            onChangeText={setDiseaseNote}
             multiline
             numberOfLines={3}
             style={styles.modalInput}
           />
 
           <View style={styles.modalActions}>
-            <Button mode="outlined" onPress={() => setReportVisible(false)}>
+            <Button
+              mode="outlined"
+              onPress={() => {
+                setDiseaseModalVisible(false);
+                resetDiseaseModal();
+              }}
+            >
               Anuluj
             </Button>
             <Button
               mode="contained"
               onPress={handleCreateDisease}
-              loading={createDisease.isPending}
+              loading={createDiseaseOccurrence.isPending}
             >
               Dodaj
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
+
+      <Portal>
+        <Modal
+          visible={pestModalVisible}
+          onDismiss={() => {
+            setPestModalVisible(false);
+            resetPestModal();
+          }}
+          contentContainerStyle={styles.modal}
+        >
+          <Text style={styles.modalTitle}>Dodaj szkodnika</Text>
+
+          {selectedPestId && selectedPestName ? (
+            <View style={styles.selectedRow}>
+              <Chip mode="flat" style={styles.selectedChip}>
+                {selectedPestName}
+              </Chip>
+              <Button
+                mode="text"
+                onPress={() => {
+                  setSelectedPestId(null);
+                  setSelectedPestName(null);
+                }}
+              >
+                Usuń
+              </Button>
+            </View>
+          ) : null}
+
+          {!selectedPestId ? (
+            <TextInput
+              mode="outlined"
+              label="Szukaj szkodnika"
+              value={pestSearch}
+              onChangeText={setPestSearch}
+              style={styles.modalInput}
+            />
+          ) : null}
+
+          {!selectedPestId ? (
+            <View style={styles.searchResults}>
+              {pestDictionaryQuery.isLoading ? (
+                <ActivityIndicator />
+              ) : pestSearchItems.length === 0 ? (
+                <Text style={styles.emptyText}>Brak wyników.</Text>
+              ) : (
+                pestSearchItems.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => {
+                      setSelectedPestId(item.id);
+                      setSelectedPestName(item.name);
+                    }}
+                    style={styles.searchRow}
+                  >
+                    <Text style={styles.searchTitle}>{item.name}</Text>
+                  </Pressable>
+                ))
+              )}
+            </View>
+          ) : null}
+
+          <Text style={styles.modalLabel}>Status</Text>
+          <SegmentedButtons
+            value={pestStatus}
+            onValueChange={(value) =>
+              setPestStatus(value as PestOccurrenceStatus)
+            }
+            buttons={[
+              { value: "suspected", label: "Podejrzenie" },
+              { value: "confirmed", label: "Potwierdzony" },
+            ]}
+            style={styles.segmentedButtons}
+          />
+
+          <TextInput
+            mode="outlined"
+            label="Notatka"
+            value={pestNote}
+            onChangeText={setPestNote}
+            multiline
+            numberOfLines={3}
+            style={styles.modalInput}
+          />
+
+          <View style={styles.modalActions}>
+            <Button
+              mode="outlined"
+              onPress={() => {
+                setPestModalVisible(false);
+                resetPestModal();
+              }}
+            >
+              Anuluj
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleCreatePest}
+              loading={createPestOccurrence.isPending}
+            >
+              Dodaj
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
+
+      <Portal>
+        <Modal
+          visible={editVisible}
+          onDismiss={() => setEditVisible(false)}
+          contentContainerStyle={styles.modal}
+        >
+          <Text style={styles.modalTitle}>Edytuj wystąpienie</Text>
+
+          <Text style={styles.modalLabel}>Status</Text>
+          <SegmentedButtons
+            value={editStatus}
+            onValueChange={(value) =>
+              setEditStatus(
+                value as DiseaseOccurrenceStatus | PestOccurrenceStatus,
+              )
+            }
+            buttons={[
+              { value: "suspected", label: "Podejrzenie" },
+              { value: "confirmed", label: "Potwierdzony" },
+              { value: "resolved", label: "Opanowany" },
+            ]}
+            style={styles.segmentedButtons}
+          />
+
+          <TextInput
+            mode="outlined"
+            label="Notatka"
+            value={editNote}
+            onChangeText={setEditNote}
+            multiline
+            numberOfLines={3}
+            style={styles.modalInput}
+          />
+
+          <View style={styles.modalActionsBetween}>
+            <Button
+              mode="outlined"
+              textColor={theme.colors.error}
+              style={styles.deleteButton}
+              onPress={handleDeleteOccurrence}
+              loading={
+                deleteDiseaseOccurrence.isPending ||
+                deletePestOccurrence.isPending
+              }
+            >
+              Usuń
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleSaveEdit}
+              loading={
+                updateDiseaseOccurrence.isPending ||
+                updatePestOccurrence.isPending
+              }
+            >
+              Zapisz
             </Button>
           </View>
         </Modal>
@@ -692,6 +1166,44 @@ export default function PlantingDetailsScreen() {
           setObservedOpen(false);
           if (!date) return;
           setObservedAt(date.toISOString());
+        }}
+      />
+
+      {resolvedPlantingId ? (
+        <PlantingHarvestResultForm
+          visible={harvestFormVisible}
+          onDismiss={() => {
+            setHarvestFormVisible(false);
+            setEditingHarvestRecord(null);
+          }}
+          plantingId={resolvedPlantingId}
+          bedId={resolvedBedId}
+          mode={editingHarvestRecord ? "edit" : "create"}
+          record={editingHarvestRecord}
+          onSuccess={() =>
+            setSnackbarMessage(
+              editingHarvestRecord
+                ? "Zapisano rekord zbioru."
+                : "Dodano rekord zbioru.",
+            )
+          }
+        />
+      ) : null}
+
+      <DatePickerModal
+        locale="pl"
+        mode="single"
+        visible={!!rescheduleTaskId}
+        date={new Date()}
+        onDismiss={() => setRescheduleTaskId(null)}
+        onConfirm={({ date }) => {
+          if (!rescheduleTaskId || !date) {
+            setRescheduleTaskId(null);
+            return;
+          }
+
+          handleRescheduleTask(rescheduleTaskId, date.toISOString());
+          setRescheduleTaskId(null);
         }}
       />
 
@@ -737,16 +1249,12 @@ const makeStyles = (theme: MD3Theme) =>
       alignItems: "center",
       justifyContent: "space-between",
       marginBottom: 6,
+      gap: 8,
     },
     sectionTitle: {
       fontSize: 15,
       fontWeight: "600",
       color: theme.colors.onSurface,
-    },
-    sectionSubtitle: {
-      fontSize: 12,
-      color: theme.colors.onSurfaceVariant,
-      marginBottom: 10,
     },
     valueText: {
       fontSize: 14,
@@ -772,7 +1280,15 @@ const makeStyles = (theme: MD3Theme) =>
       fontSize: 13,
       color: theme.colors.onSurfaceVariant,
     },
-    diseaseCard: {
+    segmentedButtons: {
+      alignSelf: "flex-start",
+      marginBottom: 6,
+    },
+    toggleButton: {
+      alignSelf: "flex-start",
+      marginBottom: 8,
+    },
+    problemCard: {
       borderRadius: 12,
       borderWidth: 1,
       borderColor: theme.colors.outline,
@@ -780,18 +1296,17 @@ const makeStyles = (theme: MD3Theme) =>
       padding: 12,
       marginBottom: 10,
     },
-    diseaseHeader: {
+    problemHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "flex-start",
     },
-    diseaseTitleRow: {
+    problemTitleRow: {
       flex: 1,
       flexDirection: "column",
-      flexWrap: "wrap",
       gap: 6,
     },
-    diseaseTitle: {
+    problemTitle: {
       fontSize: 14,
       fontWeight: "600",
       color: theme.colors.onSurface,
@@ -808,17 +1323,17 @@ const makeStyles = (theme: MD3Theme) =>
     severityChip: {
       height: 36,
     },
-    diseaseMeta: {
+    problemMeta: {
       fontSize: 12,
       color: theme.colors.onSurfaceVariant,
     },
-    diseaseNotes: {
+    problemNotes: {
       fontSize: 13,
       color: theme.colors.onSurface,
     },
-    diseaseActions: {
+    problemActions: {
       flexDirection: "row",
-      gap: 10,
+      justifyContent: "flex-end",
       marginTop: 10,
     },
     modal: {
@@ -848,6 +1363,11 @@ const makeStyles = (theme: MD3Theme) =>
       justifyContent: "flex-end",
       gap: 10,
     },
+    modalActionsBetween: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 10,
+    },
     commonList: {
       gap: 8,
     },
@@ -856,7 +1376,7 @@ const makeStyles = (theme: MD3Theme) =>
       flexWrap: "wrap",
       gap: 8,
     },
-    selectedDiseaseRow: {
+    selectedRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
@@ -883,37 +1403,36 @@ const makeStyles = (theme: MD3Theme) =>
       fontSize: 13,
       color: theme.colors.onSurface,
     },
-    segmentedButtons: {
-      alignSelf: "flex-start",
-    },
-    taskHistoryRow: {
+    taskRow: {
       borderTopWidth: 1,
-      borderTopColor: theme.colors.outline,
+      borderColor: theme.colors.outline,
       paddingVertical: 10,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      gap: 10,
+      gap: 8,
     },
-    taskHistoryMain: {
-      flex: 1,
+    taskRowHighlighted: {
+      backgroundColor: theme.colors.surfaceVariant,
+      borderRadius: 8,
+      paddingHorizontal: 8,
+    },
+    taskMain: {
       gap: 4,
     },
-    taskHistoryDate: {
-      fontSize: 12,
-      color: theme.colors.onSurfaceVariant,
-    },
-    taskHistoryTitle: {
+    taskTitle: {
       fontSize: 14,
       fontWeight: "600",
       color: theme.colors.onSurface,
     },
-    taskHistoryMeta: {
+    taskDescription: {
       fontSize: 12,
       color: theme.colors.onSurfaceVariant,
     },
-    taskHistoryDescription: {
-      fontSize: 13,
-      color: theme.colors.onSurface,
+    taskMeta: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+    },
+    taskActions: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: 8,
     },
   });

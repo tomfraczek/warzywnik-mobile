@@ -11,4 +11,7 @@ export const plantingKeys = {
   list: (params: PlantingListParams = {}) =>
     ["plantings", "list", params] as const,
   detail: (id: string) => ["plantings", "detail", id] as const,
+  timeline: (id: string) => ["plantings", "timeline", id] as const,
+  seasonComparison: (id: string) =>
+    ["plantings", "seasonComparison", id] as const,
 };

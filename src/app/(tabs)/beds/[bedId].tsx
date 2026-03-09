@@ -16,6 +16,7 @@ import { Planting } from "@/src/api/queries/plantings/types";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { usePostHarvestConfirmation } from "@/src/api/queries/plantings/usePostHarvestConfirmation";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
+import { BedSeasonHistorySection } from "@/src/app/(tabs)/beds/_components/BedSeasonHistorySection";
 import { HarvestConfirmationModal } from "@/src/app/(tabs)/beds/_components/HarvestConfirmationModal";
 import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostHarvestActionsModal";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
@@ -643,22 +644,14 @@ export default function BedDetailsScreen() {
         ))}
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Historia upraw</Text>
-        {cancelledPlantings.length === 0 ? (
+      {resolvedBedId ? (
+        <BedSeasonHistorySection bedId={resolvedBedId} />
+      ) : (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Historia upraw</Text>
           <Text style={styles.valueText}>Brak zakończonych upraw.</Text>
-        ) : (
-          cancelledPlantings.map((planting: Planting) => (
-            <PlantingRow
-              key={planting.id}
-              planting={planting}
-              onPress={() =>
-                router.push(`/(tabs)/beds/${bed.id}/plantings/${planting.id}`)
-              }
-            />
-          ))
-        )}
-      </View>
+        </View>
+      )}
 
       <HarvestConfirmationModal
         visible={harvestConfirmationVisible}

@@ -8,4 +8,5 @@ export const bedKeys = {
   all: ["beds"] as const,
   list: (params: BedListParams = {}) => ["beds", "list", params] as const,
   detail: (id: string) => ["beds", "detail", id] as const,
+  seasons: (id: string) => ["beds", "seasons", id] as const,
 };

@@ -23,6 +23,16 @@ export type PlantingVegetable = {
   name: string;
 };
 
+export type HarvestResultRecord = {
+  id: string;
+  harvestedAt?: string | null;
+  yieldKg?: number | null;
+  qualityRating?: number | null;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type Planting = {
   id: string;
   bedId: string;
@@ -40,6 +50,10 @@ export type Planting = {
   harvestEndDate?: string | null;
   warnings: Warning[];
   notes?: string | null;
+  yieldKg?: number | null;
+  yieldQualityRating?: number | null;
+  yieldNotes?: string | null;
+  harvestResults?: HarvestResultRecord[];
   createdAt?: string;
   updatedAt?: string;
 };
