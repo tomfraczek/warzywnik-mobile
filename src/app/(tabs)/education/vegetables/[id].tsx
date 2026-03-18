@@ -10,6 +10,25 @@ import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 import { Button, MD3Theme, Text, useTheme } from "react-native-paper";
 import { SectionBlock } from "../_components/SectionBlock";
 
+const mapBotanicalFamilyLabel = (value: string | null | undefined) => {
+  if (!value) return null;
+  const labels: Record<string, string> = {
+    SOLANACEAE: "Psiankowate",
+    CUCURBITACEAE: "Dyniowate",
+    BRASSICACEAE: "Kapustowate",
+    AMARYLLIDACEAE: "Amarylkowate",
+    APIACEAE: "Selerowate",
+    FABACEAE: "Bobowate",
+    AMARANTHACEAE: "Szarłatowate",
+    ASTERACEAE: "Astrowate",
+    ASPARAGACEAE: "Szparagowate",
+    POLYGONACEAE: "Rdestowate",
+    MALVACEAE: "Ślazowate",
+    POACEAE: "Wiechlinowate",
+  };
+  return labels[value] ?? value;
+};
+
 export default function VegetableDetailsScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const {
@@ -103,6 +122,10 @@ export default function VegetableDetailsScreen() {
         </Card>
 
         <SectionBlock title="Opis" text={vegetable.description} />
+        <SectionBlock
+          title="Rodzina botaniczna"
+          text={mapBotanicalFamilyLabel(vegetable.botanicalFamily)}
+        />
         <SectionBlock title="Warunki uprawy" text={vegetable.sunExposure} />
         <SectionBlock
           title="Wymagania glebowe"

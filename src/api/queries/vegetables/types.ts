@@ -25,6 +25,19 @@ export type SoilType =
   | "OTHER";
 export type SowingMethodType = "direct_sow" | "seedlings";
 export type DominantNutrientDemand = "N" | "P" | "K" | "BALANCED";
+export type BotanicalFamily =
+  | "SOLANACEAE"
+  | "CUCURBITACEAE"
+  | "BRASSICACEAE"
+  | "AMARYLLIDACEAE"
+  | "APIACEAE"
+  | "FABACEAE"
+  | "AMARANTHACEAE"
+  | "ASTERACEAE"
+  | "ASPARAGACEAE"
+  | "POLYGONACEAE"
+  | "MALVACEAE"
+  | "POACEAE";
 
 export type SowingMethod = {
   method: SowingMethodType;
@@ -56,6 +69,7 @@ export type Vegetable = {
   id: string;
   slug: string;
   name: string;
+  botanicalFamily: BotanicalFamily | null;
   latinName: string | null;
   imageUrl: string | null;
   description: string;
@@ -86,6 +100,7 @@ export type VegetableListItem = {
   id: string;
   slug: string;
   name: string;
+  botanicalFamily: BotanicalFamily | null;
   latinName: string | null;
   imageUrl: string | null;
   description: string | null;

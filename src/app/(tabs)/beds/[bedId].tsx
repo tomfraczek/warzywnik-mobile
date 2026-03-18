@@ -7,8 +7,10 @@ import {
   CreateBedActionTaskItemDto,
   HarvestPromptItem,
 } from "@/src/api/queries/beds/harvestTypes";
+import { bedKeys } from "@/src/api/queries/beds/bedKeys";
 import { Bed } from "@/src/api/queries/beds/types";
 import { useCreateBedActionTasksBulk } from "@/src/api/queries/beds/useCreateBedActionTasksBulk";
+import { useDeleteBed } from "@/src/api/queries/beds/useDeleteBed";
 import { useGetBed } from "@/src/api/queries/beds/useGetBed";
 import { useGetBedHarvestPrompts } from "@/src/api/queries/beds/useGetBedHarvestPrompts";
 import { useUpdateBed } from "@/src/api/queries/beds/useUpdateBed";
@@ -22,6 +24,7 @@ import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostH
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { memo, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ActivityIndicator,
   Alert,
@@ -35,6 +38,8 @@ import {
   Button,
   IconButton,
   MD3Theme,
+  Modal,
+  Portal,
   SegmentedButtons,
   Snackbar,
   Switch,
@@ -138,9 +143,13 @@ export default function BedDetailsScreen() {
     ? actionTaskId[0]
     : actionTaskId;
   const router = useRouter();
-  const { data, isLoading, error, refetch } = useGetBed(resolvedBedId ?? null);
+  const queryClient = useQueryClient();
+  const [isBedDeleted, setIsBedDeleted] = useState(false);
+  const { data, isLoading, error, refetch } = useGetBed(
+    !isBedDeleted ? (resolvedBedId ?? null) : null,
+  );
   const { data: harvestPromptsResponse, refetch: refetchHarvestPrompts } =
-    useGetBedHarvestPrompts(resolvedBedId ?? null);
+    useGetBedHarvestPrompts(!isBedDeleted ? (resolvedBedId ?? null) : null);
   const {
     data: plantingPages,
     isLoading: isPlantingsLoading,
@@ -150,15 +159,19 @@ export default function BedDetailsScreen() {
     hasNextPage,
     isFetchingNextPage,
   } = useGetPlantings(
-    { bedId: resolvedBedId ?? undefined, limit: 10 },
-    { enabled: Boolean(resolvedBedId) },
+    {
+      bedId: !isBedDeleted ? (resolvedBedId ?? undefined) : undefined,
+      limit: 10,
+    },
+    { enabled: Boolean(resolvedBedId) && !isBedDeleted },
   );
   const {
     data: bedTasksResponse,
     refetch: refetchBedTasks,
     isLoading: isBedTasksLoading,
     error: bedTasksError,
-  } = useGetBedActionTasks(resolvedBedId ?? null, "all");
+  } = useGetBedActionTasks(!isBedDeleted ? (resolvedBedId ?? null) : null, "all");
+  const deleteBed = useDeleteBed();
   const updateBed = useUpdateBed(resolvedBedId ?? "");
   const updateActionTask = useUpdateActionTask();
 
@@ -171,6 +184,7 @@ export default function BedDetailsScreen() {
   const [promptQueue, setPromptQueue] = useState<HarvestPromptItem[]>([]);
   const [lastPromptSignature, setLastPromptSignature] = useState("");
   const [postHarvestModalVisible, setPostHarvestModalVisible] = useState(false);
+  const [actionsVisible, setActionsVisible] = useState(false);
   const [historyStatusFilter, setHistoryStatusFilter] =
     useState<HistoryStatusFilter>("all");
   const [historySourceFilter, setHistorySourceFilter] =
@@ -334,6 +348,30 @@ export default function BedDetailsScreen() {
     }
   };
 
+  const handleDeleteBed = () => {
+    if (!bed?.id) return;
+    Alert.alert("Usunąć grządkę?", "Tej operacji nie można cofnąć.", [
+      { text: "Anuluj", style: "cancel" },
+      {
+        text: "Usuń",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteBed.mutateAsync(bed.id);
+            setIsBedDeleted(true);
+            queryClient.removeQueries({ queryKey: bedKeys.detail(bed.id) });
+            queryClient.removeQueries({ queryKey: bedKeys.seasons(bed.id) });
+            setActionsVisible(false);
+            setSnackbarMessage("Grządka została usunięta.");
+            router.replace("/(tabs)/beds");
+          } catch (err) {
+            Alert.alert("Błąd usuwania grządki", String(getResponseError(err)));
+          }
+        },
+      },
+    ]);
+  };
+
   const dimensions = useMemo(() => {
     if (!bed) return null;
     const parts = [
@@ -343,6 +381,14 @@ export default function BedDetailsScreen() {
     ].filter(Boolean);
     return parts.length > 0 ? parts.join(" × ") : "Brak danych";
   }, [bed]);
+
+  if (isBedDeleted) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -377,8 +423,8 @@ export default function BedDetailsScreen() {
             ) : null}
           </View>
           <IconButton
-            icon="pencil"
-            onPress={() => router.push(`/(tabs)/beds/${bed.id}/edit`)}
+            icon="cog"
+            onPress={() => setActionsVisible(true)}
           />
         </View>
       </View>
@@ -672,6 +718,45 @@ export default function BedDetailsScreen() {
         onSubmit={handleCreatePostHarvestTasks}
       />
 
+      <Portal>
+        <Modal
+          visible={actionsVisible}
+          onDismiss={() => setActionsVisible(false)}
+          contentContainerStyle={styles.modal}
+        >
+          <Text style={styles.modalTitle}>Akcje</Text>
+          <View style={styles.modalActionsColumn}>
+            <Button
+              mode="contained"
+              onPress={() => {
+                setActionsVisible(false);
+                router.push(`/(tabs)/beds/${bed.id}/edit`);
+              }}
+              disabled={deleteBed.isPending}
+            >
+              Edytuj
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={() => handleDeleteBed()}
+              disabled={deleteBed.isPending}
+              loading={deleteBed.isPending}
+              textColor={theme.colors.error}
+              style={styles.deleteButton}
+            >
+              Usuń
+            </Button>
+            <Button
+              mode="text"
+              onPress={() => setActionsVisible(false)}
+              disabled={deleteBed.isPending}
+            >
+              Anuluj
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
+
       <Snackbar
         visible={!!snackbarMessage}
         onDismiss={() => setSnackbarMessage(null)}
@@ -902,5 +987,23 @@ const makeStyles = (theme: MD3Theme) =>
       justifyContent: "space-between",
       alignItems: "flex-start",
       gap: 10,
+    },
+    modal: {
+      backgroundColor: theme.colors.surface,
+      marginHorizontal: 16,
+      borderRadius: 16,
+      padding: 16,
+      gap: 12,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: theme.colors.onSurface,
+    },
+    modalActionsColumn: {
+      gap: 10,
+    },
+    deleteButton: {
+      borderColor: theme.colors.error,
     },
   });
