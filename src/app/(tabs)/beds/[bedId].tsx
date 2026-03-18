@@ -2,12 +2,12 @@ import { getResponseError } from "@/src/api/axios";
 import { ActionTask } from "@/src/api/queries/actionTasks/types";
 import { useGetBedActionTasks } from "@/src/api/queries/actionTasks/useGetBedActionTasks";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
+import { bedKeys } from "@/src/api/queries/beds/bedKeys";
 import {
   ActionTemplate,
   CreateBedActionTaskItemDto,
   HarvestPromptItem,
 } from "@/src/api/queries/beds/harvestTypes";
-import { bedKeys } from "@/src/api/queries/beds/bedKeys";
 import { Bed } from "@/src/api/queries/beds/types";
 import { useCreateBedActionTasksBulk } from "@/src/api/queries/beds/useCreateBedActionTasksBulk";
 import { useDeleteBed } from "@/src/api/queries/beds/useDeleteBed";
@@ -22,9 +22,9 @@ import { BedSeasonHistorySection } from "@/src/app/(tabs)/beds/_components/BedSe
 import { HarvestConfirmationModal } from "@/src/app/(tabs)/beds/_components/HarvestConfirmationModal";
 import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostHarvestActionsModal";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { memo, useEffect, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   ActivityIndicator,
   Alert,
@@ -170,7 +170,10 @@ export default function BedDetailsScreen() {
     refetch: refetchBedTasks,
     isLoading: isBedTasksLoading,
     error: bedTasksError,
-  } = useGetBedActionTasks(!isBedDeleted ? (resolvedBedId ?? null) : null, "all");
+  } = useGetBedActionTasks(
+    !isBedDeleted ? (resolvedBedId ?? null) : null,
+    "all",
+  );
   const deleteBed = useDeleteBed();
   const updateBed = useUpdateBed(resolvedBedId ?? "");
   const updateActionTask = useUpdateActionTask();
@@ -422,10 +425,7 @@ export default function BedDetailsScreen() {
               <Text style={styles.subtitle}>{bed.locationLabel}</Text>
             ) : null}
           </View>
-          <IconButton
-            icon="cog"
-            onPress={() => setActionsVisible(true)}
-          />
+          <IconButton icon="cog" onPress={() => setActionsVisible(true)} />
         </View>
       </View>
 
