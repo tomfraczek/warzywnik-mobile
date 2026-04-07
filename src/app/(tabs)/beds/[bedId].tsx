@@ -360,14 +360,21 @@ export default function BedDetailsScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            await deleteBed.mutateAsync(bed.id);
             setIsBedDeleted(true);
+            await queryClient.cancelQueries({
+              queryKey: bedKeys.detail(bed.id),
+            });
+            await queryClient.cancelQueries({
+              queryKey: bedKeys.seasons(bed.id),
+            });
+            await deleteBed.mutateAsync(bed.id);
             queryClient.removeQueries({ queryKey: bedKeys.detail(bed.id) });
             queryClient.removeQueries({ queryKey: bedKeys.seasons(bed.id) });
             setActionsVisible(false);
             setSnackbarMessage("Grządka została usunięta.");
             router.replace("/(tabs)/beds");
           } catch (err) {
+            setIsBedDeleted(false);
             Alert.alert("Błąd usuwania grządki", String(getResponseError(err)));
           }
         },
