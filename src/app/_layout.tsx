@@ -21,6 +21,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { clientPersister, queryClient } from "../api/queryClient";
 import { SettingsProvider, useSettings } from "../context/SettingsProvider";
 
+const FORCE_AUTH_FLOW_LOADER_FOR_TESTS = false;
+
 export const lightTheme = {
   ...MD3LightTheme,
   colors: {
@@ -153,13 +155,12 @@ function AuthBootstrapGate() {
     }
   }, [isLoaded, isSignedIn, segments, router, pathname]);
 
+  if (FORCE_AUTH_FLOW_LOADER_FOR_TESTS) {
+    return <AuthFlowLoader />;
+  }
+
   if (!ready || (!isSignedIn && isSsoAuthInProgress())) {
-    return (
-      <AuthFlowLoader
-        title="Logowanie"
-        subtitle="Trwa konfiguracja sesji, zaraz przejdziemy dalej."
-      />
-    );
+    return <AuthFlowLoader />;
   }
 
   return <Stack screenOptions={{ headerShown: false }} />;

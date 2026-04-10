@@ -8,15 +8,17 @@ import {
   type MD3Theme,
 } from "react-native-paper";
 
+import { BrandLogo } from "../../components/ui/BrandLogo";
+
 export default function WelcomeScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
 
   return (
     <Surface style={styles.container}>
-      <Text variant="headlineMedium" style={styles.title}>
-        Warzywnik
-      </Text>
+      <View style={styles.card}>
+        <BrandLogo />
+      </View>
 
       <Text variant="bodyMedium" style={styles.subtitle}>
         Zacznij od zalogowania lub rejestracji
@@ -70,6 +72,14 @@ function makeStyles(theme: MD3Theme) {
     },
     outlinedButton: {
       borderColor: theme.colors.primary,
+    },
+    card: {
+      width: "100%",
+      borderRadius: 20,
+      paddingVertical: 28,
+      paddingHorizontal: 20,
+      alignItems: "center",
+      // backgroundColor: theme.colors.surfaceVariant,
     },
   });
 }

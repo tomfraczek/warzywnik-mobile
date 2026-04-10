@@ -1,34 +1,28 @@
 import { Screen } from "@/src/components/Screen";
-import { StyleSheet, View } from "react-native";
-import {
-  ActivityIndicator,
-  MD3Theme,
-  Text,
-  useTheme,
-} from "react-native-paper";
+import { useFonts } from "expo-font";
+import { Image, StyleSheet, View } from "react-native";
+import { MD3Theme, Text, useTheme } from "react-native-paper";
 
-type AuthFlowLoaderProps = {
-  title?: string;
-  subtitle?: string;
-};
-
-export const AuthFlowLoader = ({
-  title = "Logowanie...",
-  subtitle = "Trwa przygotowanie Twojej sesji.",
-}: AuthFlowLoaderProps) => {
+export const AuthFlowLoader = () => {
   const theme = useTheme<MD3Theme>();
+  const [fontsLoaded] = useFonts({
+    SpaceMono: require("../../assets/fonts/SpaceMono-Regular.ttf"),
+  });
   const styles = makeStyles(theme);
 
   return (
     <Screen safeAreaEdges={["top", "left", "right"]}>
       <View style={styles.container}>
         <View style={styles.card}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text variant="titleMedium" style={styles.title}>
-            {title}
-          </Text>
-          <Text variant="bodyMedium" style={styles.subtitle}>
-            {subtitle}
+          <View style={styles.logoWrapper}>
+            <Image
+              source={require("../../assets/images/logo_no_bg.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={[styles.brand, fontsLoaded ? styles.brandLoaded : null]}>
+            WARZYWNIK
           </Text>
         </View>
       </View>
@@ -50,16 +44,31 @@ const makeStyles = (theme: MD3Theme) =>
       paddingVertical: 28,
       paddingHorizontal: 20,
       alignItems: "center",
-      backgroundColor: theme.colors.surfaceVariant,
+      // backgroundColor: theme.colors.surfaceVariant,
       gap: 12,
     },
-    title: {
-      color: theme.colors.onSurface,
-      fontWeight: "700",
-      textAlign: "center",
+    logoWrapper: {
+      width: 190,
+      height: 140,
+      alignItems: "center",
+      justifyContent: "center",
     },
-    subtitle: {
-      color: theme.colors.onSurfaceVariant,
+    logo: {
+      width: 140,
+      height: 140,
+    },
+    brand: {
+      fontSize: 30,
+      letterSpacing: 6,
+      color: theme.colors.primary,
       textAlign: "center",
+      fontWeight: "700",
+      textShadowColor: `${theme.colors.primary}22`,
+      textShadowOffset: { width: 0, height: 6 },
+      textShadowRadius: 14,
+    },
+    brandLoaded: {
+      fontFamily: "SpaceMono",
+      fontWeight: "400",
     },
   });

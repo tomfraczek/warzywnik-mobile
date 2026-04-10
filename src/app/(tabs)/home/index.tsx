@@ -4,7 +4,6 @@ import { WarningItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { useGetMyWarnings } from "@/src/api/queries/users/useGetMyWarnings";
 import { useGetMyWeather } from "@/src/api/queries/users/useGetMyWeather";
-import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { WarningCard } from "@/src/components/ui/WarningCard";
@@ -39,6 +38,7 @@ import {
   Text,
   useTheme,
 } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const isWeatherMissingLocationError = (error: unknown) => {
   if (!isAxiosError(error)) return false;
@@ -170,14 +170,13 @@ export default function HomeScreen() {
 
   const handleTaskPress = () => {
     router.push({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       pathname: "/(tabs)/planner/tasks" as any,
       params: { source: "WEATHER_WARNING" },
     });
   };
 
   return (
-    <Screen style={styles.screenContent}>
+    <SafeAreaView>
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
@@ -187,7 +186,6 @@ export default function HomeScreen() {
             <Text style={styles.title}>
               Cześć{profile.name ? `, ${profile.name}` : ""}!
             </Text>
-            <Text style={styles.subtitle}>Twój ogród na dziś</Text>
           </View>
           <StatusBadge
             label={
@@ -297,7 +295,6 @@ export default function HomeScreen() {
                 <Pressable
                   onPress={() =>
                     router.push({
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       pathname: "/(tabs)/planner/tasks" as any,
                       params: { source: "WEATHER_WARNING" },
                     })
@@ -442,25 +439,10 @@ export default function HomeScreen() {
                 ))
               )}
             </Card>
-
-            <View style={styles.actions}>
-              <Button
-                mode="contained"
-                onPress={() => router.push("/(tabs)/beds")}
-              >
-                Moje grządki
-              </Button>
-              <Button
-                mode="outlined"
-                onPress={() => router.push("/(tabs)/planner")}
-              >
-                Przejdź do kalendarza
-              </Button>
-            </View>
           </>
         )}
       </ScrollView>
-    </Screen>
+    </SafeAreaView>
   );
 }
 
