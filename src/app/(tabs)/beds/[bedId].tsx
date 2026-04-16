@@ -22,6 +22,8 @@ import { BedSeasonHistorySection } from "@/src/app/(tabs)/beds/_components/BedSe
 import { HarvestConfirmationModal } from "@/src/app/(tabs)/beds/_components/HarvestConfirmationModal";
 import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostHarvestActionsModal";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { memo, useEffect, useMemo, useState } from "react";
@@ -266,8 +268,14 @@ export default function BedDetailsScreen() {
   const hasAttentionItems =
     harvestPrompts.length > 0 || pendingTasks.length > 0;
 
+  const isOffline = useIsOffline();
+
   const handleHarvestNo = async () => {
     if (!activeHarvestPrompt) return;
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
 
     try {
       await confirmationMutation.mutateAsync({ answer: "no" });
@@ -280,6 +288,10 @@ export default function BedDetailsScreen() {
 
   const handleHarvestYes = async () => {
     if (!activeHarvestPrompt) return;
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
 
     try {
       const response = await confirmationMutation.mutateAsync({
@@ -297,6 +309,10 @@ export default function BedDetailsScreen() {
     tasks: CreateBedActionTaskItemDto[],
   ) => {
     if (!resolvedBedId) return;
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
 
     try {
       await createBedActionTasksBulk.mutateAsync({
@@ -313,6 +329,10 @@ export default function BedDetailsScreen() {
   };
 
   const handleMarkTaskDone = async (taskId: string) => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     try {
       await updateActionTask.mutateAsync({
         id: taskId,
@@ -326,6 +346,10 @@ export default function BedDetailsScreen() {
   };
 
   const handleCancelTask = async (taskId: string) => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     try {
       await updateActionTask.mutateAsync({
         id: taskId,
@@ -340,6 +364,10 @@ export default function BedDetailsScreen() {
 
   const handleToggleBedActive = async (value: boolean) => {
     if (!resolvedBedId) return;
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
 
     try {
       await updateBed.mutateAsync({ isActive: value });
@@ -353,6 +381,10 @@ export default function BedDetailsScreen() {
 
   const handleDeleteBed = () => {
     if (!bed?.id) return;
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     Alert.alert("Usunąć grządkę?", "Tej operacji nie można cofnąć.", [
       { text: "Anuluj", style: "cancel" },
       {
@@ -455,7 +487,7 @@ export default function BedDetailsScreen() {
           <Switch
             value={bed.isActive !== false}
             onValueChange={handleToggleBedActive}
-            disabled={updateBed.isPending}
+            disabled={updateBed.isPending || isOffline}
           />
         </View>
       </View>
@@ -606,7 +638,7 @@ export default function BedDetailsScreen() {
                   mode="outlined"
                   compact
                   onPress={() => handleCancelTask(task.id)}
-                  disabled={updateActionTask.isPending}
+                  disabled={updateActionTask.isPending || isOffline}
                 >
                   Anuluj
                 </Button>
@@ -614,7 +646,7 @@ export default function BedDetailsScreen() {
                   mode="contained"
                   compact
                   onPress={() => handleMarkTaskDone(task.id)}
-                  disabled={updateActionTask.isPending}
+                  disabled={updateActionTask.isPending || isOffline}
                 >
                   Done
                 </Button>
@@ -739,14 +771,14 @@ export default function BedDetailsScreen() {
                 setActionsVisible(false);
                 router.push(`/(tabs)/beds/${bed.id}/edit`);
               }}
-              disabled={deleteBed.isPending}
+              disabled={deleteBed.isPending || isOffline}
             >
               Edytuj
             </Button>
             <Button
               mode="outlined"
               onPress={() => handleDeleteBed()}
-              disabled={deleteBed.isPending}
+              disabled={deleteBed.isPending || isOffline}
               loading={deleteBed.isPending}
               textColor={theme.colors.error}
               style={styles.deleteButton}

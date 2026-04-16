@@ -1,6 +1,8 @@
 import { getResponseError } from "@/src/api/axios";
 import { useGetBed } from "@/src/api/queries/beds/useGetBed";
 import { useUpdateBed } from "@/src/api/queries/beds/useUpdateBed";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { BedForm } from "@/src/app/(tabs)/beds/_components/BedForm";
 import { consumeSelectedSoil } from "@/src/app/(tabs)/beds/_state/soilSelectionStore";
 import {
@@ -28,6 +30,7 @@ export default function BedEditScreen() {
   const router = useRouter();
   const { data, isLoading, error, refetch } = useGetBed(resolvedBedId ?? null);
   const updateBed = useUpdateBed(resolvedBedId ?? "");
+  const isOffline = useIsOffline();
   const [values, setValues] = useState<BedFormValues>(
     createEmptyBedFormValues(),
   );
@@ -54,6 +57,10 @@ export default function BedEditScreen() {
   );
 
   const handleSubmit = async () => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     if (!initialValuesRef.current || !resolvedBedId) return;
     const errorMessage = validateBedForm(values);
     if (errorMessage) {

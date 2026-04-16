@@ -1,3 +1,5 @@
+import { OFFLINE_BANNER_EXTRA_HEIGHT } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { useRouter, useSegments } from "expo-router";
 import { ReactNode, useCallback } from "react";
 import { StyleSheet, View } from "react-native";
@@ -26,6 +28,7 @@ export default function CustomHeader({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const segments = useSegments();
+  const isOffline = useIsOffline();
 
   type TabRootRoute =
     | "/(tabs)/home"
@@ -63,7 +66,9 @@ export default function CustomHeader({
 
   return (
     <Appbar.Header
-      statusBarHeight={insets.top}
+      statusBarHeight={
+        insets.top + (isOffline ? OFFLINE_BANNER_EXTRA_HEIGHT : 0)
+      }
       style={[
         styles.container,
         {

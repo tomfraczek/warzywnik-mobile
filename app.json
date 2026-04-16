@@ -23,8 +23,8 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_WIFI_STATE"
       ],
       "googleServicesFile": "./google-services.json",
       "package": "com.tomfraczek.warzywnikmobile"

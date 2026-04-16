@@ -2,6 +2,8 @@ import { getResponseError } from "@/src/api/axios";
 import { useGetBed } from "@/src/api/queries/beds/useGetBed";
 import { Warning } from "@/src/api/queries/plantings/types";
 import { useCreatePlanting } from "@/src/api/queries/plantings/useCreatePlanting";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { PlantingForm } from "@/src/app/(tabs)/beds/_components/PlantingForm";
 import { WarningsModal } from "@/src/app/(tabs)/beds/_components/WarningsModal";
 import { consumeSelectedVegetable } from "@/src/app/(tabs)/beds/_state/vegetableSelectionStore";
@@ -27,6 +29,7 @@ export default function PlantingCreateScreen() {
   const [warningsVisible, setWarningsVisible] = useState(false);
   const [warnings, setWarnings] = useState<Warning[]>([]);
   const createPlanting = useCreatePlanting();
+  const isOffline = useIsOffline();
 
   useFocusEffect(
     useCallback(() => {
@@ -42,6 +45,10 @@ export default function PlantingCreateScreen() {
   );
 
   const handleSubmit = async () => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     const errorMessage = validatePlantingForm(values);
     if (errorMessage) {
       Alert.alert("Błąd", errorMessage);

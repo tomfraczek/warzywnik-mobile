@@ -1,6 +1,7 @@
 import { getResponseError } from "@/src/api/axios";
 import { useGetArticle } from "@/src/api/queries/articles/useGetArticle";
 import { Screen } from "@/src/components/Screen";
+import { normalizeArticleHtmlWhitespace } from "@/src/utils/html";
 import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import { useMemo } from "react";
@@ -55,6 +56,11 @@ export default function ArticleDetailsScreen() {
     return article.contexts?.map(formatContextLabel) ?? [];
   }, [article]);
 
+  const normalizedContent = useMemo(() => {
+    if (!article?.content) return "";
+    return normalizeArticleHtmlWhitespace(article.content);
+  }, [article?.content]);
+
   if (isLoading) {
     return (
       <Screen>
@@ -81,8 +87,7 @@ export default function ArticleDetailsScreen() {
   }
 
   const renderProps = {
-    contentWidth: width - 40,
-    source: { html: article.content },
+    source: { html: normalizedContent },
     tagsStyles,
     baseStyle,
     renderersProps: {
@@ -97,32 +102,30 @@ export default function ArticleDetailsScreen() {
   } as const;
 
   return (
-    <Screen>
-      <ScrollView contentContainerStyle={styles.container}>
-        {article.coverImageUrl ? (
-          <Image
-            source={{ uri: article.coverImageUrl }}
-            contentFit="cover"
-            style={styles.image}
-          />
-        ) : null}
-        <Text style={styles.title}>{article.title}</Text>
-        {article.excerpt ? (
-          <Text style={styles.excerpt}>{article.excerpt}</Text>
-        ) : null}
-        {tags.length > 0 ? (
-          <View style={styles.chips}>
-            {tags.map((tag) => (
-              <View key={`${article.id}-${tag}`} style={styles.chip}>
-                <Text style={styles.chipText}>{tag}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
+    <ScrollView contentContainerStyle={styles.container}>
+      {article.coverImageUrl ? (
+        <Image
+          source={{ uri: article.coverImageUrl }}
+          contentFit="cover"
+          style={styles.image}
+        />
+      ) : null}
+      <Text style={styles.title}>{article.title}</Text>
+      {article.excerpt ? (
+        <Text style={styles.excerpt}>{article.excerpt}</Text>
+      ) : null}
+      {tags.length > 0 ? (
+        <View style={styles.chips}>
+          {tags.map((tag) => (
+            <View key={`${article.id}-${tag}`} style={styles.chip}>
+              <Text style={styles.chipText}>{tag}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
 
-        <RenderHTML {...(renderProps as any)} />
-      </ScrollView>
-    </Screen>
+      <RenderHTML {...(renderProps as any)} />
+    </ScrollView>
   );
 }
 

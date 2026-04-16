@@ -8,6 +8,8 @@ import { useUpdateUserLocation } from "@/src/api/queries/geo/useUpdateUserLocati
 import { clientPersister, queryClient } from "@/src/api/queryClient";
 import { Screen } from "@/src/components/Screen";
 import { getAvatarSource } from "@/src/constants/avatars";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import {
   AreaUnit,
   LanguagePreference,
@@ -23,6 +25,7 @@ import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -150,8 +153,14 @@ export default function HomeSettingsScreen() {
     setLocationError("Nie udało się wyszukać lokalizacji.");
   }, [geoSearchQuery.error, geoSearchQuery.isError]);
 
+  const isOffline = useIsOffline();
+
   const handleSelectLocation = useCallback(
     async (result: GeoSearchItem) => {
+      if (isOffline) {
+        Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+        return;
+      }
       setLocationError(null);
       setLocationPermissionDenied(false);
       try {
@@ -187,6 +196,10 @@ export default function HomeSettingsScreen() {
   );
 
   const handleUseCurrentLocation = useCallback(async () => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     setIsLocating(true);
     setLocationError(null);
     setLocationPermissionDenied(false);
@@ -313,6 +326,10 @@ export default function HomeSettingsScreen() {
 
   const handleTogglePush = useCallback(
     async (nextValue: boolean) => {
+      if (isOffline) {
+        Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+        return;
+      }
       if (isPushSaving) return;
       setIsPushSaving(true);
 
@@ -500,7 +517,7 @@ export default function HomeSettingsScreen() {
               icon="crosshairs-gps"
               onPress={handleUseCurrentLocation}
               loading={isLocating}
-              disabled={isLocating || isSavingLocation}
+              disabled={isLocating || isSavingLocation || isOffline}
               style={styles.locationButton}
             >
               Użyj bieżącej lokalizacji
@@ -527,7 +544,7 @@ export default function HomeSettingsScreen() {
                     key={result.placeId}
                     onPress={() => handleSelectLocation(result)}
                     style={styles.resultItem}
-                    disabled={isSavingLocation}
+                    disabled={isSavingLocation || isOffline}
                   >
                     <Text style={styles.resultText}>{result.label}</Text>
                   </Pressable>
@@ -654,7 +671,7 @@ export default function HomeSettingsScreen() {
               <Switch
                 value={pushNotifications.enabled}
                 onValueChange={handleTogglePush}
-                disabled={isPushSaving}
+                disabled={isPushSaving || isOffline}
               />
             </View>
             {pushPermissionDenied ? (

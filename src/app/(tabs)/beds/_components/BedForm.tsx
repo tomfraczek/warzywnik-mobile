@@ -1,5 +1,6 @@
 import { CultivationEnvironment } from "@/src/api/queries/beds/types";
 import { BedFormValues } from "@/src/app/(tabs)/beds/_utils/bedForm";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { radius, spacing } from "@/src/theme/ui";
 import { memo } from "react";
 import {
@@ -47,6 +48,7 @@ function BedFormComponent({
 }: BedFormProps) {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
+  const isOffline = useIsOffline();
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -233,8 +235,11 @@ function BedFormComponent({
       </View>
 
       <Pressable
-        style={[styles.submitButton, isSubmitting && styles.disabledButton]}
-        disabled={Boolean(isSubmitting)}
+        style={[
+          styles.submitButton,
+          (isSubmitting || isOffline) && styles.disabledButton,
+        ]}
+        disabled={Boolean(isSubmitting) || isOffline}
         onPress={onSubmit}
       >
         {isSubmitting ? (

@@ -1,6 +1,8 @@
 import { GeoSearchItem } from "@/src/api/queries/geo/types";
 import { useGeoSearch } from "@/src/api/queries/geo/useGeoSearch";
 import { useUpdateUserLocation } from "@/src/api/queries/geo/useUpdateUserLocation";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
@@ -111,7 +113,13 @@ export default function ProfileScreen() {
     return () => clearTimeout(timeout);
   }, [locationQuery]);
 
+  const isOffline = useIsOffline();
+
   const handleCurrentLocation = useCallback(async () => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
@@ -151,6 +159,10 @@ export default function ProfileScreen() {
 
   const handleSelectManualLocation = useCallback(
     async (result: GeoSearchItem) => {
+      if (isOffline) {
+        Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+        return;
+      }
       try {
         await updateLocation.mutateAsync({
           mode: "MANUAL",
@@ -258,7 +270,7 @@ export default function ProfileScreen() {
                   key={result.placeId}
                   onPress={() => handleSelectManualLocation(result)}
                   style={styles.resultItem}
-                  disabled={updateLocation.isPending}
+                  disabled={updateLocation.isPending || isOffline}
                 >
                   <Text style={styles.resultText}>{result.label}</Text>
                 </Pressable>
@@ -278,6 +290,7 @@ export default function ProfileScreen() {
             icon="crosshairs-gps"
             onPress={handleCurrentLocation}
             loading={updateLocation.isPending}
+            disabled={updateLocation.isPending || isOffline}
           >
             Użyj bieżącej lokalizacji
           </Button>

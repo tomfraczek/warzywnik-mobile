@@ -30,6 +30,8 @@ import { useDeletePlanting } from "@/src/api/queries/plantings/useDeletePlanting
 import { useGetPlanting } from "@/src/api/queries/plantings/useGetPlanting";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { Screen } from "@/src/components/Screen";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { isAxiosError } from "axios";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
@@ -226,7 +228,13 @@ export default function PlantingDetailsScreen() {
     ? "Ładowanie..."
     : (vegetable?.name ?? (vegetableError ? "Brak danych" : "Brak danych"));
 
+  const isOffline = useIsOffline();
+
   const handleDelete = () => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     Alert.alert("Usunąć uprawę?", "Tej operacji nie można cofnąć.", [
       { text: "Anuluj", style: "cancel" },
       {
@@ -250,6 +258,10 @@ export default function PlantingDetailsScreen() {
   };
 
   const handleMarkTaskDone = async (taskId: string) => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     try {
       await updateActionTask.mutateAsync({
         id: taskId,
@@ -263,6 +275,10 @@ export default function PlantingDetailsScreen() {
   };
 
   const handleRescheduleTask = async (taskId: string, dueAt: string) => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     try {
       await updateActionTask.mutateAsync({
         id: taskId,
@@ -294,6 +310,10 @@ export default function PlantingDetailsScreen() {
   };
 
   const handleCreateDisease = async () => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     if (!selectedDiseaseId) {
       setSnackbarMessage("Wybierz chorobę.");
       return;
@@ -319,6 +339,10 @@ export default function PlantingDetailsScreen() {
   };
 
   const handleCreatePest = async () => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     if (!selectedPestId) {
       setSnackbarMessage("Wybierz szkodnika.");
       return;
@@ -359,6 +383,10 @@ export default function PlantingDetailsScreen() {
 
   const handleSaveEdit = async () => {
     if (!editType || !editOccurrenceId) return;
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     try {
       const payload = {
         status: editStatus,
@@ -384,6 +412,10 @@ export default function PlantingDetailsScreen() {
 
   const handleDeleteOccurrence = () => {
     if (!editType || !editOccurrenceId) return;
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     Alert.alert("Usunąć wystąpienie?", "Tej operacji nie można cofnąć.", [
       { text: "Anuluj", style: "cancel" },
       {
@@ -413,6 +445,10 @@ export default function PlantingDetailsScreen() {
 
   const handleDeleteHarvestRecord = (record: HarvestResultRecord) => {
     if (!record.id || record.id.startsWith("legacy-")) return;
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     Alert.alert("Usunąć rekord zbioru?", "Tej operacji nie można cofnąć.", [
       { text: "Anuluj", style: "cancel" },
       {
@@ -809,6 +845,7 @@ export default function PlantingDetailsScreen() {
                   `/(tabs)/beds/${resolvedBedId}/plantings/${planting.id}/edit`,
                 );
               }}
+              disabled={isOffline}
             >
               Edytuj
             </Button>
@@ -818,7 +855,7 @@ export default function PlantingDetailsScreen() {
                 setActionsVisible(false);
                 handleDelete();
               }}
-              disabled={deletePlanting.isPending}
+              disabled={deletePlanting.isPending || isOffline}
               textColor={theme.colors.error}
               style={styles.deleteButton}
             >
@@ -983,6 +1020,7 @@ export default function PlantingDetailsScreen() {
               mode="contained"
               onPress={handleCreateDisease}
               loading={createDiseaseOccurrence.isPending}
+              disabled={createDiseaseOccurrence.isPending || isOffline}
             >
               Dodaj
             </Button>
@@ -1088,6 +1126,7 @@ export default function PlantingDetailsScreen() {
               mode="contained"
               onPress={handleCreatePest}
               loading={createPestOccurrence.isPending}
+              disabled={createPestOccurrence.isPending || isOffline}
             >
               Dodaj
             </Button>
@@ -1139,6 +1178,11 @@ export default function PlantingDetailsScreen() {
                 deleteDiseaseOccurrence.isPending ||
                 deletePestOccurrence.isPending
               }
+              disabled={
+                isOffline ||
+                deleteDiseaseOccurrence.isPending ||
+                deletePestOccurrence.isPending
+              }
             >
               Usuń
             </Button>
@@ -1146,6 +1190,11 @@ export default function PlantingDetailsScreen() {
               mode="contained"
               onPress={handleSaveEdit}
               loading={
+                updateDiseaseOccurrence.isPending ||
+                updatePestOccurrence.isPending
+              }
+              disabled={
+                isOffline ||
                 updateDiseaseOccurrence.isPending ||
                 updatePestOccurrence.isPending
               }

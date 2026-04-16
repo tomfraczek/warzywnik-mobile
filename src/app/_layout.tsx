@@ -1,6 +1,7 @@
 // app/_layout.tsx (albo odpowiedni RootLayout w Twoim projekcie)
 
 import { setAuthErrorHandler, setAuthTokenProvider } from "@/src/api/axios";
+import { OfflineBanner } from "@/src/components/OfflineBanner";
 import { AuthFlowLoader } from "@/src/components/AuthFlowLoader";
 import { isSsoAuthInProgress } from "@/src/features/push/authFlowState";
 import { ClerkProvider, useAuth, useClerk } from "@clerk/clerk-expo";
@@ -305,7 +306,13 @@ function RootLayoutContent() {
         />
         <PersistQueryClientProvider
           client={queryClient}
-          persistOptions={{ persister: clientPersister }}
+          persistOptions={{
+            persister: clientPersister,
+            maxAge: 1000 * 60 * 60 * 24,
+            dehydrateOptions: {
+              shouldDehydrateMutation: () => false,
+            },
+          }}
         >
           <ClerkProvider
             publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
@@ -314,6 +321,7 @@ function RootLayoutContent() {
             <AuthBootstrapGate />
           </ClerkProvider>
         </PersistQueryClientProvider>
+        <OfflineBanner />
         <Snackbar
           visible={notificationBanner.visible}
           onDismiss={() =>

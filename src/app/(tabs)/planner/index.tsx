@@ -1,6 +1,8 @@
 import { getResponseError } from "@/src/api/axios";
 import { useDeleteActionTask } from "@/src/api/queries/actionTasks/useDeleteActionTask";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { Bed } from "@/src/api/queries/beds/types";
 import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
 import { CalendarTaskItem } from "@/src/api/queries/calendar/types";
@@ -303,7 +305,13 @@ export default function PlannerScreen() {
     return localDate ?? "Brak";
   };
 
+  const isOffline = useIsOffline();
+
   const handleDone = (taskId: string) => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     updateActionTask
       .mutateAsync({
         id: taskId,
@@ -315,6 +323,10 @@ export default function PlannerScreen() {
   };
 
   const handleDelete = (taskId: string) => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     Alert.alert("Usunąć zadanie?", "Tej operacji nie można cofnąć.", [
       { text: "Anuluj", style: "cancel" },
       {
@@ -403,14 +415,14 @@ export default function PlannerScreen() {
                           <Button
                             mode="outlined"
                             onPress={() => handleDelete(task.id)}
-                            disabled={deleteActionTask.isPending}
+                            disabled={deleteActionTask.isPending || isOffline}
                           >
                             Usuń
                           </Button>
                           <Button
                             mode="contained"
                             onPress={() => handleDone(task.id)}
-                            disabled={updateActionTask.isPending}
+                            disabled={updateActionTask.isPending || isOffline}
                           >
                             Done
                           </Button>
@@ -456,14 +468,14 @@ export default function PlannerScreen() {
                           <Button
                             mode="outlined"
                             onPress={() => handleDelete(task.id)}
-                            disabled={deleteActionTask.isPending}
+                            disabled={deleteActionTask.isPending || isOffline}
                           >
                             Usuń
                           </Button>
                           <Button
                             mode="contained"
                             onPress={() => handleDone(task.id)}
-                            disabled={updateActionTask.isPending}
+                            disabled={updateActionTask.isPending || isOffline}
                           >
                             Done
                           </Button>
@@ -572,14 +584,14 @@ export default function PlannerScreen() {
                         <Button
                           mode="outlined"
                           onPress={() => handleDelete(task.id)}
-                          disabled={deleteActionTask.isPending}
+                          disabled={deleteActionTask.isPending || isOffline}
                         >
                           Usuń
                         </Button>
                         <Button
                           mode="contained"
                           onPress={() => handleDone(task.id)}
-                          disabled={updateActionTask.isPending}
+                          disabled={updateActionTask.isPending || isOffline}
                         >
                           Done
                         </Button>

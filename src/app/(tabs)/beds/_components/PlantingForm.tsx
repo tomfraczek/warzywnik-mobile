@@ -3,6 +3,7 @@ import {
   PlantingFormValues,
   plantingStatusOptions,
 } from "@/src/app/(tabs)/beds/_utils/plantingForm";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { memo, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -51,6 +52,7 @@ function PlantingFormComponent({
   onClearVegetable,
 }: PlantingFormProps) {
   const [sowedOpen, setSowedOpen] = useState(false);
+  const isOffline = useIsOffline();
 
   const sowedDate = useMemo(
     () => parseIsoDate(values.sowedAt),
@@ -196,8 +198,11 @@ function PlantingFormComponent({
       </View>
 
       <Pressable
-        style={[styles.submitButton, isSubmitting && styles.disabledButton]}
-        disabled={Boolean(isSubmitting)}
+        style={[
+          styles.submitButton,
+          (isSubmitting || isOffline) && styles.disabledButton,
+        ]}
+        disabled={Boolean(isSubmitting) || isOffline}
         onPress={onSubmit}
       >
         {isSubmitting ? (

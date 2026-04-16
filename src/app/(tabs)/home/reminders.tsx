@@ -2,11 +2,14 @@ import { getResponseError } from "@/src/api/axios";
 import { Reminder } from "@/src/api/queries/reminders/types";
 import { useGetReminders } from "@/src/api/queries/reminders/useGetReminders";
 import { useUpdateReminder } from "@/src/api/queries/reminders/useUpdateReminder";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { Screen } from "@/src/components/Screen";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -66,7 +69,13 @@ export default function RemindersScreen() {
     [remindersQuery.data],
   );
 
+  const isOffline = useIsOffline();
+
   const handleUpdate = async (id: string, status: "done" | "skipped") => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     if (updatingId) return;
     setUpdatingId(id);
     try {
@@ -103,14 +112,14 @@ export default function RemindersScreen() {
             mode="outlined"
             onPress={() => handleUpdate(item.id, "done")}
             loading={updatingId === item.id && updateReminder.isPending}
-            disabled={updateReminder.isPending}
+            disabled={updateReminder.isPending || isOffline}
           >
             Zrobione
           </Button>
           <Button
             mode="text"
             onPress={() => handleUpdate(item.id, "skipped")}
-            disabled={updateReminder.isPending}
+            disabled={updateReminder.isPending || isOffline}
           >
             Pomiń
           </Button>

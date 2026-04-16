@@ -2,6 +2,8 @@ import { getResponseError } from "@/src/api/axios";
 import { Warning } from "@/src/api/queries/plantings/types";
 import { useGetPlanting } from "@/src/api/queries/plantings/useGetPlanting";
 import { useUpdatePlanting } from "@/src/api/queries/plantings/useUpdatePlanting";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { PlantingForm } from "@/src/app/(tabs)/beds/_components/PlantingForm";
 import { WarningsModal } from "@/src/app/(tabs)/beds/_components/WarningsModal";
 import { consumeSelectedVegetable } from "@/src/app/(tabs)/beds/_state/vegetableSelectionStore";
@@ -41,6 +43,7 @@ export default function PlantingEditScreen() {
     resolvedPlantingId ?? "",
     resolvedBedId,
   );
+  const isOffline = useIsOffline();
   const [values, setValues] = useState<PlantingFormValues>(
     createEmptyPlantingFormValues(),
   );
@@ -69,6 +72,10 @@ export default function PlantingEditScreen() {
   );
 
   const handleSubmit = async () => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     if (!initialValuesRef.current || !resolvedPlantingId) return;
     const errorMessage = validatePlantingForm(values);
     if (errorMessage) {

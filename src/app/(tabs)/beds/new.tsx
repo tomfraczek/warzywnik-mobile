@@ -2,7 +2,8 @@ import { getResponseError } from "@/src/api/axios";
 import { useCreateBed } from "@/src/api/queries/beds/useCreateBed";
 import { BedForm } from "@/src/app/(tabs)/beds/_components/BedForm";
 import { consumeSelectedSoil } from "@/src/app/(tabs)/beds/_state/soilSelectionStore";
-
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -20,6 +21,7 @@ export default function BedCreateScreen() {
     createEmptyBedFormValues(),
   );
   const createBed = useCreateBed();
+  const isOffline = useIsOffline();
 
   useFocusEffect(
     useCallback(() => {
@@ -35,6 +37,10 @@ export default function BedCreateScreen() {
   );
 
   const handleSubmit = async () => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     const error = validateBedForm(values);
     if (error) {
       Alert.alert("Błąd", error);

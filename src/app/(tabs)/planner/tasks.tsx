@@ -1,5 +1,7 @@
 import { getResponseError } from "@/src/api/axios";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { TaskItem as MeTaskItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { Screen } from "@/src/components/Screen";
@@ -175,7 +177,13 @@ export default function PlannerTasksScreen() {
     laterTasks.length > 0 ||
     noDueDateTasks.length > 0;
 
+  const isOffline = useIsOffline();
+
   const handleDone = (taskId: string) => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     updateActionTask
       .mutateAsync({ id: taskId, payload: { status: "done" } })
       .catch((error: unknown) => {
@@ -261,7 +269,7 @@ export default function PlannerTasksScreen() {
                       key={task.id}
                       task={task}
                       onDone={handleDone}
-                      isDoneLoading={updateActionTask.isPending}
+                      isDoneLoading={updateActionTask.isPending || isOffline}
                     />
                   ))}
                 </View>
@@ -277,7 +285,7 @@ export default function PlannerTasksScreen() {
                       key={task.id}
                       task={task}
                       onDone={handleDone}
-                      isDoneLoading={updateActionTask.isPending}
+                      isDoneLoading={updateActionTask.isPending || isOffline}
                     />
                   ))}
                 </View>
@@ -293,7 +301,7 @@ export default function PlannerTasksScreen() {
                       key={task.id}
                       task={task}
                       onDone={handleDone}
-                      isDoneLoading={updateActionTask.isPending}
+                      isDoneLoading={updateActionTask.isPending || isOffline}
                     />
                   ))}
                 </View>
@@ -312,7 +320,7 @@ export default function PlannerTasksScreen() {
                       key={task.id}
                       task={task}
                       onDone={handleDone}
-                      isDoneLoading={updateActionTask.isPending}
+                      isDoneLoading={updateActionTask.isPending || isOffline}
                     />
                   ))}
                 </View>

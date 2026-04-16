@@ -1,6 +1,7 @@
 import { getResponseError } from "@/src/api/axios";
 import { useGetArticle } from "@/src/api/queries/articles/useGetArticle";
 import { Screen } from "@/src/components/Screen";
+import { normalizeArticleHtmlWhitespace } from "@/src/utils/html";
 import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import { useMemo } from "react";
@@ -55,6 +56,11 @@ export default function ArticleDetailsScreen() {
     return article.contexts?.map(formatContextLabel) ?? [];
   }, [article]);
 
+  const normalizedContent = useMemo(() => {
+    if (!article?.content) return "";
+    return normalizeArticleHtmlWhitespace(article.content);
+  }, [article?.content]);
+
   if (isLoading) {
     return (
       <Screen>
@@ -82,7 +88,7 @@ export default function ArticleDetailsScreen() {
 
   const renderProps = {
     contentWidth: width - 40,
-    source: { html: article.content },
+    source: { html: normalizedContent },
     tagsStyles,
     baseStyle,
     renderersProps: {

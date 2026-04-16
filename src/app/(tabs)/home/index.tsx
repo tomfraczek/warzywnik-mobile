@@ -4,6 +4,7 @@ import { WarningItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { useGetMyWarnings } from "@/src/api/queries/users/useGetMyWarnings";
 import { useGetMyWeather } from "@/src/api/queries/users/useGetMyWeather";
+import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { WarningCard } from "@/src/components/ui/WarningCard";
@@ -38,7 +39,6 @@ import {
   Text,
   useTheme,
 } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 const isWeatherMissingLocationError = (error: unknown) => {
   if (!isAxiosError(error)) return false;
@@ -176,10 +176,11 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView>
+    <Screen>
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
+        style={{ flex: 1 }}
       >
         <View style={styles.topBar}>
           <View style={styles.titleWrap}>
@@ -442,7 +443,7 @@ export default function HomeScreen() {
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 

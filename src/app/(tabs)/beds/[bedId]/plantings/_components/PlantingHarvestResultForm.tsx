@@ -2,6 +2,8 @@ import { getResponseError } from "@/src/api/axios";
 import { HarvestResultRecord } from "@/src/api/queries/plantings/types";
 import { useCreateHarvestResultRecord } from "@/src/api/queries/plantings/useCreateHarvestResultRecord";
 import { useUpdateHarvestResultRecord } from "@/src/api/queries/plantings/useUpdateHarvestResultRecord";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
@@ -45,6 +47,7 @@ export function PlantingHarvestResultForm({
 
   const createHarvestRecord = useCreateHarvestResultRecord(plantingId, bedId);
   const updateHarvestRecord = useUpdateHarvestResultRecord(plantingId, bedId);
+  const isOffline = useIsOffline();
 
   // Reset form state when modal opens
   useEffect(() => {
@@ -82,6 +85,10 @@ export function PlantingHarvestResultForm({
   }, [harvestedAt]);
 
   const handleSubmit = async () => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
     setValidationError(null);
     const normalized = yieldKgText.trim().replace(",", ".");
     const yieldKg = normalized === "" ? null : parseFloat(normalized);
@@ -211,6 +218,11 @@ export function PlantingHarvestResultForm({
               onPress={handleSubmit}
               loading={
                 createHarvestRecord.isPending || updateHarvestRecord.isPending
+              }
+              disabled={
+                isOffline ||
+                createHarvestRecord.isPending ||
+                updateHarvestRecord.isPending
               }
             >
               {mode === "edit" ? "Zapisz" : "Dodaj"}
