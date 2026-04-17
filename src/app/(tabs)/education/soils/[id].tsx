@@ -304,6 +304,10 @@ export default function SoilDetailsScreen() {
             },
           ]}
         >
+          <View style={[s.tag, { backgroundColor: palette.tagBg }]}>
+            <Icon source="layers-outline" size={13} color={palette.tagText} />
+            <Text style={[s.tagText, { color: palette.tagText }]}>Gleba</Text>
+          </View>
           <Text style={[s.soilName, { color: palette.heading }]}>
             {soil.name}
           </Text>
