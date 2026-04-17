@@ -6,6 +6,7 @@ export type Pest = {
   symptoms?: string | string[] | null;
   treatment?: string | string[] | null;
   prevention?: string | string[] | null;
+  recommendedActionTemplateIds?: string[];
   createdAt?: string;
   updatedAt?: string;
 };

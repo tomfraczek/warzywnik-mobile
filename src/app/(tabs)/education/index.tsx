@@ -333,6 +333,7 @@ export default function EducationScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
       >
+        <Text style={styles.screenHeading}>Biblioteka</Text>
         <View style={styles.section}>
           <Text style={styles.sectionHeading}>Kategorie</Text>
           {filteredSections.length > 0 ? (
@@ -612,6 +613,13 @@ const makeStyles = (theme: MD3Theme) => {
       },
       section: {
         marginTop: 32,
+      },
+      screenHeading: {
+        fontSize: 26,
+        fontWeight: "700",
+        color: palette.heading,
+        marginBottom: 16,
+        letterSpacing: -0.2,
       },
       sectionHeading: {
         fontSize: 20,
