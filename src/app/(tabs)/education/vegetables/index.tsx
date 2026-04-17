@@ -9,11 +9,12 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  TextInput as RNTextInput,
   ScrollView,
   StyleSheet,
-  TextInput as RNTextInput,
   View,
 } from "react-native";
+import { Button, Icon, MD3Theme, Text, useTheme } from "react-native-paper";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -21,7 +22,6 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { Button, Icon, MD3Theme, Text, useTheme } from "react-native-paper";
 import { useDebouncedValue } from "../_components/useDebouncedValue";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -290,7 +290,10 @@ export default function VegetablesIndexScreen() {
 
   if (isLoading && items.length === 0) {
     return (
-      <Screen style={{ backgroundColor: palette.background }}>
+      <Screen
+        style={{ backgroundColor: palette.background }}
+        safeAreaEdges={["left", "right"]}
+      >
         <ScrollView
           contentContainerStyle={[
             screenStyles.listContent,
@@ -318,7 +321,10 @@ export default function VegetablesIndexScreen() {
 
   if (error && items.length === 0) {
     return (
-      <Screen style={{ backgroundColor: palette.background }}>
+      <Screen
+        style={{ backgroundColor: palette.background }}
+        safeAreaEdges={["left", "right"]}
+      >
         <View style={screenStyles.errorWrap}>
           <Icon source="alert-circle-outline" size={48} color="#C8776E" />
           <Text style={[screenStyles.errorText, { color: palette.secondary }]}>
@@ -337,7 +343,10 @@ export default function VegetablesIndexScreen() {
   }
 
   return (
-    <Screen style={{ backgroundColor: palette.background }}>
+    <Screen
+      style={{ backgroundColor: palette.background }}
+      safeAreaEdges={["left", "right"]}
+    >
       <FlatList
         data={isLoading && items.length === 0 ? [] : items}
         keyExtractor={(item) => item.id}
