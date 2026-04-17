@@ -171,7 +171,7 @@ function SectionHeader({
 
 function CategoryCard({ item, onPress }: CategoryCardProps) {
   return (
-    <Pressable style={sharedStyles.gridItem} onPress={onPress} hitSlop={6}>
+    <Pressable onPress={onPress} hitSlop={6}>
       <View style={sharedStyles.categoryCard}>
         <View
           style={[
@@ -190,7 +190,7 @@ function CategoryCard({ item, onPress }: CategoryCardProps) {
 
 function VegetableCard({ item, onPress }: VegetableCardProps) {
   return (
-    <Pressable style={sharedStyles.gridItem} onPress={onPress} hitSlop={6}>
+    <Pressable onPress={onPress} hitSlop={6}>
       <View style={sharedStyles.vegetableCard}>
         {item.imageUrl ? (
           <Image
@@ -258,11 +258,23 @@ function EmptySectionState({ message }: { message: string }) {
   );
 }
 
+function TwoColumnGrid({ children }: { children: React.ReactElement[] }) {
+  const left = children.filter((_, i) => i % 2 === 0);
+  const right = children.filter((_, i) => i % 2 === 1);
+  return (
+    <View style={sharedStyles.twoColWrap}>
+      <View style={sharedStyles.twoColColumn}>{left}</View>
+      <View style={sharedStyles.twoColColumn}>{right}</View>
+    </View>
+  );
+}
+
 export default function EducationScreen() {
   const router = useRouter();
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const [query, setQuery] = useState("");
+  void setQuery;
   const needle = query.trim().toLowerCase();
 
   const {
@@ -324,7 +336,7 @@ export default function EducationScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionHeading}>Kategorie</Text>
           {filteredSections.length > 0 ? (
-            <View style={styles.grid}>
+            <TwoColumnGrid>
               {filteredSections.map((section) => (
                 <CategoryCard
                   key={section.title}
@@ -332,7 +344,7 @@ export default function EducationScreen() {
                   onPress={() => router.push(section.route)}
                 />
               ))}
-            </View>
+            </TwoColumnGrid>
           ) : (
             <EmptySectionState message="Brak kategorii pasujących do wyszukiwania." />
           )}
@@ -354,7 +366,7 @@ export default function EducationScreen() {
               message={String(getResponseError(vegetablesError))}
             />
           ) : popularVegetables.length > 0 ? (
-            <View style={styles.grid}>
+            <TwoColumnGrid>
               {popularVegetables.map((item) => (
                 <VegetableCard
                   key={item.id}
@@ -364,7 +376,7 @@ export default function EducationScreen() {
                   }
                 />
               ))}
-            </View>
+            </TwoColumnGrid>
           ) : (
             <EmptySectionState message="Brak popularnych warzyw dla tego wyszukiwania." />
           )}
@@ -430,7 +442,17 @@ const sharedStyles = StyleSheet.create({
     color: "#5E8A70",
   },
   gridItem: {
-    width: "48%",
+    flexBasis: "47%",
+    flexGrow: 1,
+    maxWidth: "50%",
+  },
+  twoColWrap: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  twoColColumn: {
+    flex: 1,
+    gap: 16,
   },
   categoryCard: {
     minHeight: 156,
@@ -601,8 +623,7 @@ const makeStyles = (theme: MD3Theme) => {
       grid: {
         flexDirection: "row",
         flexWrap: "wrap",
-        justifyContent: "space-between",
-        rowGap: 16,
+        gap: 16,
       },
       articleList: {
         gap: 16,

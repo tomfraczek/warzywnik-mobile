@@ -145,7 +145,12 @@ function DiseaseCard({
   palette: ReturnType<typeof buildPalette>;
 }) {
   return (
-    <Pressable onPress={onPress} hitSlop={4}>
+    <Pressable
+      onPress={onPress}
+      hitSlop={4}
+      android_ripple={null}
+      style={({ pressed }) => pressed && { opacity: 0.7 }}
+    >
       <View
         style={[
           cardStyles.card,

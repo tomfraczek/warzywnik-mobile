@@ -198,10 +198,6 @@ export default function DiseaseDetailsScreen() {
             },
           ]}
         >
-          <View style={[s.tag, { backgroundColor: palette.tagBg }]}>
-            <Icon source="bacteria-outline" size={13} color={palette.tagText} />
-            <Text style={[s.tagText, { color: palette.tagText }]}>Choroba</Text>
-          </View>
           <Text style={[s.diseaseName, { color: palette.heading }]}>
             {disease.name}
           </Text>

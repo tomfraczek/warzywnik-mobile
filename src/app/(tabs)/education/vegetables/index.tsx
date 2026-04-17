@@ -144,7 +144,12 @@ function VegetableCard({
   const familyLabel = getFamilyLabel(item.botanicalFamily);
 
   return (
-    <Pressable onPress={onPress} hitSlop={4}>
+    <Pressable
+      onPress={onPress}
+      hitSlop={4}
+      android_ripple={null}
+      style={({ pressed }) => pressed && { opacity: 0.7 }}
+    >
       <View style={cardStyles.card}>
         {/* hero image */}
         <View style={cardStyles.imageWrap}>

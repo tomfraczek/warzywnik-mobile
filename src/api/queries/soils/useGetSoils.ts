@@ -1,5 +1,4 @@
 import { restClient } from "@/src/api/axios";
-import { parsePaginatedResponse } from "@/src/api/queries/pagination";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { soilKeys, SoilListParams } from "./soilKeys";
 import { Soil } from "./types";
@@ -13,7 +12,14 @@ const getSoils = async (params: SoilListParams, pageParam: number) => {
       q: params.q?.trim() || undefined,
     },
   });
-  return parsePaginatedResponse<Soil>(data, pageParam, limit);
+  const { items, total } = data as {
+    items: Soil[];
+    total: number;
+    page: number;
+    limit: number;
+  };
+  const nextPage = pageParam * limit < total ? pageParam + 1 : undefined;
+  return { items, total, nextPage };
 };
 
 export const useGetSoils = (params: SoilListParams = {}) => {
