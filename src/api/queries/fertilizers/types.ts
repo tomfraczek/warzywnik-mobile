@@ -7,6 +7,8 @@ export type Fertilizer = {
   advantages?: string[] | null;
   disadvantages?: string[] | null;
   composition?: string[] | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 };
 
 export type FertilizerListItem = {

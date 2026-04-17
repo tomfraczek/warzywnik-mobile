@@ -60,6 +60,22 @@ export default function FertilizerDetailsScreen() {
         <SectionBlock title="Skład" items={fertilizer.composition ?? null} />
         <SectionBlock title="Zalety" items={fertilizer.advantages ?? null} />
         <SectionBlock title="Wady" items={fertilizer.disadvantages ?? null} />
+        {fertilizer.createdAt || fertilizer.updatedAt ? (
+          <View style={styles.metaBlock}>
+            {fertilizer.createdAt ? (
+              <Text style={styles.metaText}>
+                Utworzono:{" "}
+                {new Date(fertilizer.createdAt).toLocaleDateString("pl-PL")}
+              </Text>
+            ) : null}
+            {fertilizer.updatedAt ? (
+              <Text style={styles.metaText}>
+                Zaktualizowano:{" "}
+                {new Date(fertilizer.updatedAt).toLocaleDateString("pl-PL")}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </ScrollView>
     </Screen>
   );
@@ -92,5 +108,13 @@ const makeStyles = (theme: MD3Theme) =>
       color: theme.colors.error,
       marginBottom: 12,
       textAlign: "center",
+    },
+    metaBlock: {
+      marginTop: 24,
+      gap: 4,
+    },
+    metaText: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
     },
   });

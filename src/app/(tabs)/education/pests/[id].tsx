@@ -55,6 +55,22 @@ export default function PestDetailsScreen() {
           title="Rośliny żywicielskie"
           items={pest.affectedPlants ?? null}
         />
+        {pest.createdAt || pest.updatedAt ? (
+          <View style={styles.metaBlock}>
+            {pest.createdAt ? (
+              <Text style={styles.metaText}>
+                Utworzono:{" "}
+                {new Date(pest.createdAt).toLocaleDateString("pl-PL")}
+              </Text>
+            ) : null}
+            {pest.updatedAt ? (
+              <Text style={styles.metaText}>
+                Zaktualizowano:{" "}
+                {new Date(pest.updatedAt).toLocaleDateString("pl-PL")}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </ScrollView>
     </Screen>
   );
@@ -82,5 +98,13 @@ const makeStyles = (theme: MD3Theme) =>
       color: theme.colors.error,
       marginBottom: 12,
       textAlign: "center",
+    },
+    metaBlock: {
+      marginTop: 24,
+      gap: 4,
+    },
+    metaText: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
     },
   });

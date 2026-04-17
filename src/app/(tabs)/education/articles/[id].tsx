@@ -111,6 +111,11 @@ export default function ArticleDetailsScreen() {
         />
       ) : null}
       <Text style={styles.title}>{article.title}</Text>
+      {article.publishedAt ? (
+        <Text style={styles.publishedAt}>
+          {new Date(article.publishedAt).toLocaleDateString("pl-PL")}
+        </Text>
+      ) : null}
       {article.excerpt ? (
         <Text style={styles.excerpt}>{article.excerpt}</Text>
       ) : null}
@@ -214,5 +219,10 @@ const makeStyles = (theme: MD3Theme) =>
       color: theme.colors.error,
       marginBottom: 12,
       textAlign: "center",
+    },
+    publishedAt: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+      marginBottom: 10,
     },
   });

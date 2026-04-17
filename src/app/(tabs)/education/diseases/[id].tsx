@@ -228,6 +228,24 @@ export default function DiseaseDetailsScreen() {
             <TextContent text={toText(disease.treatment)!} palette={palette} />
           </SectionCard>
         ) : null}
+
+        {/* metadata */}
+        {disease.createdAt || disease.updatedAt ? (
+          <View style={s.metaBlock}>
+            {disease.createdAt ? (
+              <Text style={[s.metaText, { color: palette.meta }]}>
+                Utworzono:{" "}
+                {new Date(disease.createdAt).toLocaleDateString("pl-PL")}
+              </Text>
+            ) : null}
+            {disease.updatedAt ? (
+              <Text style={[s.metaText, { color: palette.meta }]}>
+                Zaktualizowano:{" "}
+                {new Date(disease.updatedAt).toLocaleDateString("pl-PL")}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </ScrollView>
     </Screen>
   );
@@ -321,7 +339,6 @@ const s = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 20,
     gap: 4,
-    alignItems: "center",
   },
   metaText: {
     fontSize: 12,

@@ -6,6 +6,8 @@ export type Disease = {
   treatment?: string[] | null;
   prevention?: string[] | null;
   affectedPlants?: string[] | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 };
 
 export type DiseaseListItem = {
