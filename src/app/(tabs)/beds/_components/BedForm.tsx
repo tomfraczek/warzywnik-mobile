@@ -15,10 +15,10 @@ import {
 } from "react-native";
 import { MD3Theme, useTheme } from "react-native-paper";
 
-const CULTIVATION_ENVIRONMENT_OPTIONS: Array<{
+const CULTIVATION_ENVIRONMENT_OPTIONS: {
   value: CultivationEnvironment;
   label: string;
-}> = [
+}[] = [
   { value: "GROUND_OUTDOOR", label: "Grunt (na zewnątrz)" },
   { value: "RAISED_BED_OUTDOOR", label: "Podwyższona grządka" },
   { value: "POT_OUTDOOR", label: "Donica (na zewnątrz)" },
