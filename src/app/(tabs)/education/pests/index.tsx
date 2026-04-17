@@ -41,7 +41,7 @@ export default function PestsIndexScreen() {
 
   if (isLoading && items.length === 0) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["left", "right"]}>
         <View style={styles.center}>
           <ActivityIndicator />
         </View>
@@ -51,7 +51,7 @@ export default function PestsIndexScreen() {
 
   if (error && items.length === 0) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["left", "right"]}>
         <View style={styles.center}>
           <Text style={styles.errorText}>
             {String(getResponseError(error))}
@@ -65,7 +65,7 @@ export default function PestsIndexScreen() {
   }
 
   return (
-    <Screen>
+    <Screen safeAreaEdges={["left", "right"]}>
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}

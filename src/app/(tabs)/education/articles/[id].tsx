@@ -63,7 +63,7 @@ export default function ArticleDetailsScreen() {
 
   if (isLoading) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["left", "right"]}>
         <View style={styles.center}>
           <ActivityIndicator />
         </View>
@@ -73,7 +73,7 @@ export default function ArticleDetailsScreen() {
 
   if (error || !article) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["left", "right"]}>
         <View style={styles.center}>
           <Text style={styles.errorText}>
             {String(getResponseError(error))}

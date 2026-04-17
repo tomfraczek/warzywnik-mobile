@@ -20,7 +20,7 @@ export default function PestDetailsScreen() {
 
   if (isLoading) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["left", "right"]}>
         <View style={styles.center}>
           <ActivityIndicator />
         </View>
@@ -30,7 +30,7 @@ export default function PestDetailsScreen() {
 
   if (error || !pest) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["left", "right"]}>
         <View style={styles.center}>
           <Text style={styles.errorText}>
             {String(getResponseError(error))}
@@ -44,7 +44,7 @@ export default function PestDetailsScreen() {
   }
 
   return (
-    <Screen>
+    <Screen safeAreaEdges={["left", "right"]}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>{pest.name}</Text>
         <SectionBlock title="Opis" text={pest.description ?? null} />

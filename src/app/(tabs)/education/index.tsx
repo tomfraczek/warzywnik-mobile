@@ -12,7 +12,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput as RNTextInput,
   View,
 } from "react-native";
 import { Icon, MD3Theme, Text, useTheme } from "react-native-paper";
@@ -322,21 +321,6 @@ export default function EducationScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
       >
-        <View style={styles.searchBar}>
-          <Icon source="magnify" size={21} color={styles.palette.searchIcon} />
-          <RNTextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Szukaj w bibliotece..."
-            placeholderTextColor={styles.palette.searchPlaceholder}
-            style={styles.searchInput}
-            selectionColor={styles.palette.accent}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-          />
-        </View>
-
         <View style={styles.section}>
           <Text style={styles.sectionHeading}>Kategorie</Text>
           {filteredSections.length > 0 ? (

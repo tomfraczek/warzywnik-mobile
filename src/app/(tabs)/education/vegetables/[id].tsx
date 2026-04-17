@@ -243,22 +243,6 @@ function Chip({
   );
 }
 
-function QuickBadge({
-  label,
-  palette,
-}: {
-  label: string;
-  palette: ReturnType<typeof buildPalette>;
-}) {
-  return (
-    <View style={[s.quickBadge, { backgroundColor: palette.badgeBg }]}>
-      <Text style={[s.quickBadgeText, { color: palette.badgeText }]}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
 function SowingMethodCard({
   method,
   palette,
@@ -435,7 +419,10 @@ export default function VegetableDetailsScreen() {
 
   if (isLoading) {
     return (
-      <Screen style={{ backgroundColor: palette.background }}>
+      <Screen
+        style={{ backgroundColor: palette.background }}
+        safeAreaEdges={["left", "right"]}
+      >
         <DetailSkeleton palette={palette} />
       </Screen>
     );
@@ -443,7 +430,10 @@ export default function VegetableDetailsScreen() {
 
   if (error || !vegetable) {
     return (
-      <Screen style={{ backgroundColor: palette.background }}>
+      <Screen
+        style={{ backgroundColor: palette.background }}
+        safeAreaEdges={["left", "right"]}
+      >
         <View style={s.errorWrap}>
           <Icon source="alert-circle-outline" size={48} color="#C8776E" />
           <Text style={[s.errorText, { color: palette.secondary }]}>

@@ -20,7 +20,7 @@ export default function SoilDetailsScreen() {
 
   if (isLoading) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["left", "right"]}>
         <View style={styles.center}>
           <ActivityIndicator />
         </View>
@@ -30,7 +30,7 @@ export default function SoilDetailsScreen() {
 
   if (error || !soil) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["left", "right"]}>
         <View style={styles.center}>
           <Text style={styles.errorText}>
             {String(getResponseError(error))}
@@ -44,7 +44,7 @@ export default function SoilDetailsScreen() {
   }
 
   return (
-    <Screen>
+    <Screen safeAreaEdges={["left", "right"]}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>{soil.name}</Text>
         <SectionBlock title="Opis" text={soil.description ?? null} />

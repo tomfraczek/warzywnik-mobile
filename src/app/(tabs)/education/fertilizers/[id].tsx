@@ -25,7 +25,7 @@ export default function FertilizerDetailsScreen() {
 
   if (isLoading) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["left", "right"]}>
         <View style={styles.center}>
           <ActivityIndicator />
         </View>
@@ -35,7 +35,7 @@ export default function FertilizerDetailsScreen() {
 
   if (error || !fertilizer) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["left", "right"]}>
         <View style={styles.center}>
           <Text style={styles.errorText}>
             {String(getResponseError(error))}
@@ -49,7 +49,7 @@ export default function FertilizerDetailsScreen() {
   }
 
   return (
-    <Screen>
+    <Screen safeAreaEdges={["left", "right"]}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>{fertilizer.name}</Text>
         {fertilizer.category ? (

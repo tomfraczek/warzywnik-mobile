@@ -237,7 +237,7 @@ export default function ArticlesScreen() {
   };
 
   return (
-    <Screen>
+    <Screen safeAreaEdges={["left", "right"]}>
       <FlashList
         data={items}
         renderItem={renderItem}
