@@ -9,7 +9,6 @@ import {
   FlatList,
   Pressable,
   TextInput as RNTextInput,
-  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
@@ -38,10 +37,9 @@ function buildPalette(dark: boolean) {
     searchIcon: dark ? "#9AA59E" : "#7F8B84",
     cardBg: dark ? "#1A1F1C" : "#FFFFFF",
     cardBorder: dark ? "#252D29" : "#E8ECE7",
-    tagBg: dark ? "#2E1A1A" : "#FBF0EF",
-    tagText: dark ? "#C88A85" : "#9A4A45",
-    innerCardBg: dark ? "#161C19" : "#F8FAF8",
-    innerCardBorder: dark ? "#222B26" : "#EBF0EA",
+    diseaseIconBg: dark ? "#2E1A1A" : "#FBF0EF",
+    diseaseIconColor: dark ? "#C88A85" : "#9A4A45",
+    chevron: dark ? "#4A5550" : "#C0CAC4",
   };
 }
 
@@ -63,16 +61,10 @@ function DiseaseCardSkeleton() {
   const shimmer = useShimmer();
   return (
     <View style={skeletonStyles.card}>
+      <Animated.View style={[skeletonStyles.iconBlock, shimmer]} />
       <View style={skeletonStyles.body}>
-        <Animated.View style={[skeletonStyles.tag, shimmer]} />
         <Animated.View style={[skeletonStyles.titleLine, shimmer]} />
-        <Animated.View style={[skeletonStyles.titleLineShort, shimmer]} />
-        <Animated.View style={[skeletonStyles.descLine, shimmer]} />
-        <Animated.View style={[skeletonStyles.descLineShort, shimmer]} />
-        <View style={skeletonStyles.blocksRow}>
-          <Animated.View style={[skeletonStyles.block, shimmer]} />
-          <Animated.View style={[skeletonStyles.block, shimmer]} />
-        </View>
+        <Animated.View style={[skeletonStyles.subtitleLine, shimmer]} />
       </View>
     </View>
   );
@@ -80,56 +72,37 @@ function DiseaseCardSkeleton() {
 
 const skeletonStyles = StyleSheet.create({
   card: {
+    flexDirection: "row",
+    alignItems: "center",
     borderRadius: 22,
     borderWidth: 1,
     borderColor: "#E8ECE7",
     backgroundColor: "#FFFFFF",
-    overflow: "hidden",
+    padding: 16,
+    gap: 14,
+  },
+  iconBlock: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#F5E8E8",
+    flexShrink: 0,
   },
   body: {
-    padding: 20,
-    gap: 10,
-  },
-  tag: {
-    width: 72,
-    height: 24,
-    borderRadius: 999,
-    backgroundColor: "#F5E8E8",
+    flex: 1,
+    gap: 8,
   },
   titleLine: {
-    width: "72%",
-    height: 22,
+    width: "60%",
+    height: 20,
     borderRadius: 6,
     backgroundColor: "#DDE8E1",
   },
-  titleLineShort: {
-    width: "48%",
-    height: 22,
-    borderRadius: 6,
-    backgroundColor: "#DDE8E1",
-  },
-  descLine: {
-    width: "100%",
+  subtitleLine: {
+    width: "40%",
     height: 14,
     borderRadius: 6,
     backgroundColor: "#E5ECEA",
-  },
-  descLineShort: {
-    width: "70%",
-    height: 14,
-    borderRadius: 6,
-    backgroundColor: "#E5ECEA",
-  },
-  blocksRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 4,
-  },
-  block: {
-    flex: 1,
-    height: 64,
-    borderRadius: 14,
-    backgroundColor: "#EBF0EA",
   },
 });
 
@@ -157,20 +130,27 @@ function DiseaseCard({
           { backgroundColor: palette.cardBg, borderColor: palette.cardBorder },
         ]}
       >
-        {/* name */}
-        <Text style={[cardStyles.name, { color: palette.heading }]}>
-          {item.name}
-        </Text>
-
-        {/* description */}
-        {item.description ? (
+        <View
+          style={[
+            cardStyles.iconBadge,
+            { backgroundColor: palette.diseaseIconBg },
+          ]}
+        >
+          <Icon
+            source="bacteria-outline"
+            size={24}
+            color={palette.diseaseIconColor}
+          />
+        </View>
+        <View style={cardStyles.textBlock}>
           <Text
-            style={[cardStyles.description, { color: palette.secondary }]}
-            numberOfLines={3}
+            style={[cardStyles.name, { color: palette.heading }]}
+            numberOfLines={2}
           >
-            {item.description}
+            {item.name}
           </Text>
-        ) : null}
+        </View>
+        <Icon source="chevron-right" size={20} color={palette.chevron} />
       </View>
     </Pressable>
   );
@@ -204,19 +184,24 @@ function ListHeader({
           placeholder="Szukaj choroby..."
           placeholderTextColor={palette.searchPlaceholder}
           style={[headerStyles.searchInput, { color: palette.heading }]}
-          selectionColor={palette.accent}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
           autoCapitalize="none"
           autoCorrect={false}
-          returnKeyType="search"
         />
       </View>
-      <View style={headerStyles.titleRow}>
+      <View style={headerStyles.titleBlock}>
         <Text style={[headerStyles.title, { color: palette.heading }]}>
           Choroby
         </Text>
         {!isLoading && total !== undefined ? (
-          <Text style={[headerStyles.count, { color: palette.secondary }]}>
-            {total} {total === 1 ? "wynik" : total < 5 ? "wyniki" : "wyników"}
+          <Text style={[headerStyles.count, { color: palette.meta }]}>
+            {total}{" "}
+            {total === 1
+              ? "wynik"
+              : total >= 2 && total <= 4
+                ? "wyniki"
+                : "wyników"}
           </Text>
         ) : null}
       </View>
@@ -231,11 +216,18 @@ function EmptyContent({
 }) {
   return (
     <View style={emptyStyles.wrap}>
-      <Icon source="bacteria-outline" size={52} color="#C8B0B0" />
+      <View
+        style={[
+          emptyStyles.iconWrap,
+          { backgroundColor: palette.diseaseIconBg },
+        ]}
+      >
+        <Icon source="magnify" size={32} color={palette.diseaseIconColor} />
+      </View>
       <Text style={[emptyStyles.title, { color: palette.heading }]}>
         Nie znaleziono chorób
       </Text>
-      <Text style={[emptyStyles.subtitle, { color: palette.meta }]}>
+      <Text style={[emptyStyles.subtitle, { color: palette.secondary }]}>
         Spróbuj zmienić frazę wyszukiwania.
       </Text>
     </View>
@@ -277,33 +269,34 @@ export default function DiseasesIndexScreen() {
     }
   };
 
+  const listHeader = (
+    <ListHeader
+      query={query}
+      onQueryChange={setQuery}
+      total={total}
+      isLoading={isLoading}
+      palette={palette}
+    />
+  );
+
   if (isLoading && items.length === 0) {
     return (
       <Screen
         style={{ backgroundColor: palette.background }}
         safeAreaEdges={["left", "right"]}
       >
-        <ScrollView
+        <FlatList
+          data={[1, 2, 3, 4, 5, 6]}
+          keyExtractor={(i) => String(i)}
           contentContainerStyle={[
-            screenStyles.listContent,
+            listStyles.content,
             { backgroundColor: palette.background },
           ]}
-          showsVerticalScrollIndicator={false}
-        >
-          <ListHeader
-            query={query}
-            onQueryChange={setQuery}
-            total={undefined}
-            isLoading={true}
-            palette={palette}
-          />
-          {[0, 1, 2, 3].map((i) => (
-            <View key={i}>
-              <DiseaseCardSkeleton />
-              {i < 3 ? <View style={screenStyles.separator} /> : null}
-            </View>
-          ))}
-        </ScrollView>
+          scrollEnabled={false}
+          ListHeaderComponent={listHeader}
+          ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+          renderItem={() => <DiseaseCardSkeleton />}
+        />
       </Screen>
     );
   }
@@ -314,9 +307,9 @@ export default function DiseasesIndexScreen() {
         style={{ backgroundColor: palette.background }}
         safeAreaEdges={["left", "right"]}
       >
-        <View style={screenStyles.errorWrap}>
+        <View style={listStyles.errorWrap}>
           <Icon source="alert-circle-outline" size={48} color="#C8776E" />
-          <Text style={[screenStyles.errorText, { color: palette.secondary }]}>
+          <Text style={{ color: palette.secondary, textAlign: "center" }}>
             {String(getResponseError(error))}
           </Text>
           <Button
@@ -340,18 +333,10 @@ export default function DiseasesIndexScreen() {
         data={items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[
-          screenStyles.listContent,
+          listStyles.content,
           { backgroundColor: palette.background },
         ]}
-        ListHeaderComponent={
-          <ListHeader
-            query={query}
-            onQueryChange={setQuery}
-            total={total}
-            isLoading={isLoading}
-            palette={palette}
-          />
-        }
+        ListHeaderComponent={listHeader}
         renderItem={({ item }) => (
           <DiseaseCard
             item={item}
@@ -359,19 +344,18 @@ export default function DiseasesIndexScreen() {
             onPress={() => router.push(`/(tabs)/education/diseases/${item.id}`)}
           />
         )}
-        ItemSeparatorComponent={() => <View style={screenStyles.separator} />}
+        ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
         onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.6}
+        onEndReachedThreshold={0.4}
         ListFooterComponent={
           isFetchingNextPage ? (
-            <View style={screenStyles.footerLoading}>
-              <ActivityIndicator color={palette.accent} size="small" />
-            </View>
+            <ActivityIndicator
+              style={listStyles.footer}
+              color={palette.accent}
+            />
           ) : null
         }
-        ListEmptyComponent={
-          isLoading ? null : <EmptyContent palette={palette} />
-        }
+        ListEmptyComponent={<EmptyContent palette={palette} />}
         showsVerticalScrollIndicator={false}
       />
     </Screen>
@@ -382,90 +366,85 @@ export default function DiseasesIndexScreen() {
 
 const headerStyles = StyleSheet.create({
   wrap: {
-    paddingBottom: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
   },
   searchBar: {
-    height: 56,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 52,
+    paddingHorizontal: 14,
+    gap: 10,
   },
   searchInput: {
     flex: 1,
-    height: "100%",
-    paddingVertical: 0,
     fontSize: 16,
+    paddingVertical: 0,
   },
-  titleRow: {
+  titleBlock: {
     marginTop: 20,
-    marginBottom: 4,
-    gap: 6,
+    marginBottom: 2,
+    gap: 2,
   },
   title: {
     fontSize: 26,
     fontWeight: "700",
-    letterSpacing: -0.3,
+    lineHeight: 32,
   },
   count: {
     fontSize: 14,
-    fontWeight: "400",
-    marginTop: 4,
+    lineHeight: 20,
   },
 });
 
 const cardStyles = StyleSheet.create({
   card: {
+    flexDirection: "row",
+    alignItems: "center",
     borderRadius: 22,
     borderWidth: 1,
-    overflow: "hidden",
-    padding: 20,
+    padding: 16,
+    gap: 14,
   },
-  tag: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
+  iconBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: 999,
-    marginBottom: 12,
+    justifyContent: "center",
+    flexShrink: 0,
   },
-  tagText: {
-    fontSize: 12,
-    fontWeight: "500",
+  textBlock: {
+    flex: 1,
+    gap: 4,
   },
   name: {
-    fontSize: 21,
+    fontSize: 18,
     fontWeight: "700",
-    letterSpacing: -0.2,
-    marginBottom: 8,
+    lineHeight: 24,
   },
   description: {
-    fontSize: 15,
-    lineHeight: 23,
-    marginBottom: 16,
-  },
-  footer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 4,
-  },
-  footerText: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
 
 const emptyStyles = StyleSheet.create({
   wrap: {
     alignItems: "center",
-    paddingVertical: 64,
-    paddingHorizontal: 24,
+    paddingTop: 48,
+    paddingBottom: 32,
     gap: 12,
+  },
+  iconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
   },
   title: {
     fontSize: 18,
@@ -474,34 +453,25 @@ const emptyStyles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 15,
-    lineHeight: 22,
     textAlign: "center",
+    lineHeight: 22,
   },
 });
 
-const screenStyles = StyleSheet.create({
-  listContent: {
+const listStyles = StyleSheet.create({
+  content: {
     paddingHorizontal: 16,
-    paddingTop: 14,
     paddingBottom: 32,
   },
-  separator: {
-    height: 16,
-  },
-  footerLoading: {
-    paddingVertical: 20,
-    alignItems: "center",
+  footer: {
+    marginTop: 20,
+    marginBottom: 8,
   },
   errorWrap: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 32,
+    padding: 24,
     gap: 16,
-  },
-  errorText: {
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: "center",
   },
 });

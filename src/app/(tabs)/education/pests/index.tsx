@@ -147,14 +147,6 @@ function PestCard({
           >
             {item.name}
           </Text>
-          {item.description ? (
-            <Text
-              style={[cardStyles.description, { color: palette.secondary }]}
-              numberOfLines={1}
-            >
-              {item.description}
-            </Text>
-          ) : null}
         </View>
         <Icon source="chevron-right" size={20} color={palette.chevron} />
       </View>

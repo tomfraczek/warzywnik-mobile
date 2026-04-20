@@ -1,6 +1,7 @@
 export type PaginatedResult<T> = {
   items: T[];
   nextPage?: number;
+  total?: number;
   meta?: Record<string, unknown>;
 };
 
@@ -29,9 +30,16 @@ export const parsePaginatedResponse = <T>(
       : totalPages
         ? currentPage < totalPages
         : items.length === limit;
+  const total =
+    typeof data?.total === "number"
+      ? data.total
+      : typeof meta?.total === "number"
+        ? (meta.total as number)
+        : undefined;
   return {
     items,
     meta,
+    total,
     nextPage: hasNext ? currentPage + 1 : undefined,
   };
 };
