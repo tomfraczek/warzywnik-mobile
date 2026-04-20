@@ -12,6 +12,7 @@ import {
 } from "@/src/api/queries/vegetables/types";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { Screen } from "@/src/components/Screen";
+import { FavoriteButton } from "@/src/components/ui/FavoriteButton";
 import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -490,17 +491,36 @@ export default function VegetableDetailsScreen() {
             },
           ]}
         >
-          {/* family tag */}
-          {vegetable.botanicalFamily ? (
-            <View
-              style={[s.familyTag, { backgroundColor: palette.familyTagBg }]}
-            >
-              <Text style={[s.familyTagText, { color: palette.familyTagText }]}>
-                {BOTANICAL_FAMILY_LABELS[vegetable.botanicalFamily] ??
-                  vegetable.botanicalFamily}
-              </Text>
-            </View>
-          ) : null}
+          {/* family tag + favorite */}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            {vegetable.botanicalFamily ? (
+              <View
+                style={[s.familyTag, { backgroundColor: palette.familyTagBg }]}
+              >
+                <Text
+                  style={[s.familyTagText, { color: palette.familyTagText }]}
+                >
+                  {BOTANICAL_FAMILY_LABELS[vegetable.botanicalFamily] ??
+                    vegetable.botanicalFamily}
+                </Text>
+              </View>
+            ) : (
+              <View />
+            )}
+            <FavoriteButton
+              targetType="VEGETABLE"
+              targetSlug={vegetable.slug}
+              variant="inline"
+              size={26}
+              inactiveColor="#B0BAB5"
+            />
+          </View>
 
           {/* name */}
           <Text style={[s.vegetableName, { color: palette.heading }]}>

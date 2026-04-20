@@ -1,7 +1,9 @@
 import { getResponseError } from "@/src/api/axios";
+import { useGetPopularVegetables } from "@/src/api/queries/analytics/useGetPopularVegetables";
 import { VegetableListItem } from "@/src/api/queries/vegetables/types";
 import { useGetVegetables } from "@/src/api/queries/vegetables/useGetVegetables";
 import { Screen } from "@/src/components/Screen";
+import { FavoriteButton } from "@/src/components/ui/FavoriteButton";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -12,6 +14,7 @@ import {
   TextInput as RNTextInput,
   ScrollView,
   StyleSheet,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { Button, Icon, MD3Theme, Text, useTheme } from "react-native-paper";
@@ -164,6 +167,7 @@ function VegetableCard({
               transition={350}
             />
           ) : null}
+          <FavoriteButton targetType="VEGETABLE" targetSlug={item.slug} />
         </View>
 
         {/* content */}
@@ -191,21 +195,161 @@ function VegetableCard({
   );
 }
 
+// ─── popular vegetables ─────────────────────────────────────────────────────
+
+function PopularVegetablesSection({
+  palette,
+  onPressItem,
+}: {
+  palette: ReturnType<typeof buildPalette>;
+  onPressItem: (id: string) => void;
+}) {
+  const { data, isLoading } = useGetPopularVegetables({
+    limit: 10,
+    sort: "adds",
+    windowDays: 30,
+  });
+
+  const items = data?.items ?? [];
+
+  if (!isLoading && items.length === 0) return null;
+
+  return (
+    <View style={popularStyles.wrap}>
+      <Text style={[popularStyles.title, { color: palette.heading }]}>
+        Popularne warzywa
+      </Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={popularStyles.row}
+      >
+        {isLoading
+          ? [0, 1, 2, 3].map((i) => (
+              <View
+                key={i}
+                style={[
+                  popularStyles.chip,
+                  {
+                    backgroundColor: palette.surface,
+                    borderColor: palette.border,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    popularStyles.chipImg,
+                    { backgroundColor: palette.imagePlaceholderBg },
+                  ]}
+                />
+                <View
+                  style={[
+                    popularStyles.chipNameSkel,
+                    { backgroundColor: palette.border },
+                  ]}
+                />
+              </View>
+            ))
+          : items.map((pop) => (
+              <TouchableOpacity
+                key={pop.vegetableSlug}
+                onPress={() => onPressItem(pop.vegetable.id)}
+                activeOpacity={0.75}
+                style={[
+                  popularStyles.chip,
+                  {
+                    backgroundColor: palette.cardBg,
+                    borderColor: palette.cardBorder,
+                  },
+                ]}
+              >
+                {pop.vegetable.imageUrl ? (
+                  <Image
+                    source={{ uri: pop.vegetable.imageUrl }}
+                    style={popularStyles.chipImg}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <View
+                    style={[
+                      popularStyles.chipImg,
+                      { backgroundColor: palette.imagePlaceholderBg },
+                    ]}
+                  >
+                    <Icon
+                      source="sprout-outline"
+                      size={20}
+                      color={palette.accent}
+                    />
+                  </View>
+                )}
+                <Text
+                  style={[popularStyles.chipName, { color: palette.heading }]}
+                  numberOfLines={2}
+                >
+                  {pop.vegetable.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+const popularStyles = StyleSheet.create({
+  wrap: { marginBottom: 20 },
+  title: { fontSize: 17, fontWeight: "700", marginBottom: 12 },
+  row: { gap: 10, paddingBottom: 4 },
+  chip: {
+    width: 100,
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: "hidden",
+    alignItems: "center",
+  },
+  chipImg: {
+    width: 100,
+    height: 80,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chipName: {
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+    lineHeight: 16,
+  },
+  chipNameSkel: {
+    width: 64,
+    height: 12,
+    borderRadius: 6,
+    marginVertical: 10,
+  },
+});
+
 function ListHeader({
   query,
   onQueryChange,
   total,
   isLoading,
   palette,
+  onPopularPress,
 }: {
   query: string;
   onQueryChange: (v: string) => void;
   total: number | undefined;
   isLoading: boolean;
   palette: ReturnType<typeof buildPalette>;
+  onPopularPress: (id: string) => void;
 }) {
   return (
     <View style={headerStyles.wrap}>
+      <PopularVegetablesSection
+        palette={palette}
+        onPressItem={onPopularPress}
+      />
       {/* search bar */}
       <View
         style={[
@@ -312,6 +456,9 @@ export default function VegetablesIndexScreen() {
             total={undefined}
             isLoading={true}
             palette={palette}
+            onPopularPress={(id) =>
+              router.push(`/(tabs)/education/vegetables/${id}`)
+            }
           />
           {[0, 1, 2, 3].map((i) => (
             <View key={i}>
@@ -366,6 +513,9 @@ export default function VegetablesIndexScreen() {
             total={total}
             isLoading={isLoading}
             palette={palette}
+            onPopularPress={(id) =>
+              router.push(`/(tabs)/education/vegetables/${id}`)
+            }
           />
         }
         renderItem={({ item }) => (

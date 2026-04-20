@@ -2,6 +2,7 @@ import { getResponseError } from "@/src/api/axios";
 import { FertilizerListItem } from "@/src/api/queries/fertilizers/types";
 import { useGetFertilizers } from "@/src/api/queries/fertilizers/useGetFertilizers";
 import { Screen } from "@/src/components/Screen";
+import { FavoriteButton } from "@/src/components/ui/FavoriteButton";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -346,11 +347,20 @@ function FertilizerCard({
           },
         ]}
       >
-        {/* Tag row */}
-        <View style={fertCardStyles.tagRow}>
-          <CategoryBadge value={item.category} dark={dark} />
-          <FormBadge value={item.form} palette={palette} />
-          <RiskBadge value={item.riskLevel} dark={dark} />
+        {/* Tag row + favorite */}
+        <View style={fertCardStyles.tagRowOuter}>
+          <View style={fertCardStyles.tagRow}>
+            <CategoryBadge value={item.category} dark={dark} />
+            <FormBadge value={item.form} palette={palette} />
+            <RiskBadge value={item.riskLevel} dark={dark} />
+          </View>
+          <FavoriteButton
+            targetType="FERTILIZER"
+            targetSlug={item.slug}
+            variant="inline"
+            size={20}
+            inactiveColor="#C0CAC4"
+          />
         </View>
 
         {/* Name */}
@@ -418,10 +428,17 @@ const fertCardStyles = StyleSheet.create({
     padding: 18,
     gap: 10,
   },
+  tagRowOuter: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 8,
+  },
   tagRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+    flex: 1,
   },
   name: {
     fontSize: 20,

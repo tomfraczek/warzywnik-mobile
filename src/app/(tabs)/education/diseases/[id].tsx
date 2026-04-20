@@ -1,6 +1,7 @@
 import { getResponseError } from "@/src/api/axios";
 import { useGetDisease } from "@/src/api/queries/diseases/useGetDisease";
 import { Screen } from "@/src/components/Screen";
+import { FavoriteButton } from "@/src/components/ui/FavoriteButton";
 import { useLocalSearchParams } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Icon, MD3Theme, Text, useTheme } from "react-native-paper";
@@ -198,9 +199,30 @@ export default function DiseaseDetailsScreen() {
             },
           ]}
         >
-          <View style={[s.tag, { backgroundColor: palette.tagBg }]}>
-            <Icon source="bacteria-outline" size={13} color={palette.tagText} />
-            <Text style={[s.tagText, { color: palette.tagText }]}>Choroba</Text>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <View style={[s.tag, { backgroundColor: palette.tagBg }]}>
+              <Icon
+                source="bacteria-outline"
+                size={13}
+                color={palette.tagText}
+              />
+              <Text style={[s.tagText, { color: palette.tagText }]}>
+                Choroba
+              </Text>
+            </View>
+            <FavoriteButton
+              targetType="DISEASE"
+              targetSlug={disease.slug}
+              variant="inline"
+              size={26}
+              inactiveColor="#B0BAB5"
+            />
           </View>
           <Text style={[s.diseaseName, { color: palette.heading }]}>
             {disease.name}

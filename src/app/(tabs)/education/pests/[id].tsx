@@ -1,6 +1,7 @@
 import { getResponseError } from "@/src/api/axios";
 import { useGetPest } from "@/src/api/queries/pests/useGetPest";
 import { Screen } from "@/src/components/Screen";
+import { FavoriteButton } from "@/src/components/ui/FavoriteButton";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -229,11 +230,26 @@ export default function PestDetailsScreen() {
             },
           ]}
         >
-          <View style={[s.tag, { backgroundColor: palette.tagBg }]}>
-            <Icon source="bug-outline" size={13} color={palette.tagText} />
-            <Text style={[s.tagText, { color: palette.tagText }]}>
-              Szkodnik
-            </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <View style={[s.tag, { backgroundColor: palette.tagBg }]}>
+              <Icon source="bug-outline" size={13} color={palette.tagText} />
+              <Text style={[s.tagText, { color: palette.tagText }]}>
+                Szkodnik
+              </Text>
+            </View>
+            <FavoriteButton
+              targetType="PEST"
+              targetSlug={pest.slug}
+              variant="inline"
+              size={26}
+              inactiveColor="#B0BAB5"
+            />
           </View>
           <Text style={[s.pestName, { color: palette.heading }]}>
             {pest.name}

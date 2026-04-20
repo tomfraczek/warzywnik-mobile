@@ -1,13 +1,17 @@
 import { getResponseError } from "@/src/api/axios";
+import { useTrackAnalyticsEvents } from "@/src/api/queries/analytics/useTrackAnalyticsEvents";
 import { useGetArticle } from "@/src/api/queries/articles/useGetArticle";
 import { Screen } from "@/src/components/Screen";
+import { FavoriteButton } from "@/src/components/ui/FavoriteButton";
 import { normalizeArticleHtmlWhitespace } from "@/src/utils/html";
 import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DimensionValue,
   Linking,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
   useWindowDimensions,
@@ -291,6 +295,72 @@ export default function ArticleDetailsScreen() {
   const palette = buildPalette(theme.dark);
   const [coverBuster] = useState(() => Date.now());
 
+  // ─── analytics ────────────────────────────────────────────────────────────
+  const sessionId = useRef(
+    `article-${id}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  ).current;
+  const { mutate: trackEvents } = useTrackAnalyticsEvents();
+  const engagedSecondsRef = useRef(0);
+  const scroll50Sent = useRef(false);
+  const scroll90Sent = useRef(false);
+  const scrollHeightRef = useRef(0);
+
+  // Send engaged time every 15s
+  useEffect(() => {
+    const timer = setInterval(() => {
+      engagedSecondsRef.current += 15;
+      if (id) {
+        trackEvents([
+          {
+            eventType: "ARTICLE_ENGAGED",
+            targetType: "ARTICLE",
+            targetSlug: id,
+            sessionId,
+            valueInt: engagedSecondsRef.current,
+            idempotencyKey: `engaged-${sessionId}-${engagedSecondsRef.current}`,
+          },
+        ]);
+      }
+    }, 15_000);
+    return () => clearInterval(timer);
+  }, [id, sessionId, trackEvents]);
+
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+      const totalHeight = contentSize.height - layoutMeasurement.height;
+      scrollHeightRef.current = totalHeight;
+      const pct = totalHeight > 0 ? contentOffset.y / totalHeight : 0;
+
+      if (!scroll50Sent.current && pct >= 0.5 && id) {
+        scroll50Sent.current = true;
+        trackEvents([
+          {
+            eventType: "ARTICLE_SCROLL_50",
+            targetType: "ARTICLE",
+            targetSlug: id,
+            sessionId,
+            idempotencyKey: `scroll50-${sessionId}`,
+          },
+        ]);
+      }
+      if (!scroll90Sent.current && pct >= 0.9 && id) {
+        scroll90Sent.current = true;
+        trackEvents([
+          {
+            eventType: "ARTICLE_SCROLL_90",
+            targetType: "ARTICLE",
+            targetSlug: id,
+            sessionId,
+            idempotencyKey: `scroll90-${sessionId}`,
+          },
+        ]);
+      }
+    },
+    [id, sessionId, trackEvents],
+  );
+  // ─────────────────────────────────────────────────────────────────────────
+
   const {
     data: article,
     isLoading,
@@ -388,6 +458,8 @@ export default function ArticleDetailsScreen() {
           { backgroundColor: palette.background },
         ]}
         showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={200}
       >
         {/* cover */}
         {article.coverImageUrl ? (
@@ -427,41 +499,62 @@ export default function ArticleDetailsScreen() {
               },
             ]}
           >
-            {(contexts.length > 0 ||
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+              }}
+            >
+              {contexts.length > 0 ||
               seasons.length > 0 ||
-              months.length > 0) && (
-              <View style={s.tagRow}>
-                {contexts.slice(0, 2).map((ctx) => (
-                  <View
-                    key={ctx}
-                    style={[s.badge, { backgroundColor: palette.contextBg }]}
-                  >
-                    <Text style={[s.badgeText, { color: palette.contextText }]}>
-                      {CONTEXT_LABELS[ctx] ?? ctx}
-                    </Text>
-                  </View>
-                ))}
-                {seasons.slice(0, 1).map((season) => (
-                  <View
-                    key={season}
-                    style={[s.badge, { backgroundColor: palette.seasonBg }]}
-                  >
-                    <Text style={[s.badgeText, { color: palette.seasonText }]}>
-                      {SEASON_LABELS[season] ?? season}
-                    </Text>
-                  </View>
-                ))}
-                {months.length > 0 && (
-                  <View style={[s.badge, { backgroundColor: palette.tagBg }]}>
-                    <Text style={[s.badgeText, { color: palette.tagText }]}>
-                      {months.length === 1
-                        ? MONTH_LABELS[(months[0] - 1 + 12) % 12]
-                        : `${MONTH_LABELS[(months[0] - 1 + 12) % 12]} – ${MONTH_LABELS[(months[months.length - 1] - 1 + 12) % 12]}`}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
+              months.length > 0 ? (
+                <View style={[s.tagRow, { flex: 1, marginRight: 8 }]}>
+                  {contexts.slice(0, 2).map((ctx) => (
+                    <View
+                      key={ctx}
+                      style={[s.badge, { backgroundColor: palette.contextBg }]}
+                    >
+                      <Text
+                        style={[s.badgeText, { color: palette.contextText }]}
+                      >
+                        {CONTEXT_LABELS[ctx] ?? ctx}
+                      </Text>
+                    </View>
+                  ))}
+                  {seasons.slice(0, 1).map((season) => (
+                    <View
+                      key={season}
+                      style={[s.badge, { backgroundColor: palette.seasonBg }]}
+                    >
+                      <Text
+                        style={[s.badgeText, { color: palette.seasonText }]}
+                      >
+                        {SEASON_LABELS[season] ?? season}
+                      </Text>
+                    </View>
+                  ))}
+                  {months.length > 0 && (
+                    <View style={[s.badge, { backgroundColor: palette.tagBg }]}>
+                      <Text style={[s.badgeText, { color: palette.tagText }]}>
+                        {months.length === 1
+                          ? MONTH_LABELS[(months[0] - 1 + 12) % 12]
+                          : `${MONTH_LABELS[(months[0] - 1 + 12) % 12]} – ${MONTH_LABELS[(months[months.length - 1] - 1 + 12) % 12]}`}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <View />
+              )}
+              <FavoriteButton
+                targetType="ARTICLE"
+                targetSlug={article.slug}
+                variant="inline"
+                size={26}
+                inactiveColor="#B0BAB5"
+              />
+            </View>
 
             <Text style={[s.title, { color: palette.heading }]}>
               {article.title}

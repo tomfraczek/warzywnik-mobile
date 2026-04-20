@@ -1,5 +1,6 @@
 export type Disease = {
   id: string;
+  slug?: string | null;
   name: string;
   description?: string | null;
   symptoms?: string[] | null;
@@ -12,6 +13,7 @@ export type Disease = {
 
 export type DiseaseListItem = {
   id: string;
+  slug?: string | null;
   name: string;
   description?: string | null;
 };

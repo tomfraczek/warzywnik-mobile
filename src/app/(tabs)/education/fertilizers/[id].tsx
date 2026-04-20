@@ -2,6 +2,7 @@ import { getResponseError } from "@/src/api/axios";
 import { Fertilizer } from "@/src/api/queries/fertilizers/types";
 import { useGetFertilizer } from "@/src/api/queries/fertilizers/useGetFertilizer";
 import { Screen } from "@/src/components/Screen";
+import { FavoriteButton } from "@/src/components/ui/FavoriteButton";
 import { useLocalSearchParams } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Icon, MD3Theme, Text, useTheme } from "react-native-paper";
@@ -356,30 +357,47 @@ export default function FertilizerDetailsScreen() {
             },
           ]}
         >
-          {catTag ? (
-            <View
-              style={[
-                s.catTag,
-                {
-                  backgroundColor: theme.dark ? catTag.darkBg : catTag.bg,
-                },
-              ]}
-            >
-              <Icon
-                source={catTag.icon}
-                size={13}
-                color={theme.dark ? catTag.darkText : catTag.text}
-              />
-              <Text
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            {catTag ? (
+              <View
                 style={[
-                  s.catTagText,
-                  { color: theme.dark ? catTag.darkText : catTag.text },
+                  s.catTag,
+                  {
+                    backgroundColor: theme.dark ? catTag.darkBg : catTag.bg,
+                  },
                 ]}
               >
-                {CATEGORY_LABELS[f.category!] ?? f.category}
-              </Text>
-            </View>
-          ) : null}
+                <Icon
+                  source={catTag.icon}
+                  size={13}
+                  color={theme.dark ? catTag.darkText : catTag.text}
+                />
+                <Text
+                  style={[
+                    s.catTagText,
+                    { color: theme.dark ? catTag.darkText : catTag.text },
+                  ]}
+                >
+                  {CATEGORY_LABELS[f.category!] ?? f.category}
+                </Text>
+              </View>
+            ) : (
+              <View />
+            )}
+            <FavoriteButton
+              targetType="FERTILIZER"
+              targetSlug={f.slug}
+              variant="inline"
+              size={26}
+              inactiveColor="#B0BAB5"
+            />
+          </View>
 
           <Text style={[s.fertName, { color: palette.heading }]}>{f.name}</Text>
 

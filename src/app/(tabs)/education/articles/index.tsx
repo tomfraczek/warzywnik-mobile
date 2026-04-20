@@ -2,6 +2,7 @@ import { getResponseError } from "@/src/api/axios";
 import { ArticleListItem } from "@/src/api/queries/articles/types";
 import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
 import { Screen } from "@/src/components/Screen";
+import { FavoriteButton } from "@/src/components/ui/FavoriteButton";
 import { FlashList } from "@shopify/flash-list";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -426,15 +427,18 @@ function ArticleCard({
       >
         {/* cover */}
         {item.coverImageUrl ? (
-          <Image
-            source={{
-              uri: item.coverUpdatedAt
-                ? `${item.coverImageUrl}?t=${new Date(item.coverUpdatedAt).getTime()}`
-                : item.coverImageUrl,
-            }}
-            style={cardStyles.cover}
-            contentFit="cover"
-          />
+          <View>
+            <Image
+              source={{
+                uri: item.coverUpdatedAt
+                  ? `${item.coverImageUrl}?t=${new Date(item.coverUpdatedAt).getTime()}`
+                  : item.coverImageUrl,
+              }}
+              style={cardStyles.cover}
+              contentFit="cover"
+            />
+            <FavoriteButton targetType="ARTICLE" targetSlug={item.slug} />
+          </View>
         ) : (
           <View
             style={[cardStyles.cover, { backgroundColor: palette.coverBg }]}
@@ -444,6 +448,7 @@ function ArticleCard({
               size={40}
               color={palette.coverIcon}
             />
+            <FavoriteButton targetType="ARTICLE" targetSlug={item.slug} />
           </View>
         )}
 

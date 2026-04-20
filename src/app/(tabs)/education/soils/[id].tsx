@@ -1,6 +1,7 @@
 import { getResponseError } from "@/src/api/axios";
 import { useGetSoil } from "@/src/api/queries/soils/useGetSoil";
 import { Screen } from "@/src/components/Screen";
+import { FavoriteButton } from "@/src/components/ui/FavoriteButton";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -304,9 +305,24 @@ export default function SoilDetailsScreen() {
             },
           ]}
         >
-          <View style={[s.tag, { backgroundColor: palette.tagBg }]}>
-            <Icon source="layers-outline" size={13} color={palette.tagText} />
-            <Text style={[s.tagText, { color: palette.tagText }]}>Gleba</Text>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <View style={[s.tag, { backgroundColor: palette.tagBg }]}>
+              <Icon source="layers-outline" size={13} color={palette.tagText} />
+              <Text style={[s.tagText, { color: palette.tagText }]}>Gleba</Text>
+            </View>
+            <FavoriteButton
+              targetType="SOIL"
+              targetSlug={soil.slug}
+              variant="inline"
+              size={26}
+              inactiveColor="#B0BAB5"
+            />
           </View>
           <Text style={[s.soilName, { color: palette.heading }]}>
             {soil.name}

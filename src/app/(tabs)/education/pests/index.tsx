@@ -2,6 +2,7 @@ import { getResponseError } from "@/src/api/axios";
 import { Pest } from "@/src/api/queries/pests/types";
 import { useGetPests } from "@/src/api/queries/pests/useGetPests";
 import { Screen } from "@/src/components/Screen";
+import { FavoriteButton } from "@/src/components/ui/FavoriteButton";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -148,7 +149,13 @@ function PestCard({
             {item.name}
           </Text>
         </View>
-        <Icon source="chevron-right" size={20} color={palette.chevron} />
+        <FavoriteButton
+          targetType="PEST"
+          targetSlug={item.slug}
+          variant="inline"
+          size={20}
+          inactiveColor={palette.chevron}
+        />
       </View>
     </Pressable>
   );

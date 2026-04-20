@@ -1,11 +1,17 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Tabs, usePathname, useRouter } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { MD3Theme, useTheme } from "react-native-paper";
 
 export default function TabsLayout() {
   const theme = useTheme<MD3Theme>();
   const router = useRouter();
-  const pathname = usePathname();
+
+  const makeTabListener = (root: Parameters<typeof router.replace>[0]) => ({
+    tabPress: (event: { preventDefault: () => void }) => {
+      event.preventDefault();
+      router.replace(root);
+    },
+  });
 
   return (
     <Tabs
@@ -22,6 +28,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="home"
+        listeners={makeTabListener("/(tabs)/home")}
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => (
@@ -31,12 +38,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="beds"
-        listeners={{
-          tabPress: (event) => {
-            event.preventDefault();
-            router.replace("/(tabs)/beds");
-          },
-        }}
+        listeners={makeTabListener("/(tabs)/beds")}
         options={{
           title: "Grządki",
           tabBarIcon: ({ color, size }) => (
@@ -46,18 +48,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="planner"
-        listeners={{
-          tabPress: (event) => {
-            const isPlannerRoute = pathname.startsWith("/(tabs)/planner");
-            const isPlannerRoot =
-              pathname === "/(tabs)/planner" || pathname === "/(tabs)/planner/";
-
-            if (isPlannerRoute && !isPlannerRoot) {
-              event.preventDefault();
-              router.replace("/(tabs)/planner");
-            }
-          },
-        }}
+        listeners={makeTabListener("/(tabs)/planner")}
         options={{
           title: "Kalendarz",
           tabBarIcon: ({ color, size }) => (
@@ -67,6 +58,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="education"
+        listeners={makeTabListener("/(tabs)/education")}
         options={{
           title: "Biblioteka",
           tabBarIcon: ({ color, size }) => (
@@ -80,6 +72,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="profile"
+        listeners={makeTabListener("/(tabs)/profile")}
         options={{
           title: "Konto",
           tabBarIcon: ({ color, size }) => (

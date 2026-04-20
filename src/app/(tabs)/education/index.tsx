@@ -6,7 +6,7 @@ import { useGetVegetables } from "@/src/api/queries/vegetables/useGetVegetables"
 import { Screen } from "@/src/components/Screen";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -147,8 +147,9 @@ const getArticleEyebrow = (item: ArticleListItem) => {
 };
 
 const getArticleReadTime = (item: ArticleListItem) => {
+  if (item.readTimeMinutes) return `${item.readTimeMinutes} min czytania`;
   const wordCount = `${item.title} ${item.excerpt}`.trim().split(/\s+/).length;
-  const minutes = Math.max(3, Math.round(wordCount / 90));
+  const minutes = Math.max(1, Math.round(wordCount / 200));
   return `${minutes} min czytania`;
 };
 
@@ -212,15 +213,14 @@ function VegetableCard({ item, onPress }: VegetableCardProps) {
 }
 
 function ArticleCard({ item, onPress }: ArticleCardProps) {
+  const coverBuster = useRef(Date.now()).current;
   return (
     <Pressable onPress={onPress} hitSlop={6}>
       <View style={sharedStyles.articleCard}>
         {item.coverImageUrl ? (
           <Image
             source={{
-              uri: item.coverUpdatedAt
-                ? `${item.coverImageUrl}?t=${new Date(item.coverUpdatedAt).getTime()}`
-                : item.coverImageUrl,
+              uri: `${item.coverImageUrl}?t=${item.coverUpdatedAt ? new Date(item.coverUpdatedAt).getTime() : coverBuster}`,
             }}
             style={sharedStyles.articleImage}
             contentFit="cover"
@@ -500,7 +500,7 @@ const sharedStyles = StyleSheet.create({
   vegetableImage: {
     width: 54,
     height: 54,
-    borderRadius: 27,
+    borderRadius: 16,
     marginBottom: 14,
     backgroundColor: "#F0F3EF",
   },
