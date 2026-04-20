@@ -217,7 +217,11 @@ function ArticleCard({ item, onPress }: ArticleCardProps) {
       <View style={sharedStyles.articleCard}>
         {item.coverImageUrl ? (
           <Image
-            source={{ uri: item.coverImageUrl }}
+            source={{
+              uri: item.coverUpdatedAt
+                ? `${item.coverImageUrl}?t=${new Date(item.coverUpdatedAt).getTime()}`
+                : item.coverImageUrl,
+            }}
             style={sharedStyles.articleImage}
             contentFit="cover"
           />

@@ -30,7 +30,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
@@ -53,6 +53,7 @@ const isWeatherUnavailableError = (error: unknown) => {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const coverBuster = useRef(Date.now()).current;
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const { profile, location } = useSettings();
@@ -431,7 +432,9 @@ export default function HomeScreen() {
                     </View>
                     {article.coverImageUrl ? (
                       <Image
-                        source={{ uri: article.coverImageUrl }}
+                        source={{
+                          uri: `${article.coverImageUrl}?t=${article.coverUpdatedAt ? new Date(article.coverUpdatedAt).getTime() : coverBuster}`,
+                        }}
                         style={styles.adviceImage}
                         contentFit="cover"
                       />

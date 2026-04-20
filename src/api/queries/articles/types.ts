@@ -4,6 +4,7 @@ export type ArticleListItem = {
   title: string;
   excerpt: string;
   coverImageUrl: string | null;
+  coverUpdatedAt: string | null;
   months: number[];
   seasons: string[];
   contexts: string[];
@@ -18,6 +19,7 @@ export type Article = {
   excerpt: string;
   content: string;
   coverImageUrl: string | null;
+  coverUpdatedAt: string | null;
   months: number[];
   seasons: string[];
   contexts: string[];

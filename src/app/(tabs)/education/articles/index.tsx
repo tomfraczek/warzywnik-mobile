@@ -427,7 +427,11 @@ function ArticleCard({
         {/* cover */}
         {item.coverImageUrl ? (
           <Image
-            source={{ uri: item.coverImageUrl }}
+            source={{
+              uri: item.coverUpdatedAt
+                ? `${item.coverImageUrl}?t=${new Date(item.coverUpdatedAt).getTime()}`
+                : item.coverImageUrl,
+            }}
             style={cardStyles.cover}
             contentFit="cover"
           />

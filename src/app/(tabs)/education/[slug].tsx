@@ -97,8 +97,8 @@ export default function ArticleDetailsScreen() {
           if (href) Linking.openURL(href);
         },
       },
+      img: { enableExperimentalPercentWidth: true },
     },
-    enableExperimentalPercentWidth: true,
     imagesMaxWidth: width - 40,
   } as const;
 
@@ -107,7 +107,11 @@ export default function ArticleDetailsScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         {article.coverImageUrl ? (
           <Image
-            source={{ uri: article.coverImageUrl }}
+            source={{
+              uri: article.coverUpdatedAt
+                ? `${article.coverImageUrl}?t=${new Date(article.coverUpdatedAt).getTime()}`
+                : article.coverImageUrl,
+            }}
             contentFit="cover"
             style={styles.image}
           />

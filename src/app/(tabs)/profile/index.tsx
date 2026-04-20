@@ -1,8 +1,6 @@
 import { GeoSearchItem } from "@/src/api/queries/geo/types";
 import { useGeoSearch } from "@/src/api/queries/geo/useGeoSearch";
 import { useUpdateUserLocation } from "@/src/api/queries/geo/useUpdateUserLocation";
-import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
-import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
@@ -12,19 +10,14 @@ import {
   ThemeMode,
   useSettings,
 } from "@/src/context/SettingsProvider";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { radius, spacing } from "@/src/theme/ui";
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   Avatar,
   Button,
@@ -132,7 +125,16 @@ export default function ProfileScreen() {
       });
       const lat = position.coords.latitude;
       const lon = position.coords.longitude;
-      const label = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+
+      const [place] = await Location.reverseGeocodeAsync({
+        latitude: lat,
+        longitude: lon,
+      });
+      const label = place
+        ? [place.city ?? place.subregion ?? place.region, place.country]
+            .filter(Boolean)
+            .join(", ")
+        : `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
 
       await updateLocation.mutateAsync({
         mode: "DEVICE",
@@ -155,7 +157,7 @@ export default function ProfileScreen() {
     } catch {
       setSnackbar("Nie udało się pobrać lokalizacji.");
     }
-  }, [setLocationPreference, updateLocation]);
+  }, [isOffline, setLocationPreference, updateLocation]);
 
   const handleSelectManualLocation = useCallback(
     async (result: GeoSearchItem) => {
@@ -189,7 +191,7 @@ export default function ProfileScreen() {
         setSnackbar("Nie udało się zapisać lokalizacji.");
       }
     },
-    [setLocationPreference, updateLocation],
+    [isOffline, setLocationPreference, updateLocation],
   );
 
   const handleSignOut = useCallback(async () => {
@@ -373,26 +375,21 @@ export default function ProfileScreen() {
             />
           </View>
           <Divider />
-          <Button
-            mode="text"
+          {/* <Button
+            mode="contained"
+            buttonColor={theme.colors.backdrop}
             onPress={() => router.push("/(tabs)/home/export-data")}
           >
             Eksport danych
-          </Button>
+          </Button> */}
           <Button
-            mode="text"
+            mode="contained"
+            buttonColor={theme.colors.error}
             onPress={() => router.push("/(tabs)/home/delete-account")}
           >
             Usuń konto
           </Button>
-          <Button mode="outlined" onPress={() => Linking.openSettings()}>
-            Ustawienia systemowe
-          </Button>
-          <Button
-            mode="contained"
-            buttonColor={theme.colors.error}
-            onPress={handleSignOut}
-          >
+          <Button mode="contained" onPress={handleSignOut}>
             Wyloguj
           </Button>
         </Card>

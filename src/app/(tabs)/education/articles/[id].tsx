@@ -4,7 +4,7 @@ import { Screen } from "@/src/components/Screen";
 import { normalizeArticleHtmlWhitespace } from "@/src/utils/html";
 import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   DimensionValue,
   Linking,
@@ -289,6 +289,7 @@ export default function ArticleDetailsScreen() {
   const { width } = useWindowDimensions();
   const theme = useTheme<MD3Theme>();
   const palette = buildPalette(theme.dark);
+  const [coverBuster] = useState(() => Date.now());
 
   const {
     data: article,
@@ -370,9 +371,9 @@ export default function ArticleDetailsScreen() {
           if (href) Linking.openURL(href);
         },
       },
+      img: { enableExperimentalPercentWidth: true },
     },
     contentWidth: width - 72,
-    enableExperimentalPercentWidth: true,
     imagesMaxWidth: width - 72,
   } as const;
 
@@ -391,7 +392,9 @@ export default function ArticleDetailsScreen() {
         {/* cover */}
         {article.coverImageUrl ? (
           <Image
-            source={{ uri: article.coverImageUrl }}
+            source={{
+              uri: `${article.coverImageUrl}?t=${article.coverUpdatedAt ? new Date(article.coverUpdatedAt).getTime() : coverBuster}`,
+            }}
             contentFit="cover"
             style={s.cover}
           />
