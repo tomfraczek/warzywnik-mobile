@@ -1,4 +1,5 @@
 export type ArticleListParams = {
+  q?: string;
   month?: number;
   season?: string;
   context?: string;

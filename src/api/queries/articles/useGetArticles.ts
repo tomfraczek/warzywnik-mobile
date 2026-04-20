@@ -10,6 +10,7 @@ const getArticles = async (params: ArticleListParams, pageParam: number) => {
       page: pageParam,
       limit,
       status: "PUBLISHED",
+      q: params.q?.trim() || undefined,
       month: params.month,
       season: params.season,
       context: params.context,
