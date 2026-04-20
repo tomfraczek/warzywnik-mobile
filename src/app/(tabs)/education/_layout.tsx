@@ -24,6 +24,7 @@ export default function EducationLayout() {
         name="index"
         options={{ title: "Biblioteka", headerShown: false }}
       />
+      <Stack.Screen name="favorites" options={{ title: "Ulubione" }} />
       <Stack.Screen name="articles/index" options={{ title: "Artykuły" }} />
       <Stack.Screen
         name="articles/[id]"

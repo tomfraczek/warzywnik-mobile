@@ -6,6 +6,7 @@ import { FavoritesGroupedResponse } from "./types";
 const getFavoritesGrouped = async (): Promise<FavoritesGroupedResponse> => {
   const { data } = await restClient.get<FavoritesGroupedResponse>(
     "/users/me/favorites/grouped",
+    { params: { include: "details" } },
   );
   return data;
 };

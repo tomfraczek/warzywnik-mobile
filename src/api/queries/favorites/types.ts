@@ -11,6 +11,9 @@ export type FavoriteItem = {
   targetType: FavoriteTargetType;
   targetSlug: string;
   createdAt: string;
+  /** Returned when ?include=details is used */
+  imageUrl?: string | null;
+  name?: string | null;
 };
 
 export type AddFavoriteBody = {

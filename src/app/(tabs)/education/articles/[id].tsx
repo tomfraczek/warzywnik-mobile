@@ -469,6 +469,7 @@ export default function ArticleDetailsScreen() {
             }}
             contentFit="cover"
             style={s.cover}
+            recyclingKey={article.slug}
           />
         ) : (
           <View

@@ -400,6 +400,7 @@ function ArticleCard({
   onPress: () => void;
   palette: ReturnType<typeof buildPalette>;
 }) {
+  const [coverBuster] = useState(() => Date.now());
   const firstSeason = item.seasons[0];
   const firstContext = item.contexts[0];
   const firstMonth = item.months[0];
@@ -432,10 +433,11 @@ function ArticleCard({
               source={{
                 uri: item.coverUpdatedAt
                   ? `${item.coverImageUrl}?t=${new Date(item.coverUpdatedAt).getTime()}`
-                  : item.coverImageUrl,
+                  : `${item.coverImageUrl}?t=${coverBuster}`,
               }}
               style={cardStyles.cover}
               contentFit="cover"
+              recyclingKey={item.slug}
             />
             <FavoriteButton targetType="ARTICLE" targetSlug={item.slug} />
           </View>

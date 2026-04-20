@@ -15,7 +15,7 @@ const getPopularVegetables = async (
   params: PopularVegetablesParams,
 ): Promise<PopularVegetablesResponse> => {
   const { data } = await restClient.get<PopularVegetablesResponse>(
-    "/v1/analytics/vegetables/popular",
+    "/analytics/vegetables/popular",
     { params },
   );
   return data;

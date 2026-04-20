@@ -1,12 +1,19 @@
 import { getResponseError } from "@/src/api/axios";
 import { ArticleListItem } from "@/src/api/queries/articles/types";
+import { useGetArticle } from "@/src/api/queries/articles/useGetArticle";
 import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
+import {
+  FavoriteItem,
+  FavoriteTargetType,
+} from "@/src/api/queries/favorites/types";
+import { useGetFavoritesGrouped } from "@/src/api/queries/favorites/useGetFavoritesGrouped";
 import { VegetableListItem } from "@/src/api/queries/vegetables/types";
+import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { useGetVegetables } from "@/src/api/queries/vegetables/useGetVegetables";
 import { Screen } from "@/src/components/Screen";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -51,6 +58,77 @@ type ArticleCardProps = {
   item: ArticleListItem;
   onPress: () => void;
 };
+
+// ─── favorites config ────────────────────────────────────────────────────────
+
+const FAVORITE_TYPE_CONFIG: Record<
+  FavoriteTargetType,
+  { label: string; icon: string; route: string }
+> = {
+  ARTICLE: {
+    label: "Artykuł",
+    icon: "text-box-search-outline",
+    route: "/(tabs)/education/articles",
+  },
+  VEGETABLE: {
+    label: "Warzywo",
+    icon: "sprout-outline",
+    route: "/(tabs)/education/vegetables",
+  },
+  SOIL: {
+    label: "Gleba",
+    icon: "layers-outline",
+    route: "/(tabs)/education/soils",
+  },
+  DISEASE: {
+    label: "Choroba",
+    icon: "bacteria-outline",
+    route: "/(tabs)/education/diseases",
+  },
+  PEST: {
+    label: "Szkodnik",
+    icon: "bug-outline",
+    route: "/(tabs)/education/pests",
+  },
+  FERTILIZER: {
+    label: "Nawóz",
+    icon: "flask-outline",
+    route: "/(tabs)/education/fertilizers",
+  },
+};
+
+const FAVORITE_TYPE_ROUTE_DETAIL: Record<FavoriteTargetType, string> = {
+  ARTICLE: "/(tabs)/education/articles",
+  VEGETABLE: "/(tabs)/education/vegetables",
+  SOIL: "/(tabs)/education/soils",
+  DISEASE: "/(tabs)/education/diseases",
+  PEST: "/(tabs)/education/pests",
+  FERTILIZER: "/(tabs)/education/fertilizers",
+};
+void FAVORITE_TYPE_ROUTE_DETAIL;
+
+const FAVORITE_TYPE_BG: Record<FavoriteTargetType, string> = {
+  ARTICLE: "#EFF4F1",
+  VEGETABLE: "#EAF7EF",
+  SOIL: "#F7F0E4",
+  DISEASE: "#FBECEF",
+  PEST: "#EEF5EF",
+  FERTILIZER: "#EBF4FD",
+};
+
+const FAVORITE_TYPE_TINT: Record<FavoriteTargetType, string> = {
+  ARTICLE: "#4E7163",
+  VEGETABLE: "#3E7C59",
+  SOIL: "#6C6341",
+  DISEASE: "#B05B63",
+  PEST: "#57745E",
+  FERTILIZER: "#4B79A7",
+};
+
+const formatSlug = (slug: string) =>
+  slug.replace(/-/g, " ").replace(/(^|\s)\p{L}/gu, (m) => m.toUpperCase());
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const CATEGORY_TILES: CategoryTile[] = [
   {
@@ -213,17 +291,20 @@ function VegetableCard({ item, onPress }: VegetableCardProps) {
 }
 
 function ArticleCard({ item, onPress }: ArticleCardProps) {
-  const coverBuster = useRef(Date.now()).current;
+  const [coverBuster] = useState(() => Date.now());
   return (
     <Pressable onPress={onPress} hitSlop={6}>
       <View style={sharedStyles.articleCard}>
         {item.coverImageUrl ? (
           <Image
             source={{
-              uri: `${item.coverImageUrl}?t=${item.coverUpdatedAt ? new Date(item.coverUpdatedAt).getTime() : coverBuster}`,
+              uri: item.coverUpdatedAt
+                ? `${item.coverImageUrl}?t=${new Date(item.coverUpdatedAt).getTime()}`
+                : `${item.coverImageUrl}?t=${coverBuster}`,
             }}
             style={sharedStyles.articleImage}
             contentFit="cover"
+            recyclingKey={item.slug}
           />
         ) : (
           <View style={sharedStyles.articleImageFallback}>
@@ -273,6 +354,98 @@ function TwoColumnGrid({ children }: { children: React.ReactElement[] }) {
   );
 }
 
+function FavoriteVegetableTile({
+  item,
+  onPress,
+}: {
+  item: FavoriteItem;
+  onPress: () => void;
+}) {
+  const { data: vegetable } = useGetVegetable(item.targetSlug);
+  const imageUrl = item.imageUrl ?? vegetable?.imageUrl;
+  const name = item.name ?? vegetable?.name ?? formatSlug(item.targetSlug);
+  return (
+    <Pressable onPress={onPress} hitSlop={4}>
+      <View style={sharedStyles.favTile}>
+        {imageUrl ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={sharedStyles.favTileImage}
+            contentFit="cover"
+          />
+        ) : (
+          <View
+            style={[
+              sharedStyles.favTileIconWrap,
+              { backgroundColor: FAVORITE_TYPE_BG.VEGETABLE },
+            ]}
+          >
+            <Icon
+              source="sprout-outline"
+              size={28}
+              color={FAVORITE_TYPE_TINT.VEGETABLE}
+            />
+          </View>
+        )}
+        <Text style={sharedStyles.favTileLabel} numberOfLines={2}>
+          {name}
+        </Text>
+        <Text style={sharedStyles.favTileType}>Warzywo</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function FavoriteArticleTile({
+  item,
+  onPress,
+}: {
+  item: FavoriteItem;
+  onPress: () => void;
+}) {
+  const { data: article } = useGetArticle(item.targetSlug);
+  const [coverBuster] = useState(() => Date.now());
+  const rawImageUrl = article?.coverImageUrl ?? item.imageUrl;
+  const coverUpdatedAt = article?.coverUpdatedAt;
+  const imageUrl = rawImageUrl
+    ? coverUpdatedAt
+      ? `${rawImageUrl}?t=${new Date(coverUpdatedAt).getTime()}`
+      : `${rawImageUrl}?t=${coverBuster}`
+    : null;
+  const name = item.name ?? article?.title ?? formatSlug(item.targetSlug);
+  return (
+    <Pressable onPress={onPress} hitSlop={4}>
+      <View style={sharedStyles.favTile}>
+        {imageUrl ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={sharedStyles.favTileImage}
+            contentFit="cover"
+            recyclingKey={item.targetSlug}
+          />
+        ) : (
+          <View
+            style={[
+              sharedStyles.favTileIconWrap,
+              { backgroundColor: FAVORITE_TYPE_BG.ARTICLE },
+            ]}
+          >
+            <Icon
+              source="text-box-search-outline"
+              size={28}
+              color={FAVORITE_TYPE_TINT.ARTICLE}
+            />
+          </View>
+        )}
+        <Text style={sharedStyles.favTileLabel} numberOfLines={2}>
+          {name}
+        </Text>
+        <Text style={sharedStyles.favTileType}>Artykuł</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 export default function EducationScreen() {
   const router = useRouter();
   const theme = useTheme<MD3Theme>();
@@ -280,6 +453,24 @@ export default function EducationScreen() {
   const [query, setQuery] = useState("");
   void setQuery;
   const needle = query.trim().toLowerCase();
+
+  const { data: favoritesData, isLoading: isFavoritesLoading } =
+    useGetFavoritesGrouped();
+
+  const favoritesPreview = useMemo((): FavoriteItem[] => {
+    if (!favoritesData) return [];
+    return Object.values(favoritesData)
+      .flat()
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+      .slice(0, 4);
+  }, [favoritesData]);
+
+  const hasFavorites =
+    !isFavoritesLoading &&
+    Object.values(favoritesData ?? {}).some((arr) => arr.length > 0);
 
   const {
     data: vegetablesData,
@@ -354,6 +545,91 @@ export default function EducationScreen() {
             <EmptySectionState message="Brak kategorii pasujących do wyszukiwania." />
           )}
         </View>
+
+        {/* ── Ulubione ── */}
+        {(hasFavorites || isFavoritesLoading) && (
+          <View style={styles.section}>
+            <SectionHeader
+              title="Ulubione"
+              actionLabel="Zobacz wszystkie"
+              onActionPress={() =>
+                router.push("/(tabs)/education/favorites" as any)
+              }
+            />
+            {isFavoritesLoading ? (
+              <View style={styles.loadingWrap}>
+                <ActivityIndicator color={styles.palette.accent} />
+              </View>
+            ) : (
+              <TwoColumnGrid>
+                {favoritesPreview.map((item) => {
+                  const cfg = FAVORITE_TYPE_CONFIG[item.targetType];
+                  if (item.targetType === "VEGETABLE") {
+                    return (
+                      <FavoriteVegetableTile
+                        key={item.id}
+                        item={item}
+                        onPress={() =>
+                          router.push(`${cfg.route}/${item.targetSlug}` as any)
+                        }
+                      />
+                    );
+                  }
+                  if (item.targetType === "ARTICLE") {
+                    return (
+                      <FavoriteArticleTile
+                        key={item.id}
+                        item={item}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/(tabs)/education/articles/[id]",
+                            params: { id: item.targetSlug },
+                          })
+                        }
+                      />
+                    );
+                  }
+                  return (
+                    <Pressable
+                      key={item.id}
+                      onPress={() =>
+                        router.push(`${cfg.route}/${item.targetSlug}` as any)
+                      }
+                      hitSlop={4}
+                    >
+                      <View style={sharedStyles.favTile}>
+                        <View
+                          style={[
+                            sharedStyles.favTileIconWrap,
+                            {
+                              backgroundColor:
+                                FAVORITE_TYPE_BG[item.targetType],
+                            },
+                          ]}
+                        >
+                          <Icon
+                            source={cfg.icon}
+                            size={28}
+                            color={FAVORITE_TYPE_TINT[item.targetType]}
+                          />
+                        </View>
+                        <Text
+                          style={sharedStyles.favTileLabel}
+                          numberOfLines={2}
+                        >
+                          {item.name ?? formatSlug(item.targetSlug)}
+                        </Text>
+                        <Text style={sharedStyles.favTileType}>
+                          {cfg.label}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </TwoColumnGrid>
+            )}
+          </View>
+        )}
 
         <View style={styles.section}>
           <SectionHeader
@@ -573,6 +849,50 @@ const sharedStyles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: "#7D8882",
+  },
+  favTile: {
+    minHeight: 138,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E8ECE7",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    overflow: "hidden",
+  },
+  favTileImage: {
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+    marginBottom: 14,
+    backgroundColor: "#F0F3EF",
+  },
+  favTileEmoji: {
+    fontSize: 46,
+    marginBottom: 14,
+  },
+  favTileIconWrap: {
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+  favTileLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 20,
+    textAlign: "center",
+    color: "#1D2420",
+  },
+  favTileType: {
+    fontSize: 12,
+    color: "#97A29B",
+    marginTop: 4,
+    textAlign: "center",
   },
 });
 

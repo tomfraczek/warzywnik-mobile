@@ -114,6 +114,7 @@ export default function ArticleDetailsScreen() {
             }}
             contentFit="cover"
             style={styles.image}
+            recyclingKey={article.slug}
           />
         ) : null}
         <Text style={styles.title}>{article.title}</Text>

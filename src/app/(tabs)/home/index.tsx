@@ -4,6 +4,8 @@ import { WarningItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { useGetMyWarnings } from "@/src/api/queries/users/useGetMyWarnings";
 import { useGetMyWeather } from "@/src/api/queries/users/useGetMyWeather";
+import { VegetableListItem } from "@/src/api/queries/vegetables/types";
+import { useGetVegetables } from "@/src/api/queries/vegetables/useGetVegetables";
 import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
@@ -35,6 +37,7 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Button,
+  Icon,
   MD3Theme,
   Text,
   useTheme,
@@ -50,6 +53,156 @@ const isWeatherUnavailableError = (error: unknown) => {
   if (!isAxiosError(error)) return false;
   return error.response?.status === 503;
 };
+
+// ─── shared library-preview helpers ──────────────────────────────────────────
+
+const CONTEXT_LABELS: Record<string, string> = {
+  BALCONY: "Balkon",
+  BED: "Grządka",
+  GREENHOUSE: "Szklarnia",
+};
+const SEASON_LABELS_HOME: Record<string, string> = {
+  SPRING: "Wiosna",
+  SUMMER: "Lato",
+  AUTUMN: "Jesień",
+  WINTER: "Zima",
+};
+
+const getVegetableEmoji = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes("pomidor")) return "🍅";
+  if (n.includes("marchew")) return "🥕";
+  if (n.includes("ogórek")) return "🥒";
+  if (n.includes("sałat")) return "🥬";
+  if (n.includes("cebula")) return "🧅";
+  if (n.includes("ziemniak")) return "🥔";
+  if (n.includes("papryk")) return "🫑";
+  if (n.includes("dyni") || n.includes("cukini")) return "🎃";
+  return "🌱";
+};
+
+const getArticleEyebrow = (item: ArticleListItem) => {
+  const context = item.contexts[0];
+  const season = item.seasons[0];
+  if (context && CONTEXT_LABELS[context]) return CONTEXT_LABELS[context];
+  if (season && SEASON_LABELS_HOME[season]) return SEASON_LABELS_HOME[season];
+  return "Biblioteka";
+};
+
+const getArticleReadTime = (item: ArticleListItem) => {
+  if (item.readTimeMinutes) return `${item.readTimeMinutes} min czytania`;
+  const words = `${item.title} ${item.excerpt}`.trim().split(/\s+/).length;
+  return `${Math.max(1, Math.round(words / 200))} min czytania`;
+};
+
+function HomeSectionHeader({
+  title,
+  actionLabel,
+  onActionPress,
+}: {
+  title: string;
+  actionLabel?: string;
+  onActionPress?: () => void;
+}) {
+  return (
+    <View style={libStyles.sectionHeader}>
+      <Text style={libStyles.sectionTitle}>{title}</Text>
+      {actionLabel && onActionPress ? (
+        <Pressable onPress={onActionPress} hitSlop={8}>
+          <Text style={libStyles.sectionAction}>{actionLabel}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function TwoColumnGrid({ children }: { children: React.ReactElement[] }) {
+  const left = children.filter((_, i) => i % 2 === 0);
+  const right = children.filter((_, i) => i % 2 === 1);
+  return (
+    <View style={libStyles.twoColWrap}>
+      <View style={libStyles.twoColColumn}>{left}</View>
+      <View style={libStyles.twoColColumn}>{right}</View>
+    </View>
+  );
+}
+
+function HomeVegetableCard({
+  item,
+  onPress,
+}: {
+  item: VegetableListItem;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} hitSlop={6}>
+      <View style={libStyles.vegetableCard}>
+        {item.imageUrl ? (
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={libStyles.vegetableImage}
+            contentFit="cover"
+          />
+        ) : (
+          <Text style={libStyles.vegetableEmoji}>
+            {getVegetableEmoji(item.name)}
+          </Text>
+        )}
+        <Text style={libStyles.vegetableTitle} numberOfLines={2}>
+          {item.name}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function HomeArticleCard({
+  item,
+  onPress,
+}: {
+  item: ArticleListItem;
+  onPress: () => void;
+}) {
+  const coverBuster = useRef(Date.now()).current;
+  return (
+    <Pressable onPress={onPress} hitSlop={6}>
+      <View style={libStyles.articleCard}>
+        {item.coverImageUrl ? (
+          <Image
+            source={{
+              uri: `${item.coverImageUrl}?t=${item.coverUpdatedAt ? new Date(item.coverUpdatedAt).getTime() : coverBuster}`,
+            }}
+            style={libStyles.articleImage}
+            contentFit="cover"
+            recyclingKey={item.slug}
+          />
+        ) : (
+          <View style={libStyles.articleImageFallback}>
+            <Icon
+              source="book-open-page-variant-outline"
+              size={36}
+              color="#5B7B6C"
+            />
+          </View>
+        )}
+        <View style={libStyles.articleBody}>
+          <Text style={libStyles.articleEyebrow}>
+            {getArticleEyebrow(item)}
+          </Text>
+          <Text style={libStyles.articleTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <Text style={libStyles.articleExcerpt} numberOfLines={3}>
+            {item.excerpt}
+          </Text>
+          <Text style={libStyles.articleMeta}>{getArticleReadTime(item)}</Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -67,8 +220,10 @@ export default function HomeScreen() {
   const { data: tasksData, isLoading: tasksLoading } = useGetMyTasks("pending");
   const { data: warningsData, isLoading: warningsLoading } = useGetMyWarnings();
   const { data: articlesData, isLoading: articlesLoading } = useGetArticles({
-    limit: 5,
+    limit: 3,
   });
+  const { data: vegetablesData, isLoading: vegetablesLoading } =
+    useGetVegetables({ limit: 4 });
 
   const warnings = useMemo(
     () => warningsData?.items ?? [],
@@ -131,10 +286,17 @@ export default function HomeScreen() {
   }, [operationalToday, operationalTomorrow, radarWarnings]);
 
   const tips: ArticleListItem[] =
-    articlesData?.pages.flatMap((page) => page.items).slice(0, 2) ?? [];
+    articlesData?.pages.flatMap((page) => page.items).slice(0, 3) ?? [];
+
+  const popularVegetables =
+    vegetablesData?.pages.flatMap((page) => page.items).slice(0, 4) ?? [];
 
   const isLoading =
-    weatherLoading && tasksLoading && warningsLoading && articlesLoading;
+    weatherLoading &&
+    tasksLoading &&
+    warningsLoading &&
+    articlesLoading &&
+    vegetablesLoading;
 
   const handleWarningPress = (warning: WarningItem) => {
     const presentation = resolveWarningPresentation(warning);
@@ -408,41 +570,62 @@ export default function HomeScreen() {
               </View>
             </Card>
 
-            <Card title="Porada dnia" subtitle="Szybka inspiracja">
-              {tips.length === 0 ? (
-                <Text style={styles.placeholder}>Brak nowych porad.</Text>
-              ) : (
-                tips.map((article) => (
-                  <Pressable
-                    key={article.id}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/(tabs)/education/articles/[id]",
-                        params: { id: article.id },
-                      })
-                    }
-                    style={styles.adviceCard}
-                  >
-                    <View style={styles.adviceText}>
-                      <Text style={styles.adviceTitle}>{article.title}</Text>
-                      <Text style={styles.adviceBody} numberOfLines={3}>
-                        {article.excerpt}
-                      </Text>
-                      <Text style={styles.adviceCta}>Czytaj więcej</Text>
-                    </View>
-                    {article.coverImageUrl ? (
-                      <Image
-                        source={{
-                          uri: `${article.coverImageUrl}?t=${article.coverUpdatedAt ? new Date(article.coverUpdatedAt).getTime() : coverBuster}`,
-                        }}
-                        style={styles.adviceImage}
-                        contentFit="cover"
-                      />
-                    ) : null}
-                  </Pressable>
-                ))
-              )}
-            </Card>
+            {/* ── Popularne warzywa ── */}
+            <View style={styles.libSection}>
+              <HomeSectionHeader
+                title="Popularne warzywa"
+                actionLabel="Zobacz wszystkie"
+                onActionPress={() =>
+                  router.push("/(tabs)/education/vegetables")
+                }
+              />
+              {vegetablesLoading ? (
+                <View style={styles.loadingWrap}>
+                  <ActivityIndicator size="small" />
+                </View>
+              ) : popularVegetables.length > 0 ? (
+                <TwoColumnGrid>
+                  {popularVegetables.map((item) => (
+                    <HomeVegetableCard
+                      key={item.id}
+                      item={item}
+                      onPress={() =>
+                        router.push(`/(tabs)/education/vegetables/${item.id}`)
+                      }
+                    />
+                  ))}
+                </TwoColumnGrid>
+              ) : null}
+            </View>
+
+            {/* ── Polecane artykuły ── */}
+            <View style={styles.libSection}>
+              <HomeSectionHeader
+                title="Polecane artykuły"
+                actionLabel="Zobacz wszystkie"
+                onActionPress={() => router.push("/(tabs)/education/articles")}
+              />
+              {articlesLoading ? (
+                <View style={styles.loadingWrap}>
+                  <ActivityIndicator size="small" />
+                </View>
+              ) : tips.length > 0 ? (
+                <View style={styles.articleList}>
+                  {tips.map((article) => (
+                    <HomeArticleCard
+                      key={article.id}
+                      item={article}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/(tabs)/education/articles/[id]",
+                          params: { id: article.id, fromHome: "1" },
+                        })
+                      }
+                    />
+                  ))}
+                </View>
+              ) : null}
+            </View>
           </>
         )}
       </ScrollView>
@@ -596,8 +779,120 @@ const makeStyles = (theme: MD3Theme) =>
       borderRadius: radius.sm,
       backgroundColor: theme.colors.surfaceVariant,
     },
+    libSection: {
+      gap: 0,
+    },
+    articleList: {
+      gap: spacing.md,
+    },
     actions: {
       gap: spacing.sm,
       paddingBottom: spacing.lg,
     },
   });
+
+// ─── library preview styles (same as education/index.tsx) ────────────────────
+const libStyles = StyleSheet.create({
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    gap: 12,
+  },
+  sectionTitle: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1D2420",
+    letterSpacing: -0.2,
+  },
+  sectionAction: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#5E8A70",
+  },
+  twoColWrap: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  twoColColumn: {
+    flex: 1,
+    gap: 16,
+  },
+  vegetableCard: {
+    minHeight: 138,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E8ECE7",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+  },
+  vegetableImage: {
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+    marginBottom: 14,
+    backgroundColor: "#F0F3EF",
+  },
+  vegetableEmoji: {
+    fontSize: 46,
+    marginBottom: 14,
+  },
+  vegetableTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    lineHeight: 22,
+    textAlign: "center",
+    color: "#1D2420",
+  },
+  articleCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#E8ECE7",
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
+  },
+  articleImage: {
+    width: "100%",
+    height: 224,
+    backgroundColor: "#EEF2EE",
+  },
+  articleImageFallback: {
+    width: "100%",
+    height: 224,
+    backgroundColor: "#EEF4F0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  articleBody: {
+    padding: 20,
+  },
+  articleEyebrow: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#5E8A70",
+    marginBottom: 10,
+  },
+  articleTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    lineHeight: 27,
+    color: "#1D2420",
+    marginBottom: 10,
+  },
+  articleExcerpt: {
+    fontSize: 15,
+    lineHeight: 23,
+    color: "#6E7972",
+    marginBottom: 14,
+  },
+  articleMeta: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#97A29B",
+  },
+});
