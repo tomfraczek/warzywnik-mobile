@@ -6,7 +6,7 @@ const trackEvents = async (
   events: AnalyticsEvent[],
 ): Promise<TrackEventsResponse> => {
   const { data } = await restClient.post<TrackEventsResponse>(
-    "/v1/analytics/events",
+    "/analytics/events",
     { events },
   );
   return data;

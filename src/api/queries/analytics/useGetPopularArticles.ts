@@ -7,7 +7,7 @@ const getPopularArticles = async (
   params: PopularArticlesParams,
 ): Promise<PopularArticlesResponse> => {
   const { data } = await restClient.get<PopularArticlesResponse>(
-    "/v1/analytics/articles/popular",
+    "/analytics/articles/popular",
     { params },
   );
   return data;

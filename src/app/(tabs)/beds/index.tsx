@@ -392,7 +392,17 @@ export default function BedsListScreen() {
     [bedsQuery.data?.pages],
   );
 
-  const total = bedsQuery.data?.pages[0]?.total;
+  const visibleBeds = useMemo(() => {
+    if (activeFilter === "active") {
+      return beds.filter((bed) => bed.isActive === true);
+    }
+    if (activeFilter === "inactive") {
+      return beds.filter((bed) => bed.isActive !== true);
+    }
+    return beds;
+  }, [beds, activeFilter]);
+
+  const total = visibleBeds.length;
 
   const activePlantingsCountByBed = useMemo(() => {
     const counts = new Map<string, number>();
@@ -406,7 +416,7 @@ export default function BedsListScreen() {
     return counts;
   }, [plantingsQuery.data?.pages]);
 
-  const isLoading = bedsQuery.isLoading && beds.length === 0;
+  const isLoading = bedsQuery.isLoading && visibleBeds.length === 0;
 
   return (
     <Screen
@@ -414,7 +424,7 @@ export default function BedsListScreen() {
       safeAreaEdges={["top", "left", "right"]}
     >
       <FlatList
-        data={isLoading ? [] : beds}
+        data={isLoading ? [] : visibleBeds}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[
           s.content,
