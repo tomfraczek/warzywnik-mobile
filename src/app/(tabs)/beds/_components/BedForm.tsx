@@ -142,7 +142,11 @@ function BedFormComponent({
 
   const inputStyle = [
     s.input,
-    { backgroundColor: palette.inputBg, borderColor: palette.inputBorder, color: palette.heading },
+    {
+      backgroundColor: palette.inputBg,
+      borderColor: palette.inputBorder,
+      color: palette.heading,
+    },
   ];
 
   return (
@@ -290,7 +294,9 @@ function BedFormComponent({
             s.soilPicker,
             {
               backgroundColor: palette.soilBg,
-              borderColor: values.soilId ? palette.accentBorder : palette.soilBorder,
+              borderColor: values.soilId
+                ? palette.accentBorder
+                : palette.soilBorder,
             },
           ]}
           onPress={onPickSoil}
@@ -304,7 +310,9 @@ function BedFormComponent({
             <Text
               style={[
                 s.soilPickerText,
-                { color: values.soilId ? palette.heading : palette.placeholder },
+                {
+                  color: values.soilId ? palette.heading : palette.placeholder,
+                },
               ]}
             >
               {values.soilName ?? "Wybierz glebę…"}
