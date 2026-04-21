@@ -4,6 +4,7 @@ import {
   FavoriteTargetType,
 } from "@/src/api/queries/favorites/types";
 import { useGetFavoritesGrouped } from "@/src/api/queries/favorites/useGetFavoritesGrouped";
+import { getFavoriteDetailParam } from "@/src/api/queries/favorites/utils";
 import { Screen } from "@/src/components/Screen";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -268,7 +269,12 @@ export default function FavoritesScreen() {
 
   const handleItemPress = (item: FavoriteItem) => {
     const cfg = TYPE_CONFIG[item.targetType];
-    router.push(`${cfg.route}/${item.targetSlug}` as any);
+    const detailParam = getFavoriteDetailParam(item);
+    if (detailParam) {
+      router.push(`${cfg.route}/${detailParam}` as any);
+      return;
+    }
+    router.push(cfg.route as any);
   };
 
   return (

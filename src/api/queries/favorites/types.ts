@@ -9,6 +9,8 @@ export type FavoriteTargetType =
 export type FavoriteItem = {
   id: string;
   targetType: FavoriteTargetType;
+  /** UUID of target entity (preferred for detail routes) */
+  targetId?: string | null;
   targetSlug: string;
   createdAt: string;
   /** Returned when ?include=details is used */

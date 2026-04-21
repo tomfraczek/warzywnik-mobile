@@ -6,6 +6,7 @@ import {
   FavoriteTargetType,
 } from "@/src/api/queries/favorites/types";
 import { useGetFavoritesGrouped } from "@/src/api/queries/favorites/useGetFavoritesGrouped";
+import { getFavoriteDetailParam } from "@/src/api/queries/favorites/utils";
 import { VegetableListItem } from "@/src/api/queries/vegetables/types";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { useGetVegetables } from "@/src/api/queries/vegetables/useGetVegetables";
@@ -366,11 +367,11 @@ function FavoriteVegetableTile({
   onPress,
 }: {
   item: FavoriteItem;
-  onPress: () => void;
+  onPress: (detailParam: string | null) => void;
 }) {
-  const { data: vegetable, isLoading: isVegetableLoading } = useGetVegetable(
-    item.targetSlug,
-  );
+  const detailParam = getFavoriteDetailParam(item);
+  const { data: vegetable, isLoading: isVegetableLoading } =
+    useGetVegetable(detailParam);
   const imageUrl = item.imageUrl ?? vegetable?.imageUrl;
   const name = item.name ?? vegetable?.name ?? formatSlug(item.targetSlug);
 
@@ -380,7 +381,7 @@ function FavoriteVegetableTile({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onPress(detailParam)}
       onPressIn={() => prefetchArticleCover(imageUrl)}
       hitSlop={4}
     >
@@ -593,8 +594,10 @@ export default function EducationScreen() {
                       <FavoriteVegetableTile
                         key={item.id}
                         item={item}
-                        onPress={() =>
-                          router.push(`${cfg.route}/${item.targetSlug}` as any)
+                        onPress={(detailParam) =>
+                          detailParam
+                            ? router.push(`${cfg.route}/${detailParam}` as any)
+                            : router.push(cfg.route as any)
                         }
                       />
                     );
@@ -616,9 +619,14 @@ export default function EducationScreen() {
                   return (
                     <Pressable
                       key={item.id}
-                      onPress={() =>
-                        router.push(`${cfg.route}/${item.targetSlug}` as any)
-                      }
+                      onPress={() => {
+                        const detailParam = getFavoriteDetailParam(item);
+                        if (detailParam) {
+                          router.push(`${cfg.route}/${detailParam}` as any);
+                          return;
+                        }
+                        router.push(cfg.route as any);
+                      }}
                       hitSlop={4}
                     >
                       <View style={sharedStyles.favTile}>
