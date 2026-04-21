@@ -21,10 +21,12 @@ import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { BedSeasonHistorySection } from "@/src/app/(tabs)/beds/_components/BedSeasonHistorySection";
 import { HarvestConfirmationModal } from "@/src/app/(tabs)/beds/_components/HarvestConfirmationModal";
 import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostHarvestActionsModal";
+import { Screen } from "@/src/components/Screen";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { useQueryClient } from "@tanstack/react-query";
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { memo, useEffect, useMemo, useState } from "react";
 import {
@@ -38,11 +40,11 @@ import {
 } from "react-native";
 import {
   Button,
+  Icon,
   IconButton,
   MD3Theme,
   Modal,
   Portal,
-  SegmentedButtons,
   Snackbar,
   Switch,
   useTheme,
@@ -54,6 +56,55 @@ const getSoilLabel = (bed: Bed) =>
     ? bed.soilName
     : null) ??
   "Brak wybranej gleby";
+
+function buildPalette(dark: boolean) {
+  return {
+    background: dark ? "#141816" : "#F7F8F5",
+    cardBg: dark ? "#1A1F1C" : "#FFFFFF",
+    cardBorder: dark ? "#252D29" : "#E8ECE7",
+    innerBg: dark ? "#161C19" : "#F3F6F2",
+    heading: dark ? "#F2F5F1" : "#1D2420",
+    secondary: dark ? "#9AA59E" : "#6E7972",
+    meta: dark ? "#7A8880" : "#97A29B",
+    accent: dark ? "#7AB88A" : "#4A7C59",
+    accentBg: dark ? "#1A2E1F" : "#EBF5EE",
+    accentBorder: dark ? "#2A4A32" : "#C5DFC9",
+    statusActiveBg: dark ? "#1A2E1F" : "#E6F4E9",
+    statusActiveText: dark ? "#7AB88A" : "#2E6B3E",
+    statusInactiveBg: dark ? "#2A2E2B" : "#F1F1F0",
+    statusInactiveText: dark ? "#7A8880" : "#7A7E7B",
+    warning: dark ? "#D66C63" : "#B6473D",
+  };
+}
+
+const CULTIVATION_ENVIRONMENT_LABELS: Record<string, string> = {
+  GROUND_OUTDOOR: "W gruncie",
+  RAISED_BED_OUTDOOR: "Podwyższona grządka",
+  POT_OUTDOOR: "Donica na zewnątrz",
+  POT_INDOOR: "Donica w domu",
+  GREENHOUSE: "Szklarnia",
+  TUNNEL: "Tunel",
+};
+
+const formatSlug = (slug: string) =>
+  slug.replace(/-/g, " ").replace(/(^|\s)\p{L}/gu, (m) => m.toUpperCase());
+
+const formatMetaDate = (value?: string | null) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("pl-PL", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+};
+
+const getSoilSlugLabel = (bed: Bed) => {
+  if (!("soilSlug" in bed)) return null;
+  const soilSlug = (bed as Record<string, unknown>).soilSlug;
+  return typeof soilSlug === "string" ? formatSlug(soilSlug) : null;
+};
 
 const formatDate = (value?: string | null) => {
   if (!value) return "Brak";
@@ -96,17 +147,16 @@ const getTaskStatusTone = (status: ActionTask["status"]) => {
   return "warning" as const;
 };
 
-type HistoryStatusFilter = "all" | "done" | "canceled" | "pending";
-type HistorySourceFilter = "all" | "manual" | "automatyczne" | "pogodowe";
-
 type PlantingRowProps = {
   planting: Planting;
   onPress: () => void;
+  hasAttention: boolean;
 };
 
 const PlantingRow = memo(function PlantingRow({
   planting,
   onPress,
+  hasAttention,
 }: PlantingRowProps) {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
@@ -122,8 +172,29 @@ const PlantingRow = memo(function PlantingRow({
 
   return (
     <Pressable style={styles.plantingRow} onPress={onPress}>
+      <View style={styles.plantingThumbWrap}>
+        {vegetable?.imageUrl ? (
+          <Image
+            source={{ uri: vegetable.imageUrl }}
+            style={styles.plantingThumb}
+          />
+        ) : (
+          <View style={styles.plantingThumbFallback}>
+            <Icon
+              source="sprout-outline"
+              size={16}
+              color={theme.colors.onSurfaceVariant}
+            />
+          </View>
+        )}
+      </View>
       <View style={styles.plantingMain}>
-        <Text style={styles.plantingTitle}>{vegetableName}</Text>
+        <View style={styles.plantingTitleRow}>
+          <Text style={styles.plantingTitle}>{vegetableName}</Text>
+          {hasAttention ? (
+            <Icon source="alert" size={15} color="#B6473D" />
+          ) : null}
+        </View>
         <Text style={styles.plantingMeta}>
           Start: {formatDate(planting.plannedStartDate)}
         </Text>
@@ -135,6 +206,7 @@ const PlantingRow = memo(function PlantingRow({
 
 export default function BedDetailsScreen() {
   const theme = useTheme<MD3Theme>();
+  const palette = buildPalette(theme.dark);
   const styles = makeStyles(theme);
   const { bedId, actionTaskId } = useLocalSearchParams<{
     bedId?: string | string[];
@@ -190,14 +262,11 @@ export default function BedDetailsScreen() {
   const [lastPromptSignature, setLastPromptSignature] = useState("");
   const [postHarvestModalVisible, setPostHarvestModalVisible] = useState(false);
   const [actionsVisible, setActionsVisible] = useState(false);
-  const [historyStatusFilter, setHistoryStatusFilter] =
-    useState<HistoryStatusFilter>("all");
-  const [historySourceFilter, setHistorySourceFilter] =
-    useState<HistorySourceFilter>("all");
 
   const [postHarvestActions, setPostHarvestActions] = useState<
     ActionTemplate[]
   >([]);
+  const [deleteConfirmationStep, setDeleteConfirmationStep] = useState(false);
 
   const harvestPrompts = useMemo(
     () => harvestPromptsResponse?.items ?? [],
@@ -212,23 +281,19 @@ export default function BedDetailsScreen() {
       sortTasksByDueAt(bedTasks.filter((task) => task.status === "pending")),
     [bedTasks],
   );
-  const historyTasks = useMemo(() => {
-    const statusFiltered = bedTasks.filter((task) => {
-      if (historyStatusFilter === "all") return true;
-      return task.status === historyStatusFilter;
-    });
-
-    const sourceFiltered = statusFiltered.filter((task) => {
-      if (historySourceFilter === "all") return true;
-      if (historySourceFilter === "manual") return task.source === "MANUAL";
-      if (historySourceFilter === "automatyczne") {
-        return task.source === "VEGETABLE_RULE";
-      }
-      return task.source === "WEATHER_WARNING";
-    });
-
-    return sortTaskHistoryDesc(sourceFiltered);
-  }, [bedTasks, historySourceFilter, historyStatusFilter]);
+  const historyTasks = useMemo(
+    () =>
+      sortTaskHistoryDesc(
+        bedTasks.filter(
+          (task) => task.status === "done" || task.status === "canceled",
+        ),
+      ),
+    [bedTasks],
+  );
+  const historyPreviewTasks = useMemo(
+    () => historyTasks.slice(0, 4),
+    [historyTasks],
+  );
   const harvestPromptSignature = useMemo(
     () =>
       harvestPrompts
@@ -260,13 +325,20 @@ export default function BedDetailsScreen() {
     () => plantings.filter((planting) => planting.status !== "CANCELLED"),
     [plantings],
   );
-  const cancelledPlantings = useMemo(
-    () => plantings.filter((planting) => planting.status === "CANCELLED"),
-    [plantings],
-  );
 
   const hasAttentionItems =
     harvestPrompts.length > 0 || pendingTasks.length > 0;
+
+  const attentionPlantingIds = useMemo(() => {
+    const ids = new Set<string>();
+    harvestPrompts.forEach((prompt) => ids.add(prompt.plantingId));
+    bedTasks.forEach((task) => {
+      if (task.status === "pending" && task.plantingId) {
+        ids.add(task.plantingId);
+      }
+    });
+    return ids;
+  }, [bedTasks, harvestPrompts]);
 
   const isOffline = useIsOffline();
 
@@ -379,39 +451,32 @@ export default function BedDetailsScreen() {
     }
   };
 
-  const handleDeleteBed = () => {
+  const handleDeleteBed = async () => {
     if (!bed?.id) return;
     if (isOffline) {
       Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
       return;
     }
-    Alert.alert("Usunąć grządkę?", "Tej operacji nie można cofnąć.", [
-      { text: "Anuluj", style: "cancel" },
-      {
-        text: "Usuń",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            setIsBedDeleted(true);
-            await queryClient.cancelQueries({
-              queryKey: bedKeys.detail(bed.id),
-            });
-            await queryClient.cancelQueries({
-              queryKey: bedKeys.seasons(bed.id),
-            });
-            await deleteBed.mutateAsync(bed.id);
-            queryClient.removeQueries({ queryKey: bedKeys.detail(bed.id) });
-            queryClient.removeQueries({ queryKey: bedKeys.seasons(bed.id) });
-            setActionsVisible(false);
-            setSnackbarMessage("Grządka została usunięta.");
-            router.replace("/(tabs)/beds");
-          } catch (err) {
-            setIsBedDeleted(false);
-            Alert.alert("Błąd usuwania grządki", String(getResponseError(err)));
-          }
-        },
-      },
-    ]);
+
+    try {
+      setIsBedDeleted(true);
+      await queryClient.cancelQueries({
+        queryKey: bedKeys.detail(bed.id),
+      });
+      await queryClient.cancelQueries({
+        queryKey: bedKeys.seasons(bed.id),
+      });
+      await deleteBed.mutateAsync(bed.id);
+      queryClient.removeQueries({ queryKey: bedKeys.detail(bed.id) });
+      queryClient.removeQueries({ queryKey: bedKeys.seasons(bed.id) });
+      setActionsVisible(false);
+      setDeleteConfirmationStep(false);
+      setSnackbarMessage("Grządka została usunięta.");
+      router.replace("/(tabs)/beds");
+    } catch (err) {
+      setIsBedDeleted(false);
+      Alert.alert("Błąd usuwania grządki", String(getResponseError(err)));
+    }
   };
 
   const dimensions = useMemo(() => {
@@ -421,445 +486,735 @@ export default function BedDetailsScreen() {
       bed.widthCm != null ? `${bed.widthCm} cm` : null,
       bed.depthCm != null ? `${bed.depthCm} cm` : null,
     ].filter(Boolean);
-    return parts.length > 0 ? parts.join(" × ") : "Brak danych";
+    return parts.length > 0 ? parts.join(" × ") : null;
   }, [bed]);
 
-  if (isBedDeleted) {
+  const cultivationEnvironmentLabel = useMemo(() => {
+    if (!bed?.cultivationEnvironment) return null;
     return (
-      <View style={styles.center}>
-        <ActivityIndicator />
-      </View>
+      CULTIVATION_ENVIRONMENT_LABELS[bed.cultivationEnvironment] ??
+      bed.cultivationEnvironment
     );
-  }
+  }, [bed?.cultivationEnvironment]);
 
-  if (isLoading) {
+  const soilSlugLabel = useMemo(
+    () => (bed ? getSoilSlugLabel(bed) : null),
+    [bed],
+  );
+
+  const hasSoilAnalysisData =
+    (typeof bed?.measuredN === "number" && bed.measuredN > 0) ||
+    (typeof bed?.measuredP === "number" && bed.measuredP > 0) ||
+    (typeof bed?.measuredK === "number" && bed.measuredK > 0) ||
+    (typeof bed?.measuredPh === "number" && bed.measuredPh > 0);
+
+  if (isBedDeleted || isLoading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator />
-      </View>
+      <Screen
+        style={{ backgroundColor: palette.background }}
+        safeAreaEdges={["left", "right"]}
+      >
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={styles.heroCard}>
+            <View style={styles.skeletonPill} />
+            <View style={styles.skeletonTitle} />
+            <View style={styles.skeletonLine} />
+            <View style={styles.quickChipsRow}>
+              <View style={styles.skeletonChip} />
+              <View style={styles.skeletonChip} />
+            </View>
+          </View>
+          {[1, 2, 3].map((item) => (
+            <View key={item} style={styles.section}>
+              <View style={styles.skeletonHeader} />
+              <View style={styles.skeletonLine} />
+            </View>
+          ))}
+        </ScrollView>
+      </Screen>
     );
   }
 
   if (error || !bed) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{String(getResponseError(error))}</Text>
-        <Pressable style={styles.secondaryButton} onPress={() => refetch()}>
-          <Text style={styles.secondaryButtonText}>Spróbuj ponownie</Text>
-        </Pressable>
-      </View>
+      <Screen
+        style={{ backgroundColor: palette.background }}
+        safeAreaEdges={["top", "left", "right"]}
+      >
+        <View style={styles.center}>
+          <Text style={styles.errorText}>
+            {String(getResponseError(error))}
+          </Text>
+          <Pressable style={styles.secondaryButton} onPress={() => refetch()}>
+            <Text style={styles.secondaryButtonText}>Spróbuj ponownie</Text>
+          </Pressable>
+        </View>
+      </Screen>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View style={styles.headerText}>
-            <View style={styles.titleRow}>
-              <Text style={styles.title}>{bed.name}</Text>
-              {hasAttentionItems ? <View style={styles.harvestDot} /> : null}
-            </View>
-            {bed.locationLabel ? (
-              <Text style={styles.subtitle}>{bed.locationLabel}</Text>
-            ) : null}
-          </View>
-          <IconButton icon="cog" onPress={() => setActionsVisible(true)} />
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Gleba</Text>
-        <Text style={styles.valueText}>{getSoilLabel(bed)}</Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Wymiary</Text>
-        <Text style={styles.valueText}>{dimensions}</Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Status grządki</Text>
-        <View style={styles.statusRow}>
-          <Text style={styles.valueText}>
-            {bed.isActive === false ? "Nieaktywna" : "Aktywna"}
-          </Text>
-          <Switch
-            value={bed.isActive !== false}
-            onValueChange={handleToggleBedActive}
-            disabled={updateBed.isPending || isOffline}
-          />
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Badanie gleby</Text>
-        <Text style={styles.valueText}>
-          {bed.soilTestingEnabled ? "Włączone" : "Wyłączone"}
-        </Text>
-        {bed.soilTestingEnabled ? (
-          <View style={styles.metrics}>
-            {bed.measuredN != null ? (
-              <Text style={styles.metricRow}>N: {bed.measuredN}</Text>
-            ) : null}
-            {bed.measuredP != null ? (
-              <Text style={styles.metricRow}>P: {bed.measuredP}</Text>
-            ) : null}
-            {bed.measuredK != null ? (
-              <Text style={styles.metricRow}>K: {bed.measuredK}</Text>
-            ) : null}
-            {bed.measuredPh != null ? (
-              <Text style={styles.metricRow}>pH: {bed.measuredPh}</Text>
-            ) : null}
-          </View>
-        ) : null}
-      </View>
-
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <View style={styles.sectionTitleRow}>
-            <Text style={styles.sectionTitle}>Uprawy</Text>
-            {hasAttentionItems ? <View style={styles.harvestDotSmall} /> : null}
-          </View>
-          <Pressable
-            style={styles.linkButton}
-            onPress={() => router.push(`/(tabs)/beds/${bed.id}/plantings/new`)}
-          >
-            <Text style={styles.linkButtonText}>+ Dodaj uprawę</Text>
-          </Pressable>
-        </View>
-
-        {isPlantingsLoading && activePlantings.length === 0 ? (
-          <ActivityIndicator style={styles.inlineLoader} />
-        ) : null}
-
-        {plantingsError && activePlantings.length === 0 ? (
-          <View style={styles.inlineErrorBox}>
-            <Text style={styles.errorText}>
-              {String(getResponseError(plantingsError))}
-            </Text>
-            <Pressable
-              style={styles.secondaryButton}
-              onPress={() => refetchPlantings()}
-            >
-              <Text style={styles.secondaryButtonText}>Spróbuj ponownie</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {!isPlantingsLoading &&
-        activePlantings.length === 0 &&
-        !plantingsError ? (
-          <Text style={styles.valueText}>Brak upraw w tej grządce.</Text>
-        ) : null}
-
-        {activePlantings.map((planting: Planting) => (
-          <PlantingRow
-            key={planting.id}
-            planting={planting}
-            onPress={() =>
-              router.push(`/(tabs)/beds/${bed.id}/plantings/${planting.id}`)
-            }
-          />
-        ))}
-
-        {hasNextPage ? (
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() => fetchNextPage()}
-            disabled={isFetchingNextPage}
-          >
-            {isFetchingNextPage ? (
-              <ActivityIndicator />
-            ) : (
-              <Text style={styles.secondaryButtonText}>Wczytaj więcej</Text>
-            )}
-          </Pressable>
-        ) : null}
-      </View>
-
-      {harvestPrompts.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Gotowe do zbioru</Text>
-          {harvestPrompts.map((prompt) => (
-            <Pressable
-              key={prompt.plantingId}
-              onPress={() => setPromptQueue([prompt])}
-              style={styles.harvestPromptRow}
-            >
-              <Text style={styles.harvestPromptTitle}>{prompt.title}</Text>
-              <Text style={styles.harvestPromptMeta}>Wymaga potwierdzenia</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Tasks to do</Text>
-        {isBedTasksLoading ? <ActivityIndicator /> : null}
-
-        {bedTasksError ? (
-          <View style={styles.inlineErrorBox}>
-            <Text style={styles.errorText}>
-              {String(getResponseError(bedTasksError))}
-            </Text>
-            <Button mode="outlined" onPress={() => refetchBedTasks()}>
-              Spróbuj ponownie
-            </Button>
-          </View>
-        ) : null}
-
-        {!isBedTasksLoading && !bedTasksError && pendingTasks.length === 0 ? (
-          <Text style={styles.valueText}>Brak zadań do wykonania.</Text>
-        ) : null}
-
-        {pendingTasks.map((task) => {
-          const isHighlighted = highlightedActionTaskId === task.id;
-          return (
+    <Screen
+      style={{ backgroundColor: palette.background }}
+      safeAreaEdges={["left", "right"]}
+    >
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.heroCard}>
+          <View style={styles.heroTopRow}>
             <View
-              key={task.id}
+              style={[styles.entityTag, { backgroundColor: palette.accentBg }]}
+            >
+              <Text style={[styles.entityTagText, { color: palette.accent }]}>
+                Grządka
+              </Text>
+            </View>
+            <IconButton
+              icon="cog-outline"
+              size={20}
+              iconColor={palette.secondary}
+              onPress={() => {
+                setDeleteConfirmationStep(false);
+                setActionsVisible(true);
+              }}
+              style={styles.heroSettingsButton}
+            />
+          </View>
+
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{bed.name}</Text>
+          </View>
+
+          {bed.locationLabel || bed.description ? (
+            <Text style={styles.subtitle}>
+              {bed.locationLabel ?? bed.description}
+            </Text>
+          ) : null}
+
+          <View style={styles.heroStatusRow}>
+            <View
               style={[
-                styles.taskRow,
-                isHighlighted ? styles.taskRowHighlighted : null,
+                styles.statusBadge,
+                {
+                  backgroundColor:
+                    bed.isActive !== true
+                      ? palette.statusInactiveBg
+                      : palette.statusActiveBg,
+                },
               ]}
             >
+              <Text
+                style={[
+                  styles.statusBadgeText,
+                  {
+                    color:
+                      bed.isActive !== true
+                        ? palette.statusInactiveText
+                        : palette.statusActiveText,
+                  },
+                ]}
+              >
+                {bed.isActive !== true ? "Nieaktywna" : "Aktywna"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.quickChipsRow}>
+            {cultivationEnvironmentLabel ? (
+              <View style={styles.quickChip}>
+                <Icon
+                  source="sprout-outline"
+                  size={14}
+                  color={palette.accent}
+                />
+                <Text style={[styles.quickChipText, { color: palette.accent }]}>
+                  {cultivationEnvironmentLabel}
+                </Text>
+              </View>
+            ) : null}
+            {soilSlugLabel ? (
+              <View style={styles.quickChip}>
+                <Icon
+                  source="layers-outline"
+                  size={14}
+                  color={palette.secondary}
+                />
+                <Text style={styles.quickChipText}>{soilSlugLabel}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Informacje o grządce</Text>
+
+          <Text style={styles.subsectionTitle}>Podstawowe informacje</Text>
+          <View style={styles.infoRows}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Nazwa</Text>
+              <Text style={styles.infoValue}>{bed.name}</Text>
+            </View>
+            {bed.locationLabel ? (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Lokalizacja</Text>
+                <Text style={styles.infoValue}>{bed.locationLabel}</Text>
+              </View>
+            ) : null}
+            {bed.description ? (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Opis</Text>
+                <Text style={styles.infoValue}>{bed.description}</Text>
+              </View>
+            ) : null}
+            <View style={styles.infoRowSwitch}>
+              <View style={styles.infoRowSwitchText}>
+                <Text style={styles.infoLabel}>Status grządki</Text>
+                <Text style={styles.infoValueMuted}>
+                  {bed.isActive !== true ? "Nieaktywna" : "Aktywna"}
+                </Text>
+              </View>
+              <Switch
+                value={bed.isActive === true}
+                onValueChange={handleToggleBedActive}
+                disabled={updateBed.isPending || isOffline}
+              />
+            </View>
+          </View>
+
+          {dimensions ? (
+            <>
+              <View style={styles.sectionDivider} />
+              <Text style={styles.subsectionTitle}>Wymiary</Text>
+              <Text style={styles.dimensionSummary}>{dimensions}</Text>
+              <View style={styles.metricGrid}>
+                {bed.lengthCm != null ? (
+                  <View style={styles.metricCard}>
+                    <Text style={styles.metricLabel}>Długość</Text>
+                    <Text style={styles.metricValue}>{bed.lengthCm}</Text>
+                    <Text style={styles.metricUnit}>cm</Text>
+                  </View>
+                ) : null}
+                {bed.widthCm != null ? (
+                  <View style={styles.metricCard}>
+                    <Text style={styles.metricLabel}>Szerokość</Text>
+                    <Text style={styles.metricValue}>{bed.widthCm}</Text>
+                    <Text style={styles.metricUnit}>cm</Text>
+                  </View>
+                ) : null}
+                {bed.depthCm != null ? (
+                  <View style={styles.metricCard}>
+                    <Text style={styles.metricLabel}>Głębokość</Text>
+                    <Text style={styles.metricValue}>{bed.depthCm}</Text>
+                    <Text style={styles.metricUnit}>cm</Text>
+                  </View>
+                ) : null}
+              </View>
+            </>
+          ) : null}
+
+          <View style={styles.sectionDivider} />
+          <Text style={styles.subsectionTitle}>Środowisko uprawy</Text>
+          <View style={styles.infoRows}>
+            {cultivationEnvironmentLabel ? (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Środowisko</Text>
+                <Text style={styles.infoValue}>
+                  {cultivationEnvironmentLabel}
+                </Text>
+              </View>
+            ) : null}
+            {!cultivationEnvironmentLabel ? (
+              <Text style={styles.valueText}>Brak danych o środowisku.</Text>
+            ) : null}
+          </View>
+
+          <View style={styles.sectionDivider} />
+          <Text style={styles.subsectionTitle}>Gleba</Text>
+          <View style={styles.infoRows}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Typ gleby</Text>
+              <Text style={styles.infoValue}>
+                {soilSlugLabel ?? getSoilLabel(bed)}
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Analiza gleby</Text>
+              <Text style={styles.infoValue}>
+                {bed.soilTestingEnabled ? "Włączona" : "Wyłączona"}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {hasSoilAnalysisData ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Analiza gleby</Text>
+            <View style={styles.metricGrid}>
+              {bed.measuredN != null ? (
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricLabel}>N</Text>
+                  <Text style={styles.metricValue}>{bed.measuredN}</Text>
+                </View>
+              ) : null}
+              {bed.measuredP != null ? (
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricLabel}>P</Text>
+                  <Text style={styles.metricValue}>{bed.measuredP}</Text>
+                </View>
+              ) : null}
+              {bed.measuredK != null ? (
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricLabel}>K</Text>
+                  <Text style={styles.metricValue}>{bed.measuredK}</Text>
+                </View>
+              ) : null}
+              {bed.measuredPh != null ? (
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricLabel}>pH</Text>
+                  <Text style={styles.metricValue}>{bed.measuredPh}</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Uprawy</Text>
+            <Pressable
+              style={styles.linkButton}
+              onPress={() =>
+                router.push(`/(tabs)/beds/${bed.id}/plantings/new`)
+              }
+            >
+              <Text style={styles.linkButtonText}>Dodaj uprawę</Text>
+            </Pressable>
+          </View>
+
+          {isPlantingsLoading && activePlantings.length === 0 ? (
+            <ActivityIndicator style={styles.inlineLoader} />
+          ) : null}
+
+          {plantingsError && activePlantings.length === 0 ? (
+            <View style={styles.inlineErrorBox}>
+              <Text style={styles.errorText}>
+                {String(getResponseError(plantingsError))}
+              </Text>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => refetchPlantings()}
+              >
+                <Text style={styles.secondaryButtonText}>Spróbuj ponownie</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {!isPlantingsLoading &&
+          activePlantings.length === 0 &&
+          !plantingsError ? (
+            <Text style={styles.valueText}>Brak upraw w tej grządce.</Text>
+          ) : null}
+
+          {activePlantings.map((planting: Planting) => (
+            <PlantingRow
+              key={planting.id}
+              planting={planting}
+              hasAttention={attentionPlantingIds.has(planting.id)}
+              onPress={() =>
+                router.push(`/(tabs)/beds/${bed.id}/plantings/${planting.id}`)
+              }
+            />
+          ))}
+
+          {hasNextPage ? (
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+            >
+              {isFetchingNextPage ? (
+                <ActivityIndicator />
+              ) : (
+                <Text style={styles.secondaryButtonText}>Wczytaj więcej</Text>
+              )}
+            </Pressable>
+          ) : null}
+        </View>
+
+        {harvestPrompts.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Gotowe do zbioru</Text>
+            {harvestPrompts.map((prompt) => (
+              <Pressable
+                key={prompt.plantingId}
+                onPress={() => setPromptQueue([prompt])}
+                style={styles.harvestPromptRow}
+              >
+                <Text style={styles.harvestPromptTitle}>{prompt.title}</Text>
+                <Text style={styles.harvestPromptMeta}>
+                  Wymaga potwierdzenia
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitle, styles.sectionTitleInHeader]}>
+              Zadania
+            </Text>
+            {hasAttentionItems ? (
+              <Icon source="alert" size={18} color={palette.warning} />
+            ) : null}
+          </View>
+          {isBedTasksLoading ? <ActivityIndicator /> : null}
+
+          {bedTasksError ? (
+            <View style={styles.inlineErrorBox}>
+              <Text style={styles.errorText}>
+                {String(getResponseError(bedTasksError))}
+              </Text>
+              <Button mode="outlined" onPress={() => refetchBedTasks()}>
+                Spróbuj ponownie
+              </Button>
+            </View>
+          ) : null}
+
+          {!isBedTasksLoading && !bedTasksError && pendingTasks.length === 0 ? (
+            <Text style={styles.valueText}>Brak zadań do wykonania.</Text>
+          ) : null}
+
+          {pendingTasks.map((task) => {
+            const isHighlighted = highlightedActionTaskId === task.id;
+            return (
+              <View
+                key={task.id}
+                style={[
+                  styles.taskRow,
+                  isHighlighted ? styles.taskRowHighlighted : null,
+                ]}
+              >
+                <View style={styles.taskMain}>
+                  <Text style={styles.taskTitle}>{task.title}</Text>
+                  {task.description ? (
+                    <Text style={styles.taskDescription}>
+                      {task.description}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.taskMeta}>
+                    Termin: {formatDate(task.dueAt)}
+                  </Text>
+                </View>
+
+                <View style={styles.taskActions}>
+                  <Button
+                    mode="outlined"
+                    style={styles.taskActionButton}
+                    onPress={() => handleCancelTask(task.id)}
+                    disabled={updateActionTask.isPending || isOffline}
+                  >
+                    Anuluj
+                  </Button>
+                  <Button
+                    mode="contained"
+                    style={styles.taskActionButton}
+                    onPress={() => handleMarkTaskDone(task.id)}
+                    disabled={updateActionTask.isPending || isOffline}
+                  >
+                    Done
+                  </Button>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Historia zabiegów</Text>
+            {historyTasks.length > 4 ? (
+              <Pressable
+                style={styles.linkButton}
+                onPress={() => router.push(`/(tabs)/beds/${bed.id}/history`)}
+              >
+                <Text style={styles.linkButtonText}>Zobacz wszystkie</Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {isBedTasksLoading ? <ActivityIndicator /> : null}
+
+          {bedTasksError ? (
+            <View style={styles.inlineErrorBox}>
+              <Text style={styles.errorText}>
+                {String(getResponseError(bedTasksError))}
+              </Text>
+              <Button mode="outlined" onPress={() => refetchBedTasks()}>
+                Spróbuj ponownie
+              </Button>
+            </View>
+          ) : null}
+
+          {!isBedTasksLoading &&
+          !bedTasksError &&
+          historyPreviewTasks.length === 0 ? (
+            <Text style={styles.valueText}>Brak historii zabiegów.</Text>
+          ) : null}
+
+          {historyPreviewTasks.map((task) => (
+            <View key={`history-${task.id}`} style={styles.historyRow}>
               <View style={styles.taskMain}>
                 <Text style={styles.taskTitle}>{task.title}</Text>
                 {task.description ? (
                   <Text style={styles.taskDescription}>{task.description}</Text>
                 ) : null}
                 <Text style={styles.taskMeta}>
-                  Termin: {formatDate(task.dueAt)}
+                  Data: {formatDate(getTaskRecordDate(task))}
+                </Text>
+                <Text style={styles.taskMeta}>
+                  Źródło: {getTaskSourceLabel(task.source)}
                 </Text>
               </View>
 
-              <View style={styles.taskActions}>
-                <Button
-                  mode="outlined"
-                  compact
-                  onPress={() => handleCancelTask(task.id)}
-                  disabled={updateActionTask.isPending || isOffline}
-                >
-                  Anuluj
-                </Button>
-                <Button
-                  mode="contained"
-                  compact
-                  onPress={() => handleMarkTaskDone(task.id)}
-                  disabled={updateActionTask.isPending || isOffline}
-                >
-                  Done
-                </Button>
-              </View>
+              <StatusBadge
+                label={getTaskStatusLabel(task.status)}
+                tone={getTaskStatusTone(task.status)}
+              />
             </View>
-          );
-        })}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Historia zabiegów</Text>
-
-        <Text style={styles.filterLabel}>Status</Text>
-        <SegmentedButtons
-          value={historyStatusFilter}
-          onValueChange={(value) =>
-            setHistoryStatusFilter(value as HistoryStatusFilter)
-          }
-          buttons={[
-            { value: "all", label: "Wszystkie" },
-            { value: "done", label: "Wykonane" },
-            { value: "canceled", label: "Anulowane" },
-            { value: "pending", label: "Oczekujące" },
-          ]}
-          style={styles.filterButtons}
-        />
-
-        <Text style={styles.filterLabel}>Typ</Text>
-        <SegmentedButtons
-          value={historySourceFilter}
-          onValueChange={(value) =>
-            setHistorySourceFilter(value as HistorySourceFilter)
-          }
-          buttons={[
-            { value: "all", label: "Wszystkie" },
-            { value: "manual", label: "Manualne" },
-            { value: "automatyczne", label: "Automatyczne" },
-            { value: "pogodowe", label: "Pogodowe" },
-          ]}
-          style={styles.filterButtons}
-        />
-
-        {isBedTasksLoading ? <ActivityIndicator /> : null}
-
-        {bedTasksError ? (
-          <View style={styles.inlineErrorBox}>
-            <Text style={styles.errorText}>
-              {String(getResponseError(bedTasksError))}
-            </Text>
-            <Button mode="outlined" onPress={() => refetchBedTasks()}>
-              Spróbuj ponownie
-            </Button>
-          </View>
-        ) : null}
-
-        {!isBedTasksLoading && !bedTasksError && historyTasks.length === 0 ? (
-          <Text style={styles.valueText}>Brak historii zabiegów.</Text>
-        ) : null}
-
-        {historyTasks.map((task) => (
-          <View key={`history-${task.id}`} style={styles.historyRow}>
-            <View style={styles.taskMain}>
-              <Text style={styles.taskTitle}>{task.title}</Text>
-              {task.description ? (
-                <Text style={styles.taskDescription}>{task.description}</Text>
-              ) : null}
-              <Text style={styles.taskMeta}>
-                Data: {formatDate(getTaskRecordDate(task))}
-              </Text>
-              <Text style={styles.taskMeta}>
-                Źródło: {getTaskSourceLabel(task.source)}
-              </Text>
-            </View>
-
-            <StatusBadge
-              label={getTaskStatusLabel(task.status)}
-              tone={getTaskStatusTone(task.status)}
-            />
-          </View>
-        ))}
-      </View>
-
-      {resolvedBedId ? (
-        <BedSeasonHistorySection bedId={resolvedBedId} />
-      ) : (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Historia upraw</Text>
-          <Text style={styles.valueText}>Brak zakończonych upraw.</Text>
+          ))}
         </View>
-      )}
 
-      <HarvestConfirmationModal
-        visible={harvestConfirmationVisible}
-        plantingTitle={activeHarvestPrompt?.title ?? ""}
-        isSubmitting={confirmationMutation.isPending}
-        onNo={handleHarvestNo}
-        onYes={handleHarvestYes}
-      />
-
-      <PostHarvestActionsModal
-        visible={postHarvestModalVisible}
-        actions={postHarvestActions}
-        isSubmitting={createBedActionTasksBulk.isPending}
-        onCancel={() => {
-          setPostHarvestModalVisible(false);
-          setPostHarvestActions([]);
-        }}
-        onSubmit={handleCreatePostHarvestTasks}
-      />
-
-      <Portal>
-        <Modal
-          visible={actionsVisible}
-          onDismiss={() => setActionsVisible(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <Text style={styles.modalTitle}>Akcje</Text>
-          <View style={styles.modalActionsColumn}>
-            <Button
-              mode="contained"
-              onPress={() => {
-                setActionsVisible(false);
-                router.push(`/(tabs)/beds/${bed.id}/edit`);
-              }}
-              disabled={deleteBed.isPending || isOffline}
-            >
-              Edytuj
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={() => handleDeleteBed()}
-              disabled={deleteBed.isPending || isOffline}
-              loading={deleteBed.isPending}
-              textColor={theme.colors.error}
-              style={styles.deleteButton}
-            >
-              Usuń
-            </Button>
-            <Button
-              mode="text"
-              onPress={() => setActionsVisible(false)}
-              disabled={deleteBed.isPending}
-            >
-              Anuluj
-            </Button>
+        {resolvedBedId ? (
+          <BedSeasonHistorySection bedId={resolvedBedId} />
+        ) : (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Historia upraw</Text>
+            <Text style={styles.valueText}>Brak zakończonych upraw.</Text>
           </View>
-        </Modal>
-      </Portal>
+        )}
 
-      <Snackbar
-        visible={!!snackbarMessage}
-        onDismiss={() => setSnackbarMessage(null)}
-        duration={2400}
-      >
-        {snackbarMessage}
-      </Snackbar>
-    </ScrollView>
+        <View style={styles.metaSection}>
+          {formatMetaDate(bed.createdAt) ? (
+            <Text style={styles.metaText}>
+              Utworzono: {formatMetaDate(bed.createdAt)}
+            </Text>
+          ) : null}
+          {formatMetaDate(bed.updatedAt) ? (
+            <Text style={styles.metaText}>
+              Zaktualizowano: {formatMetaDate(bed.updatedAt)}
+            </Text>
+          ) : null}
+        </View>
+
+        <HarvestConfirmationModal
+          visible={harvestConfirmationVisible}
+          plantingTitle={activeHarvestPrompt?.title ?? ""}
+          isSubmitting={confirmationMutation.isPending}
+          onNo={handleHarvestNo}
+          onYes={handleHarvestYes}
+        />
+
+        <PostHarvestActionsModal
+          visible={postHarvestModalVisible}
+          actions={postHarvestActions}
+          isSubmitting={createBedActionTasksBulk.isPending}
+          onCancel={() => {
+            setPostHarvestModalVisible(false);
+            setPostHarvestActions([]);
+          }}
+          onSubmit={handleCreatePostHarvestTasks}
+        />
+
+        <Portal>
+          <Modal
+            visible={actionsVisible}
+            onDismiss={() => {
+              setActionsVisible(false);
+              setDeleteConfirmationStep(false);
+            }}
+            contentContainerStyle={styles.modal}
+          >
+            {deleteConfirmationStep ? (
+              <>
+                <Text style={styles.modalTitle}>Usunąć grządkę?</Text>
+                <Text style={styles.modalText}>
+                  Tej operacji nie można cofnąć. Wszystkie powiązane dane tej
+                  grządki zostaną usunięte.
+                </Text>
+                <View style={styles.modalActionsColumn}>
+                  <Button
+                    mode="contained"
+                    buttonColor={theme.colors.error}
+                    onPress={handleDeleteBed}
+                    disabled={deleteBed.isPending || isOffline}
+                    loading={deleteBed.isPending}
+                  >
+                    Potwierdź usunięcie
+                  </Button>
+                  <Button
+                    mode="outlined"
+                    onPress={() => setDeleteConfirmationStep(false)}
+                    disabled={deleteBed.isPending}
+                  >
+                    Wróć
+                  </Button>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalTitle}>Akcje</Text>
+                <View style={styles.modalActionsColumn}>
+                  <Button
+                    mode="contained"
+                    onPress={() => {
+                      setActionsVisible(false);
+                      router.push(`/(tabs)/beds/${bed.id}/edit`);
+                    }}
+                    disabled={deleteBed.isPending || isOffline}
+                  >
+                    Edytuj
+                  </Button>
+                  <Button
+                    mode="outlined"
+                    onPress={() => setDeleteConfirmationStep(true)}
+                    disabled={deleteBed.isPending || isOffline}
+                    textColor={theme.colors.error}
+                    style={styles.deleteButton}
+                  >
+                    Usuń
+                  </Button>
+                  <Button
+                    mode="text"
+                    onPress={() => setActionsVisible(false)}
+                    disabled={deleteBed.isPending}
+                  >
+                    Zamknij
+                  </Button>
+                </View>
+              </>
+            )}
+          </Modal>
+        </Portal>
+
+        <Snackbar
+          visible={!!snackbarMessage}
+          onDismiss={() => setSnackbarMessage(null)}
+          duration={2400}
+        >
+          {snackbarMessage}
+        </Snackbar>
+      </ScrollView>
+    </Screen>
   );
 }
 
-const makeStyles = (theme: MD3Theme) =>
-  StyleSheet.create({
+const makeStyles = (theme: MD3Theme) => {
+  const palette = buildPalette(theme.dark);
+  return StyleSheet.create({
     container: {
-      padding: 16,
-      paddingBottom: 32,
-      backgroundColor: theme.colors.background,
+      paddingHorizontal: 16,
+      paddingTop: 0,
+      paddingBottom: 36,
+      backgroundColor: palette.background,
     },
-    header: {
-      marginBottom: 16,
+    heroCard: {
+      backgroundColor: palette.cardBg,
+      borderColor: palette.cardBorder,
+      borderWidth: 1,
+      borderRadius: 24,
+      padding: 20,
+      marginTop: 8,
+      marginBottom: 20,
+      gap: 10,
     },
-    headerRow: {
+    heroTopRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
     },
-    headerText: {
-      flex: 1,
-      paddingRight: 8,
+    heroSettingsButton: {
+      margin: 0,
+    },
+    entityTag: {
+      alignSelf: "flex-start",
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+    },
+    entityTagText: {
+      fontSize: 12,
+      fontWeight: "600",
+      letterSpacing: 0.2,
     },
     titleRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
+      gap: 10,
     },
     title: {
-      fontSize: 22,
+      flex: 1,
+      fontSize: 30,
       fontWeight: "700",
-      color: theme.colors.onBackground,
+      letterSpacing: -0.4,
+      color: palette.heading,
     },
     harvestDot: {
       width: 10,
       height: 10,
       borderRadius: 999,
-      backgroundColor: theme.colors.error,
+      backgroundColor: palette.warning,
     },
     subtitle: {
-      fontSize: 14,
-      color: theme.colors.onSurfaceVariant,
-      marginTop: 4,
+      fontSize: 15,
+      lineHeight: 21,
+      color: palette.secondary,
+    },
+    heroStatusRow: {
+      flexDirection: "row",
+      marginTop: 2,
+      marginBottom: 4,
+    },
+    statusBadge: {
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    statusBadgeText: {
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    quickChipsRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    quickChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      backgroundColor: palette.innerBg,
+    },
+    quickChipText: {
+      fontSize: 12,
+      fontWeight: "500",
+      color: palette.secondary,
     },
     section: {
+      backgroundColor: palette.cardBg,
+      borderColor: palette.cardBorder,
       borderWidth: 1,
-      borderColor: theme.colors.outline,
-      borderRadius: 12,
-      padding: 12,
-      marginBottom: 14,
-      backgroundColor: theme.colors.surface,
+      borderRadius: 22,
+      padding: 20,
+      marginBottom: 20,
     },
     sectionHeaderRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      marginBottom: 8,
+      marginBottom: 10,
     },
     sectionTitleRow: {
       flexDirection: "row",
@@ -867,35 +1222,111 @@ const makeStyles = (theme: MD3Theme) =>
       gap: 8,
     },
     sectionTitle: {
+      fontSize: 19,
+      fontWeight: "700",
+      color: palette.heading,
+      marginBottom: 12,
+    },
+    sectionTitleInHeader: {
+      marginBottom: 0,
+    },
+    subsectionTitle: {
       fontSize: 15,
-      fontWeight: "600",
-      marginBottom: 8,
-      color: theme.colors.onSurface,
+      fontWeight: "700",
+      color: palette.heading,
+      marginBottom: 10,
+    },
+    sectionDivider: {
+      height: 1,
+      backgroundColor: palette.cardBorder,
+      marginVertical: 14,
     },
     harvestDotSmall: {
       width: 8,
       height: 8,
       borderRadius: 999,
-      marginBottom: 8,
-      backgroundColor: theme.colors.error,
+      marginBottom: 12,
+      backgroundColor: palette.warning,
     },
     linkButton: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
+      paddingHorizontal: 0,
+      paddingVertical: 0,
     },
     linkButtonText: {
-      color: theme.colors.primary,
+      color: palette.accent,
       fontWeight: "600",
+      fontSize: 14,
     },
     valueText: {
       fontSize: 14,
-      color: theme.colors.onSurface,
+      lineHeight: 20,
+      color: palette.secondary,
     },
-    statusRow: {
+    infoRows: {
+      gap: 12,
+    },
+    infoRow: {
+      gap: 4,
+      paddingBottom: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: palette.cardBorder,
+    },
+    infoLabel: {
+      fontSize: 13,
+      color: palette.meta,
+      fontWeight: "500",
+    },
+    infoValue: {
+      fontSize: 15,
+      color: palette.heading,
+      lineHeight: 21,
+      fontWeight: "500",
+    },
+    infoValueMuted: {
+      fontSize: 14,
+      color: palette.secondary,
+    },
+    infoRowSwitch: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       gap: 12,
+    },
+    infoRowSwitchText: {
+      flex: 1,
+      gap: 4,
+    },
+    dimensionSummary: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: palette.secondary,
+      marginBottom: 12,
+    },
+    metricGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+    },
+    metricCard: {
+      minWidth: 92,
+      backgroundColor: palette.innerBg,
+      borderRadius: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      gap: 2,
+    },
+    metricLabel: {
+      fontSize: 12,
+      color: palette.meta,
+    },
+    metricValue: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: palette.heading,
+    },
+    metricUnit: {
+      fontSize: 12,
+      color: palette.meta,
     },
     inlineLoader: {
       marginVertical: 8,
@@ -905,59 +1336,75 @@ const makeStyles = (theme: MD3Theme) =>
     },
     plantingRow: {
       borderTopWidth: 1,
-      borderColor: theme.colors.outline,
-      paddingVertical: 10,
+      borderColor: palette.cardBorder,
+      paddingVertical: 12,
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
+      gap: 10,
+    },
+    plantingThumbWrap: {
+      width: 46,
+      height: 46,
+      borderRadius: 12,
+      overflow: "hidden",
+      backgroundColor: palette.innerBg,
+    },
+    plantingThumb: {
+      width: "100%",
+      height: "100%",
+    },
+    plantingThumbFallback: {
+      width: "100%",
+      height: "100%",
+      alignItems: "center",
+      justifyContent: "center",
     },
     plantingMain: {
       flex: 1,
       paddingRight: 12,
     },
+    plantingTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
     plantingTitle: {
-      fontSize: 14,
+      fontSize: 15,
       fontWeight: "600",
-      color: theme.colors.onSurface,
+      color: palette.heading,
     },
     plantingMeta: {
       fontSize: 12,
-      color: theme.colors.onSurfaceVariant,
+      color: palette.meta,
       marginTop: 4,
     },
     plantingStatus: {
-      fontSize: 11,
-      color: theme.colors.primary,
+      fontSize: 12,
+      color: palette.accent,
+      fontWeight: "600",
     },
     harvestPromptRow: {
       borderTopWidth: 1,
-      borderColor: theme.colors.outline,
-      paddingVertical: 10,
+      borderColor: palette.cardBorder,
+      paddingVertical: 12,
     },
     harvestPromptTitle: {
-      fontSize: 14,
+      fontSize: 15,
       fontWeight: "600",
-      color: theme.colors.onSurface,
+      color: palette.heading,
     },
     harvestPromptMeta: {
       marginTop: 4,
       fontSize: 12,
-      color: theme.colors.onSurfaceVariant,
-    },
-    metrics: {
-      marginTop: 8,
-    },
-    metricRow: {
-      fontSize: 13,
-      color: theme.colors.onSurfaceVariant,
-      marginBottom: 4,
+      color: palette.meta,
     },
     center: {
       flex: 1,
       justifyContent: "center",
       alignItems: "center",
       padding: 24,
-      backgroundColor: theme.colors.background,
+      backgroundColor: palette.background,
     },
     errorText: {
       fontSize: 14,
@@ -967,77 +1414,112 @@ const makeStyles = (theme: MD3Theme) =>
     },
     secondaryButton: {
       paddingVertical: 12,
-      paddingHorizontal: 16,
-      borderRadius: 10,
+      paddingHorizontal: 18,
+      borderRadius: 14,
       borderWidth: 1,
-      borderColor: theme.colors.outline,
+      borderColor: palette.cardBorder,
+      backgroundColor: palette.cardBg,
     },
     secondaryButtonText: {
-      color: theme.colors.onSurface,
+      color: palette.heading,
       fontWeight: "600",
     },
     taskRow: {
       borderTopWidth: 1,
-      borderColor: theme.colors.outline,
-      paddingVertical: 10,
-      gap: 8,
+      borderColor: palette.cardBorder,
+      paddingVertical: 12,
+      gap: 10,
     },
     taskRowHighlighted: {
-      backgroundColor: theme.colors.surfaceVariant,
-      borderRadius: 8,
-      paddingHorizontal: 8,
+      backgroundColor: palette.innerBg,
+      borderRadius: 12,
+      paddingHorizontal: 10,
     },
     taskMain: {
       gap: 4,
     },
     taskTitle: {
-      fontSize: 14,
+      fontSize: 15,
       fontWeight: "600",
-      color: theme.colors.onSurface,
+      color: palette.heading,
     },
     taskDescription: {
-      fontSize: 12,
-      color: theme.colors.onSurfaceVariant,
+      fontSize: 13,
+      color: palette.secondary,
     },
     taskMeta: {
       fontSize: 12,
-      color: theme.colors.onSurfaceVariant,
+      color: palette.meta,
     },
     taskActions: {
       flexDirection: "row",
-      justifyContent: "flex-end",
+      justifyContent: "space-between",
       gap: 8,
+      width: "100%",
+    },
+    taskActionButton: {
+      flex: 1,
     },
     filterLabel: {
       fontSize: 12,
-      color: theme.colors.onSurfaceVariant,
+      color: palette.meta,
       marginBottom: 6,
-      marginTop: 2,
+      marginTop: 4,
     },
-    filterButtons: {
+    filterChipsWrap: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
       marginBottom: 10,
-      alignSelf: "flex-start",
+    },
+    filterChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+      backgroundColor: palette.innerBg,
+    },
+    filterChipActive: {
+      borderColor: palette.accentBorder,
+      backgroundColor: palette.accentBg,
+    },
+    filterChipText: {
+      fontSize: 12,
+      color: palette.secondary,
+      fontWeight: "500",
+    },
+    filterChipTextActive: {
+      color: palette.accent,
+      fontWeight: "600",
     },
     historyRow: {
       borderTopWidth: 1,
-      borderColor: theme.colors.outline,
-      paddingVertical: 10,
+      borderColor: palette.cardBorder,
+      paddingVertical: 12,
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "flex-start",
-      gap: 10,
+      gap: 12,
     },
     modal: {
-      backgroundColor: theme.colors.surface,
+      backgroundColor: palette.cardBg,
       marginHorizontal: 16,
-      borderRadius: 16,
-      padding: 16,
+      borderRadius: 20,
+      padding: 18,
       gap: 12,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
     },
     modalTitle: {
       fontSize: 18,
       fontWeight: "700",
-      color: theme.colors.onSurface,
+      color: palette.heading,
+    },
+    modalText: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: palette.secondary,
     },
     modalActionsColumn: {
       gap: 10,
@@ -1045,4 +1527,47 @@ const makeStyles = (theme: MD3Theme) =>
     deleteButton: {
       borderColor: theme.colors.error,
     },
+    metaSection: {
+      paddingHorizontal: 4,
+      paddingVertical: 4,
+      marginTop: 2,
+      marginBottom: 12,
+      gap: 2,
+    },
+    metaText: {
+      fontSize: 12,
+      color: palette.meta,
+    },
+    skeletonPill: {
+      width: 78,
+      height: 24,
+      borderRadius: 999,
+      backgroundColor: palette.innerBg,
+    },
+    skeletonTitle: {
+      width: "70%",
+      height: 34,
+      borderRadius: 10,
+      backgroundColor: palette.innerBg,
+    },
+    skeletonLine: {
+      width: "88%",
+      height: 14,
+      borderRadius: 8,
+      backgroundColor: palette.innerBg,
+    },
+    skeletonChip: {
+      width: 112,
+      height: 30,
+      borderRadius: 999,
+      backgroundColor: palette.innerBg,
+    },
+    skeletonHeader: {
+      width: 150,
+      height: 20,
+      borderRadius: 8,
+      backgroundColor: palette.innerBg,
+      marginBottom: 12,
+    },
   });
+};

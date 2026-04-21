@@ -1,3 +1,4 @@
+import { useGetBedActionTasks } from "@/src/api/queries/actionTasks/useGetBedActionTasks";
 import { Bed, CultivationEnvironment } from "@/src/api/queries/beds/types";
 import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
@@ -147,6 +148,8 @@ function BedCard({
   onPress: () => void;
 }) {
   const env = bed.cultivationEnvironment;
+  const { data: pendingTasksData } = useGetBedActionTasks(bed.id, "pending");
+  const hasPendingTasks = (pendingTasksData?.items.length ?? 0) > 0;
   const soilName = bed.soil?.name ?? null;
   const hasDimensions = bed.lengthCm || bed.widthCm || bed.depthCm;
   const hasMeasurements =
@@ -183,9 +186,17 @@ function BedCard({
     >
       {/* top row: name + status */}
       <View style={s.cardTopRow}>
-        <Text style={[s.bedName, { color: palette.heading }]} numberOfLines={1}>
-          {bed.name}
-        </Text>
+        <View style={s.bedNameWrap}>
+          <Text
+            style={[s.bedName, { color: palette.heading }]}
+            numberOfLines={1}
+          >
+            {bed.name}
+          </Text>
+          {hasPendingTasks ? (
+            <Icon source="alert" size={16} color="#B6473D" />
+          ) : null}
+        </View>
         <View
           style={[
             s.statusBadge,
@@ -629,8 +640,13 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     gap: 10,
   },
-  bedName: {
+  bedNameWrap: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  bedName: {
     fontSize: 20,
     fontWeight: "700",
     letterSpacing: -0.3,

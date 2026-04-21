@@ -3,7 +3,7 @@ import type { SeasonSummary } from "@/src/api/queries/plantings/learningTypes";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { formatLocalDate, formatYield } from "@/src/utils/learningMappers";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { Button, MD3Theme, useTheme } from "react-native-paper";
+import { Button, Icon, MD3Theme, useTheme } from "react-native-paper";
 
 // ─── Rotation badge helper ────────────────────────────────────────────────────
 
@@ -207,6 +207,27 @@ export function BedSeasonHistorySection({ bedId }: Props) {
   const { data, isLoading, error, refetch } = useGetBedSeasons(bedId);
   const seasons = data?.items ?? [];
 
+  if (!isLoading && !error && seasons.length === 0) {
+    return (
+      <View style={styles.emptyInfoCardStandalone}>
+        <View style={styles.emptyInfoIconWrap}>
+          <Icon
+            source="information-outline"
+            size={18}
+            color={theme.dark ? "#A9CBF3" : "#3D6FA5"}
+          />
+        </View>
+        <Text style={styles.emptyInfoTitle}>
+          Historia upraw pojawi się tutaj
+        </Text>
+        <Text style={styles.emptyInfoText}>
+          Po zakończeniu pierwszego sezonu na tej grządce zobaczysz w tym
+          miejscu historię upraw.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Historia upraw</Text>
@@ -226,12 +247,6 @@ export function BedSeasonHistorySection({ bedId }: Props) {
             Spróbuj ponownie
           </Button>
         </View>
-      ) : null}
-
-      {!isLoading && !error && seasons.length === 0 ? (
-        <Text style={styles.emptyText}>
-          Brak zakończonych sezonów na tej grządce.
-        </Text>
       ) : null}
 
       {!isLoading && !error && seasons.length > 0
@@ -271,9 +286,29 @@ const makeStyles = (theme: MD3Theme) =>
       color: theme.colors.error,
       marginBottom: 6,
     },
-    emptyText: {
-      fontSize: 14,
-      color: theme.colors.onSurface,
+    emptyInfoCardStandalone: {
+      borderRadius: 18,
+      padding: 16,
+      marginBottom: 14,
+      backgroundColor: theme.dark ? "#1E2A38" : "#EAF3FF",
+      gap: 8,
+    },
+    emptyInfoIconWrap: {
+      width: 28,
+      height: 28,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    emptyInfoTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: theme.dark ? "#DDEBFF" : "#2F5F91",
+    },
+    emptyInfoText: {
+      fontSize: 13,
+      lineHeight: 19,
+      color: theme.dark ? "#B9CBE0" : "#4D6D8D",
     },
     retryBtn: {
       alignSelf: "flex-start",
