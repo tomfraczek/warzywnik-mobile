@@ -32,7 +32,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
@@ -159,18 +159,19 @@ function HomeVegetableCard({
 function HomeArticleCard({
   item,
   onPress,
+  onPressIn,
 }: {
   item: ArticleListItem;
   onPress: () => void;
+  onPressIn?: () => void;
 }) {
-  const coverBuster = useRef(Date.now()).current;
   return (
-    <Pressable onPress={onPress} hitSlop={6}>
+    <Pressable onPress={onPress} onPressIn={onPressIn} hitSlop={6}>
       <View style={libStyles.articleCard}>
         {item.coverImageUrl ? (
           <Image
             source={{
-              uri: `${item.coverImageUrl}?t=${item.coverUpdatedAt ? new Date(item.coverUpdatedAt).getTime() : coverBuster}`,
+              uri: item.coverImageUrl,
             }}
             style={libStyles.articleImage}
             contentFit="cover"
@@ -202,11 +203,15 @@ function HomeArticleCard({
   );
 }
 
+const prefetchArticleCover = (uri?: string | null) => {
+  if (!uri) return;
+  void Image.prefetch(uri, "memory-disk").catch(() => undefined);
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const router = useRouter();
-  const coverBuster = useRef(Date.now()).current;
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const { profile, location } = useSettings();
@@ -615,6 +620,9 @@ export default function HomeScreen() {
                     <HomeArticleCard
                       key={article.id}
                       item={article}
+                      onPressIn={() =>
+                        prefetchArticleCover(article.coverImageUrl)
+                      }
                       onPress={() =>
                         router.push({
                           pathname: "/(tabs)/education/articles/[id]",

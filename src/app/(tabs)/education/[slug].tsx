@@ -108,9 +108,7 @@ export default function ArticleDetailsScreen() {
         {article.coverImageUrl ? (
           <Image
             source={{
-              uri: article.coverUpdatedAt
-                ? `${article.coverImageUrl}?t=${new Date(article.coverUpdatedAt).getTime()}`
-                : article.coverImageUrl,
+              uri: article.coverImageUrl,
             }}
             contentFit="cover"
             style={styles.image}

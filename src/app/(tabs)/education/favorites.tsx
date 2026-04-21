@@ -7,14 +7,7 @@ import { useGetFavoritesGrouped } from "@/src/api/queries/favorites/useGetFavori
 import { Screen } from "@/src/components/Screen";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Icon, MD3Theme, Text, useTheme } from "react-native-paper";
 
 // ─── config ───────────────────────────────────────────────────────────────────
@@ -92,6 +85,11 @@ const TYPE_CONFIG: Record<
 const formatSlug = (slug: string) =>
   slug.replace(/-/g, " ").replace(/(^|\s)\p{L}/gu, (m) => m.toUpperCase());
 
+const prefetchArticleCover = (uri?: string | null) => {
+  if (!uri) return;
+  void Image.prefetch(uri, "memory-disk").catch(() => undefined);
+};
+
 // ─── components ───────────────────────────────────────────────────────────────
 
 function FavoriteRowItem({
@@ -104,31 +102,36 @@ function FavoriteRowItem({
   isLast: boolean;
 }) {
   const cfg = TYPE_CONFIG[item.targetType];
-  const { data: article } = useGetArticle(
+  const { data: article, isLoading: isArticleLoading } = useGetArticle(
     item.targetType === "ARTICLE" ? item.targetSlug : null,
   );
-  const [coverBuster] = useState(() => Date.now());
 
   const rawArticleImageUrl = article?.coverImageUrl ?? item.imageUrl ?? null;
-  const articleImageUrl = rawArticleImageUrl
-    ? article?.coverUpdatedAt
-      ? `${rawArticleImageUrl}?t=${new Date(article.coverUpdatedAt).getTime()}`
-      : `${rawArticleImageUrl}?t=${coverBuster}`
-    : null;
+  const articleImageUrl = rawArticleImageUrl ?? null;
 
   const rowTitle =
     item.targetType === "ARTICLE"
       ? (article?.title ?? item.name ?? formatSlug(item.targetSlug))
       : (item.name ?? formatSlug(item.targetSlug));
 
+  const showArticleRowSkeleton =
+    item.targetType === "ARTICLE" && isArticleLoading && !articleImageUrl;
+
   return (
     <Pressable
       onPress={onPress}
+      onPressIn={() => {
+        if (item.targetType === "ARTICLE") {
+          prefetchArticleCover(articleImageUrl);
+        }
+      }}
       style={[s.row, isLast && s.rowLast]}
       hitSlop={4}
       android_ripple={{ color: "rgba(0,0,0,0.04)" }}
     >
-      {item.targetType === "ARTICLE" && articleImageUrl ? (
+      {showArticleRowSkeleton ? (
+        <View style={s.rowThumbSkeleton} />
+      ) : item.targetType === "ARTICLE" && articleImageUrl ? (
         <Image
           source={{ uri: articleImageUrl }}
           style={s.rowThumb}
@@ -140,11 +143,51 @@ function FavoriteRowItem({
           <Icon source={cfg.icon} size={17} color={cfg.tint} />
         </View>
       )}
-      <Text style={s.rowSlug} numberOfLines={1}>
-        {rowTitle}
-      </Text>
+      {showArticleRowSkeleton ? (
+        <View style={s.rowTitleSkeleton} />
+      ) : (
+        <Text style={s.rowSlug} numberOfLines={1}>
+          {rowTitle}
+        </Text>
+      )}
       <Icon source="chevron-right" size={18} color="#B8C8BC" />
     </Pressable>
+  );
+}
+
+function FavoriteSectionSkeleton({
+  palette,
+  title,
+}: {
+  palette: ReturnType<typeof buildPalette>;
+  title: string;
+}) {
+  return (
+    <View style={s.section}>
+      <View style={s.sectionHeader}>
+        <View style={s.sectionIconSkeleton} />
+        <Text style={[s.sectionTitle, { color: palette.heading }]}>
+          {title}
+        </Text>
+      </View>
+      <View
+        style={[
+          s.card,
+          { backgroundColor: palette.cardBg, borderColor: palette.border },
+        ]}
+      >
+        {Array.from({ length: 3 }).map((_, idx) => (
+          <View
+            key={`row-skel-${title}-${idx}`}
+            style={[s.row, idx === 2 && s.rowLast]}
+          >
+            <View style={s.rowThumbSkeleton} />
+            <View style={s.rowTitleSkeleton} />
+            <View style={s.rowChevronSkeleton} />
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -241,9 +284,10 @@ export default function FavoritesScreen() {
         showsVerticalScrollIndicator={false}
       >
         {isLoading ? (
-          <View style={s.centered}>
-            <ActivityIndicator color={palette.accent} />
-          </View>
+          <>
+            <FavoriteSectionSkeleton palette={palette} title="Warzywa" />
+            <FavoriteSectionSkeleton palette={palette} title="Artykuły" />
+          </>
         ) : totalCount === 0 ? (
           <View style={s.emptyWrap}>
             <View
@@ -352,11 +396,35 @@ const s = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: "#EFF4F1",
   },
+  rowThumbSkeleton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#E8EEEA",
+  },
   rowSlug: {
     flex: 1,
     fontSize: 15,
     fontWeight: "600",
     color: "#1D2420",
+  },
+  rowTitleSkeleton: {
+    flex: 1,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#E8EEEA",
+  },
+  rowChevronSkeleton: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#EEF3EF",
+  },
+  sectionIconSkeleton: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: "#E8EEEA",
   },
   emptyWrap: {
     paddingTop: 60,

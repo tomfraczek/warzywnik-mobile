@@ -6,7 +6,7 @@ import { FavoriteButton } from "@/src/components/ui/FavoriteButton";
 import { normalizeArticleHtmlWhitespace } from "@/src/utils/html";
 import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   DimensionValue,
   Linking,
@@ -293,7 +293,6 @@ export default function ArticleDetailsScreen() {
   const { width } = useWindowDimensions();
   const theme = useTheme<MD3Theme>();
   const palette = buildPalette(theme.dark);
-  const [coverBuster] = useState(() => Date.now());
 
   // ─── analytics ────────────────────────────────────────────────────────────
   const sessionId = useRef(
@@ -465,7 +464,7 @@ export default function ArticleDetailsScreen() {
         {article.coverImageUrl ? (
           <Image
             source={{
-              uri: `${article.coverImageUrl}?t=${article.coverUpdatedAt ? new Date(article.coverUpdatedAt).getTime() : coverBuster}`,
+              uri: article.coverImageUrl,
             }}
             contentFit="cover"
             style={s.cover}

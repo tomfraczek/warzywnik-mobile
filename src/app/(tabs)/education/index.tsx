@@ -1,4 +1,3 @@
-import { getResponseError } from "@/src/api/axios";
 import { ArticleListItem } from "@/src/api/queries/articles/types";
 import { useGetArticle } from "@/src/api/queries/articles/useGetArticle";
 import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
@@ -14,13 +13,7 @@ import { Screen } from "@/src/components/Screen";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Icon, MD3Theme, Text, useTheme } from "react-native-paper";
 
 type CategoryTile = {
@@ -57,6 +50,7 @@ type VegetableCardProps = {
 type ArticleCardProps = {
   item: ArticleListItem;
   onPress: () => void;
+  onPressIn?: () => void;
 };
 
 // ─── favorites config ────────────────────────────────────────────────────────
@@ -231,6 +225,11 @@ const getArticleReadTime = (item: ArticleListItem) => {
   return `${minutes} min czytania`;
 };
 
+const prefetchArticleCover = (uri?: string | null) => {
+  if (!uri) return;
+  void Image.prefetch(uri, "memory-disk").catch(() => undefined);
+};
+
 function SectionHeader({
   title,
   actionLabel,
@@ -290,17 +289,14 @@ function VegetableCard({ item, onPress }: VegetableCardProps) {
   );
 }
 
-function ArticleCard({ item, onPress }: ArticleCardProps) {
-  const [coverBuster] = useState(() => Date.now());
+function ArticleCard({ item, onPress, onPressIn }: ArticleCardProps) {
   return (
-    <Pressable onPress={onPress} hitSlop={6}>
+    <Pressable onPress={onPress} onPressIn={onPressIn} hitSlop={6}>
       <View style={sharedStyles.articleCard}>
         {item.coverImageUrl ? (
           <Image
             source={{
-              uri: item.coverUpdatedAt
-                ? `${item.coverImageUrl}?t=${new Date(item.coverUpdatedAt).getTime()}`
-                : `${item.coverImageUrl}?t=${coverBuster}`,
+              uri: item.coverImageUrl,
             }}
             style={sharedStyles.articleImage}
             contentFit="cover"
@@ -354,6 +350,17 @@ function TwoColumnGrid({ children }: { children: React.ReactElement[] }) {
   );
 }
 
+function FavoriteTileSkeleton({ typeLabel }: { typeLabel: string }) {
+  return (
+    <View style={sharedStyles.favTile}>
+      <View style={sharedStyles.favTileImageSkeleton} />
+      <View style={sharedStyles.favTileLabelSkeleton} />
+      <View style={sharedStyles.favTileTypeSkeleton} />
+      <Text style={sharedStyles.favTileType}>{typeLabel}</Text>
+    </View>
+  );
+}
+
 function FavoriteVegetableTile({
   item,
   onPress,
@@ -361,11 +368,22 @@ function FavoriteVegetableTile({
   item: FavoriteItem;
   onPress: () => void;
 }) {
-  const { data: vegetable } = useGetVegetable(item.targetSlug);
+  const { data: vegetable, isLoading: isVegetableLoading } = useGetVegetable(
+    item.targetSlug,
+  );
   const imageUrl = item.imageUrl ?? vegetable?.imageUrl;
   const name = item.name ?? vegetable?.name ?? formatSlug(item.targetSlug);
+
+  if (isVegetableLoading && !imageUrl && !item.name) {
+    return <FavoriteTileSkeleton typeLabel="Warzywo" />;
+  }
+
   return (
-    <Pressable onPress={onPress} hitSlop={4}>
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => prefetchArticleCover(imageUrl)}
+      hitSlop={4}
+    >
       <View style={sharedStyles.favTile}>
         {imageUrl ? (
           <Image
@@ -403,16 +421,17 @@ function FavoriteArticleTile({
   item: FavoriteItem;
   onPress: () => void;
 }) {
-  const { data: article } = useGetArticle(item.targetSlug);
-  const [coverBuster] = useState(() => Date.now());
+  const { data: article, isLoading: isArticleLoading } = useGetArticle(
+    item.targetSlug,
+  );
   const rawImageUrl = article?.coverImageUrl ?? item.imageUrl;
-  const coverUpdatedAt = article?.coverUpdatedAt;
-  const imageUrl = rawImageUrl
-    ? coverUpdatedAt
-      ? `${rawImageUrl}?t=${new Date(coverUpdatedAt).getTime()}`
-      : `${rawImageUrl}?t=${coverBuster}`
-    : null;
+  const imageUrl = rawImageUrl ?? null;
   const name = item.name ?? article?.title ?? formatSlug(item.targetSlug);
+
+  if (isArticleLoading && !imageUrl && !item.name) {
+    return <FavoriteTileSkeleton typeLabel="Artykuł" />;
+  }
+
   return (
     <Pressable onPress={onPress} hitSlop={4}>
       <View style={sharedStyles.favTile}>
@@ -557,9 +576,14 @@ export default function EducationScreen() {
               }
             />
             {isFavoritesLoading ? (
-              <View style={styles.loadingWrap}>
-                <ActivityIndicator color={styles.palette.accent} />
-              </View>
+              <TwoColumnGrid>
+                {Array.from({ length: 4 }).map((_, idx) => (
+                  <FavoriteTileSkeleton
+                    key={`fav-skel-${idx}`}
+                    typeLabel={idx % 2 === 0 ? "Artykuł" : "Warzywo"}
+                  />
+                ))}
+              </TwoColumnGrid>
             ) : (
               <TwoColumnGrid>
                 {favoritesPreview.map((item) => {
@@ -630,73 +654,6 @@ export default function EducationScreen() {
             )}
           </View>
         )}
-
-        <View style={styles.section}>
-          <SectionHeader
-            title="Popularne warzywa"
-            actionLabel="Zobacz wszystkie"
-            onActionPress={() => router.push("/(tabs)/education/vegetables")}
-          />
-
-          {isVegetablesLoading ? (
-            <View style={styles.loadingWrap}>
-              <ActivityIndicator color={styles.palette.accent} />
-            </View>
-          ) : vegetablesError ? (
-            <EmptySectionState
-              message={String(getResponseError(vegetablesError))}
-            />
-          ) : popularVegetables.length > 0 ? (
-            <TwoColumnGrid>
-              {popularVegetables.map((item) => (
-                <VegetableCard
-                  key={item.id}
-                  item={item}
-                  onPress={() =>
-                    router.push(`/(tabs)/education/vegetables/${item.id}`)
-                  }
-                />
-              ))}
-            </TwoColumnGrid>
-          ) : (
-            <EmptySectionState message="Brak popularnych warzyw dla tego wyszukiwania." />
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <SectionHeader
-            title="Polecane artykuły"
-            actionLabel="Zobacz wszystkie"
-            onActionPress={() => router.push("/(tabs)/education/articles")}
-          />
-
-          {isArticlesLoading ? (
-            <View style={styles.loadingWrap}>
-              <ActivityIndicator color={styles.palette.accent} />
-            </View>
-          ) : articlesError ? (
-            <EmptySectionState
-              message={String(getResponseError(articlesError))}
-            />
-          ) : recommendedArticles.length > 0 ? (
-            <View style={styles.articleList}>
-              {recommendedArticles.map((item) => (
-                <ArticleCard
-                  key={item.id}
-                  item={item}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(tabs)/education/articles/[id]",
-                      params: { id: item.id },
-                    })
-                  }
-                />
-              ))}
-            </View>
-          ) : (
-            <EmptySectionState message="Brak polecanych artykułów dla tego wyszukiwania." />
-          )}
-        </View>
       </ScrollView>
     </Screen>
   );
@@ -869,6 +826,13 @@ const sharedStyles = StyleSheet.create({
     marginBottom: 14,
     backgroundColor: "#F0F3EF",
   },
+  favTileImageSkeleton: {
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+    marginBottom: 14,
+    backgroundColor: "#E8EEEA",
+  },
   favTileEmoji: {
     fontSize: 46,
     marginBottom: 14,
@@ -888,11 +852,24 @@ const sharedStyles = StyleSheet.create({
     textAlign: "center",
     color: "#1D2420",
   },
+  favTileLabelSkeleton: {
+    width: "78%",
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#E8EEEA",
+  },
   favTileType: {
     fontSize: 12,
     color: "#97A29B",
     marginTop: 4,
     textAlign: "center",
+  },
+  favTileTypeSkeleton: {
+    width: "44%",
+    height: 10,
+    borderRadius: 5,
+    marginTop: 8,
+    backgroundColor: "#EDF2EE",
   },
 });
 

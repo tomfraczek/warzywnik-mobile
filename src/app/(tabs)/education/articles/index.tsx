@@ -389,18 +389,24 @@ const headerStyles = StyleSheet.create({
   count: { fontSize: 14, lineHeight: 20 },
 });
 
+const prefetchArticleCover = (uri?: string | null) => {
+  if (!uri) return;
+  void Image.prefetch(uri, "memory-disk").catch(() => undefined);
+};
+
 // ─── article card ─────────────────────────────────────────────────────────────
 
 function ArticleCard({
   item,
   onPress,
+  onPressIn,
   palette,
 }: {
   item: ArticleListItem;
   onPress: () => void;
+  onPressIn?: () => void;
   palette: ReturnType<typeof buildPalette>;
 }) {
-  const [coverBuster] = useState(() => Date.now());
   const firstSeason = item.seasons[0];
   const firstContext = item.contexts[0];
   const firstMonth = item.months[0];
@@ -416,6 +422,7 @@ function ArticleCard({
   return (
     <Pressable
       onPress={onPress}
+      onPressIn={onPressIn}
       hitSlop={4}
       android_ripple={null}
       style={({ pressed }) => pressed && { opacity: 0.75 }}
@@ -431,9 +438,7 @@ function ArticleCard({
           <View>
             <Image
               source={{
-                uri: item.coverUpdatedAt
-                  ? `${item.coverImageUrl}?t=${new Date(item.coverUpdatedAt).getTime()}`
-                  : `${item.coverImageUrl}?t=${coverBuster}`,
+                uri: item.coverImageUrl,
               }}
               style={cardStyles.cover}
               contentFit="cover"
@@ -732,6 +737,7 @@ export default function ArticlesScreen() {
           <ArticleCard
             item={item}
             palette={palette}
+            onPressIn={() => prefetchArticleCover(item.coverImageUrl)}
             onPress={() =>
               router.push({
                 pathname: "/(tabs)/education/articles/[id]",
