@@ -329,7 +329,6 @@ function BedFormComponent({
             </Text>
           </Pressable>
         ) : null}
-
       </SectionCard>
 
       {/* ── D. Analiza gleby ── */}
