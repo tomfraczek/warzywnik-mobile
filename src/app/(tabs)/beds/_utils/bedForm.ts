@@ -107,7 +107,7 @@ export const validateBedForm = (values: BedFormValues): string | null => {
 export const buildCreateBedPayload = (values: BedFormValues): CreateBedDto => {
   const payload: CreateBedDto = {
     name: normalizeText(values.name),
-    isActive: values.isActive,
+    isActive: true,
     soilTestingEnabled: values.soilTestingEnabled,
   };
 
@@ -153,7 +153,6 @@ const normalizeComparable = (values: BedFormValues) => ({
   depthCm: toOptionalNumber(values.depthCm),
   cultivationEnvironment: values.cultivationEnvironment,
   soilId: values.soilId ?? null,
-  isActive: values.isActive,
   soilTestingEnabled: values.soilTestingEnabled,
   measuredN: toOptionalNumber(values.measuredN),
   measuredP: toOptionalNumber(values.measuredP),

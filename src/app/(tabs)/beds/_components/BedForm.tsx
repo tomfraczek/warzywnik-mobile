@@ -282,10 +282,10 @@ function BedFormComponent({
         </View>
       </SectionCard>
 
-      {/* ── C. Gleba i status ── */}
+      {/* ── C. Gleba ── */}
       <SectionCard
-        title="Gleba i status"
-        description="Wybierz typ gleby i określ czy grządka jest aktywna."
+        title="Gleba"
+        description="Wybierz typ gleby dla grządki."
         palette={palette}
       >
         <FieldLabel label="Gleba" palette={palette} optional />
@@ -330,25 +330,6 @@ function BedFormComponent({
           </Pressable>
         ) : null}
 
-        <View style={[s.switchRow, { marginTop: 18 }]}>
-          <View style={s.switchRowLeft}>
-            <Text style={[s.switchLabel, { color: palette.heading }]}>
-              Grządka aktywna
-            </Text>
-            <Text style={[s.switchDesc, { color: palette.meta }]}>
-              Nieaktywne grządki są ukryte w plannerze
-            </Text>
-          </View>
-          <Switch
-            value={values.isActive}
-            onValueChange={(v) => onChange({ isActive: v })}
-            trackColor={{
-              false: palette.switchTrackOff,
-              true: palette.switchTrackOn,
-            }}
-            thumbColor={values.isActive ? palette.switchThumbOn : palette.meta}
-          />
-        </View>
       </SectionCard>
 
       {/* ── D. Analiza gleby ── */}
