@@ -24,15 +24,19 @@ import { useGetPests } from "@/src/api/queries/pests/useGetPests";
 import {
   HarvestResultRecord,
   Planting,
+  PlantingStartMethod,
+  PlantingStatus,
+  Warning,
 } from "@/src/api/queries/plantings/types";
-import { useDeleteHarvestResultRecord } from "@/src/api/queries/plantings/useDeleteHarvestResultRecord";
 import { useDeletePlanting } from "@/src/api/queries/plantings/useDeletePlanting";
 import { useGetPlanting } from "@/src/api/queries/plantings/useGetPlanting";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { Screen } from "@/src/components/Screen";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
+import { formatQualityRating, formatYield } from "@/src/utils/learningMappers";
 import { isAxiosError } from "axios";
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
@@ -47,6 +51,7 @@ import {
 import {
   Button,
   Chip,
+  Icon,
   IconButton,
   MD3Theme,
   Modal,
@@ -58,15 +63,71 @@ import {
   useTheme,
 } from "react-native-paper";
 import { DatePickerModal } from "react-native-paper-dates";
-import { PlantingHarvestResultCard } from "./_components/PlantingHarvestResultCard";
 import { PlantingHarvestResultForm } from "./_components/PlantingHarvestResultForm";
 import { PlantingSeasonSection } from "./_components/PlantingSeasonSection";
 import { PlantingTimelineSection } from "./_components/PlantingTimelineSection";
 
 const formatDate = (value?: string | null) => {
   if (!value) return "Brak";
-  return value.split("T")[0];
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Brak";
+  return new Intl.DateTimeFormat("pl-PL", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(date);
 };
+
+const STATUS_LABELS: Record<PlantingStatus, string> = {
+  PLANNED: "Zaplanowana",
+  ACTIVE: "Aktywna",
+  HARVESTING: "W trakcie zbiorów",
+  FINISHED: "Zakończona",
+  CANCELLED: "Anulowana",
+};
+
+const START_METHOD_LABELS: Record<PlantingStartMethod, string> = {
+  DIRECT_SOW: "Siew bezpośredni",
+  TRANSPLANT: "Rozsada",
+};
+
+type ExtendedPlanting = Planting & {
+  timelineTimezone?: string | null;
+  appliedRulesVersion?: string | null;
+  transplantedAt?: string | null;
+  harvestedAt?: string | null;
+  harvestWindowStart?: string | null;
+  harvestWindowEnd?: string | null;
+};
+
+function buildPalette(dark: boolean) {
+  return {
+    background: dark ? "#141816" : "#F7F8F5",
+    cardBg: dark ? "#1A1F1C" : "#FFFFFF",
+    cardBorder: dark ? "#252D29" : "#E8ECE7",
+    heading: dark ? "#F2F5F1" : "#1D2420",
+    secondary: dark ? "#9AA59E" : "#6E7972",
+    muted: dark ? "#7A8880" : "#97A29B",
+    accent: dark ? "#7AB88A" : "#4A7C59",
+    accentBg: dark ? "#1A2E1F" : "#EBF5EE",
+    accentBorder: dark ? "#2A4A32" : "#C5DFC9",
+    heroTagBg: dark ? "#202A23" : "#EDF4EE",
+    heroTagText: dark ? "#9ECFA9" : "#4F7459",
+    chipBg: dark ? "#1F2521" : "#F3F6F2",
+    chipBorder: dark ? "#313A34" : "#E2E8E3",
+    chipText: dark ? "#B7C2BB" : "#637067",
+    taskHighlight: dark ? "#212A24" : "#F4F8F4",
+    warningInfoBg: dark ? "#1A2328" : "#EEF6FB",
+    warningInfoBorder: dark ? "#2B3A42" : "#D3E7F4",
+    warningInfoText: dark ? "#9FC6DD" : "#3F6C89",
+    warningWarningBg: dark ? "#2A251B" : "#FDF5E8",
+    warningWarningBorder: dark ? "#4A3D27" : "#F0DFC0",
+    warningWarningText: dark ? "#E1C48B" : "#9B6E2A",
+    warningCriticalBg: dark ? "#2C1F1F" : "#FCEEF0",
+    warningCriticalBorder: dark ? "#503434" : "#F3D1D7",
+    warningCriticalText: dark ? "#E4A5AE" : "#A94A58",
+  };
+}
 
 const sortTasksByDueAt = (tasks: ActionTask[]) =>
   [...tasks].sort((a, b) => {
@@ -99,6 +160,7 @@ const getStatusLabel = (
 
 export default function PlantingDetailsScreen() {
   const theme = useTheme<MD3Theme>();
+  const palette = buildPalette(theme.dark);
   const styles = makeStyles(theme);
   const { bedId, plantingId, actionTaskId } = useLocalSearchParams<{
     bedId?: string | string[];
@@ -117,6 +179,7 @@ export default function PlantingDetailsScreen() {
   const { data, isLoading, error, refetch } = useGetPlanting(
     resolvedPlantingId ?? null,
   );
+
   const deletePlanting = useDeletePlanting(resolvedBedId);
   const {
     data: plantingTasksResponse,
@@ -159,12 +222,8 @@ export default function PlantingDetailsScreen() {
   );
   const updatePestOccurrence = useUpdatePestOccurrence();
   const deletePestOccurrence = useDeletePestOccurrence();
-  const deleteHarvestResultRecord = useDeleteHarvestResultRecord(
-    resolvedPlantingId ?? "",
-    resolvedBedId,
-  );
 
-  const planting = data as Planting | undefined;
+  const planting = data as ExtendedPlanting | undefined;
   const {
     data: vegetable,
     isLoading: isVegetableLoading,
@@ -214,7 +273,10 @@ export default function PlantingDetailsScreen() {
     limit: 50,
     q: pestSearch.trim() || undefined,
   });
-  const pestSearchItems = pestDictionaryQuery.data?.items ?? [];
+  const pestSearchItems = useMemo(
+    () => pestDictionaryQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [pestDictionaryQuery.data?.pages],
+  );
 
   const diseaseOccurrences = (diseaseOccurrencesQuery.data ??
     []) as DiseaseOccurrence[];
@@ -229,6 +291,121 @@ export default function PlantingDetailsScreen() {
     : (vegetable?.name ?? (vegetableError ? "Brak danych" : "Brak danych"));
 
   const isOffline = useIsOffline();
+
+  const statusLabel = planting ? STATUS_LABELS[planting.status] : "—";
+  const startMethodLabel = planting?.startMethod
+    ? START_METHOD_LABELS[planting.startMethod]
+    : "Brak";
+
+  const plannedHarvestWindowLabel = useMemo(() => {
+    const start = planting?.harvestWindowStart ?? planting?.harvestStartDate;
+    const end = planting?.harvestWindowEnd ?? planting?.harvestEndDate;
+    if (!start && !end) return null;
+    return `${formatDate(start)} – ${formatDate(end)}`;
+  }, [
+    planting?.harvestWindowStart,
+    planting?.harvestWindowEnd,
+    planting?.harvestStartDate,
+    planting?.harvestEndDate,
+  ]);
+
+  const harvestRecords = useMemo(() => {
+    if (!planting) return [];
+    const records = Array.isArray(planting.harvestResults)
+      ? planting.harvestResults
+      : [];
+
+    const fallbackHasLegacyData =
+      planting.yieldKg != null ||
+      planting.yieldQualityRating != null ||
+      !!planting.yieldNotes;
+
+    if (records.length > 0) return records;
+
+    if (fallbackHasLegacyData) {
+      return [
+        {
+          id: `legacy-${planting.id}`,
+          harvestedAt: planting.harvestEndDate ?? planting.updatedAt ?? null,
+          yieldKg: planting.yieldKg ?? null,
+          qualityRating: planting.yieldQualityRating ?? null,
+          notes: planting.yieldNotes ?? null,
+        } satisfies HarvestResultRecord,
+      ];
+    }
+
+    return [];
+  }, [planting]);
+
+  const yieldSummary = useMemo(() => {
+    const totalYield = harvestRecords.reduce(
+      (acc, item) => acc + (item.yieldKg ?? 0),
+      0,
+    );
+    const ratings = harvestRecords
+      .map((item) => item.qualityRating)
+      .filter((value): value is number => typeof value === "number");
+    const avgRating =
+      ratings.length > 0
+        ? ratings.reduce((acc, item) => acc + item, 0) / ratings.length
+        : null;
+
+    return {
+      totalYield,
+      avgRating,
+      recordsCount: harvestRecords.length,
+    };
+  }, [harvestRecords]);
+
+  const warnings = planting?.warnings ?? [];
+  const timelineRows = useMemo(
+    () =>
+      [
+        { label: "Planowany start", value: planting?.plannedStartDate },
+        { label: "Rzeczywisty start", value: planting?.actualStartDate },
+        { label: "Siew", value: planting?.sowedAt },
+        { label: "Rozsadzenie", value: planting?.transplantedAt },
+        {
+          label: "Planowane okno zbiorów",
+          value: plannedHarvestWindowLabel,
+          isPreformatted: true,
+        },
+        { label: "Zebrano", value: planting?.harvestedAt },
+      ].filter((row) => Boolean(row.value)),
+    [
+      planting?.plannedStartDate,
+      planting?.actualStartDate,
+      planting?.sowedAt,
+      planting?.transplantedAt,
+      plannedHarvestWindowLabel,
+      planting?.harvestedAt,
+    ],
+  );
+
+  const warningSeverityTone = (severity: Warning["severity"]) => {
+    if (severity === "CRITICAL") {
+      return {
+        bg: palette.warningCriticalBg,
+        border: palette.warningCriticalBorder,
+        text: palette.warningCriticalText,
+        label: "Krytyczne",
+      };
+    }
+    if (severity === "WARNING") {
+      return {
+        bg: palette.warningWarningBg,
+        border: palette.warningWarningBorder,
+        text: palette.warningWarningText,
+        label: "Uwaga",
+      };
+    }
+    return {
+      bg: palette.warningInfoBg,
+      border: palette.warningInfoBorder,
+      text: palette.warningInfoText,
+      label: "Informacja",
+    };
+  };
 
   const handleDelete = () => {
     if (isOffline) {
@@ -438,34 +615,6 @@ export default function PlantingDetailsScreen() {
     ]);
   };
 
-  const handleEditHarvestRecord = (record: HarvestResultRecord) => {
-    setEditingHarvestRecord(record);
-    setHarvestFormVisible(true);
-  };
-
-  const handleDeleteHarvestRecord = (record: HarvestResultRecord) => {
-    if (!record.id || record.id.startsWith("legacy-")) return;
-    if (isOffline) {
-      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
-      return;
-    }
-    Alert.alert("Usunąć rekord zbioru?", "Tej operacji nie można cofnąć.", [
-      { text: "Anuluj", style: "cancel" },
-      {
-        text: "Usuń",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteHarvestResultRecord.mutateAsync(record.id);
-            setSnackbarMessage("Usunięto rekord zbioru.");
-          } catch (err) {
-            Alert.alert("Błąd", String(getResponseError(err)));
-          }
-        },
-      },
-    ]);
-  };
-
   const severityLabels: Record<DiseaseSeverity, string> = {
     low: "Niskie",
     medium: "Umiarkowane",
@@ -480,21 +629,46 @@ export default function PlantingDetailsScreen() {
 
   if (isLoading) {
     return (
-      <Screen>
-        <View style={styles.center}>
-          <ActivityIndicator />
-        </View>
+      <Screen
+        style={{ backgroundColor: palette.background }}
+        safeAreaEdges={["left", "right"]}
+      >
+        <ScrollView contentContainerStyle={styles.container}>
+          <Surface style={styles.heroCard} elevation={0}>
+            <View style={styles.loadingBarShort} />
+            <View style={styles.loadingBarTitle} />
+            <View style={styles.loadingChipRow}>
+              <View style={styles.loadingChip} />
+              <View style={styles.loadingChip} />
+              <View style={styles.loadingChip} />
+            </View>
+          </Surface>
+
+          {[0, 1, 2].map((item) => (
+            <Surface key={item} style={styles.section} elevation={0}>
+              <View style={styles.loadingBarMedium} />
+              <View style={styles.loadingBarLong} />
+              <View style={styles.loadingBarLong} />
+            </Surface>
+          ))}
+        </ScrollView>
       </Screen>
     );
   }
 
   if (error || !planting) {
+    const rawErrorMessage = String(getResponseError(error));
+    const isNotFound = /not found|404|nie znaleziono/i.test(rawErrorMessage);
     return (
-      <Screen>
+      <Screen
+        style={{ backgroundColor: palette.background }}
+        safeAreaEdges={["left", "right"]}
+      >
         <View style={styles.center}>
-          <Text style={styles.errorText}>
-            {String(getResponseError(error))}
+          <Text style={styles.errorTitle}>
+            {isNotFound ? "Nie znaleziono uprawy" : "Coś poszło nie tak"}
           </Text>
+          <Text style={styles.errorText}>{rawErrorMessage}</Text>
           <Button mode="outlined" onPress={() => refetch()}>
             Spróbuj ponownie
           </Button>
@@ -504,50 +678,196 @@ export default function PlantingDetailsScreen() {
   }
 
   return (
-    <Screen>
+    <Screen
+      style={{ backgroundColor: palette.background }}
+      safeAreaEdges={["left", "right"]}
+    >
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>Szczegóły uprawy</Text>
-          <IconButton icon="cog" onPress={() => setActionsVisible(true)} />
+        <View style={styles.heroMediaCard}>
+          {vegetable?.imageUrl ? (
+            <Image
+              source={{ uri: vegetable.imageUrl }}
+              style={styles.heroMediaImage}
+            />
+          ) : (
+            <View style={styles.heroMediaFallback}>
+              <Icon
+                source="sprout-outline"
+                size={34}
+                color={palette.secondary}
+              />
+            </View>
+          )}
         </View>
 
-        <Surface style={styles.section} elevation={0}>
-          <Text style={styles.sectionTitle}>Warzywo</Text>
-          <Text style={styles.valueText}>{vegetableName}</Text>
+        <Surface style={styles.heroCard} elevation={0}>
+          <View style={styles.heroTopRow}>
+            <View style={styles.heroTag}>
+              <Text style={styles.heroTagText}>Uprawa</Text>
+            </View>
+            <IconButton
+              icon="cog-outline"
+              onPress={() => setActionsVisible(true)}
+              style={styles.heroSettingsButton}
+            />
+          </View>
+
+          <View style={styles.heroHeadingBlock}>
+            <Text style={styles.heroEyebrow}>Szczegóły uprawy</Text>
+            <Text style={styles.heroTitle} numberOfLines={2}>
+              {vegetableName || "Szczegóły uprawy"}
+            </Text>
+
+            <View style={styles.heroStatusRow}>
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusBadgeText}>{statusLabel}</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.quickChipsRow}>
+            <Text style={styles.heroMethodText}>
+              Metoda: {startMethodLabel}
+            </Text>
+          </View>
         </Surface>
 
+        {timelineRows.length > 0 ? (
+          <Surface style={styles.section} elevation={0}>
+            <Text style={styles.sectionTitle}>Terminy i etapy</Text>
+            <View style={styles.timelineList}>
+              {timelineRows.map((row) => (
+                <View key={row.label} style={styles.timelineRow}>
+                  <View style={styles.timelineDot} />
+                  <View style={styles.timelineContent}>
+                    <Text style={styles.timelineLabel}>{row.label}</Text>
+                    <Text style={styles.timelineValue}>
+                      {row.isPreformatted ? row.value : formatDate(row.value)}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Surface>
+        ) : null}
+
+        {planting.notes ? (
+          <Surface style={styles.section} elevation={0}>
+            <Text style={styles.sectionTitle}>Notatki</Text>
+            <Text style={styles.notesText}>{planting.notes}</Text>
+          </Surface>
+        ) : null}
+
         <Surface style={styles.section} elevation={0}>
-          <Text style={styles.sectionTitle}>Status</Text>
-          <Text style={styles.valueText}>{planting.status}</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Wyniki zbiorów</Text>
+            <Button
+              mode="text"
+              onPress={() => {
+                setEditingHarvestRecord(null);
+                setHarvestFormVisible(true);
+              }}
+            >
+              Dodaj rekord
+            </Button>
+          </View>
+
+          <View style={styles.harvestSummaryGrid}>
+            <View style={styles.harvestMetricCard}>
+              <Text style={styles.harvestMetricLabel}>Liczba wpisów</Text>
+              <Text style={styles.harvestMetricValue}>
+                {yieldSummary.recordsCount}
+              </Text>
+            </View>
+            <View style={styles.harvestMetricCard}>
+              <Text style={styles.harvestMetricLabel}>Łączny plon</Text>
+              <Text style={styles.harvestMetricValue}>
+                {formatYield(yieldSummary.totalYield)}
+              </Text>
+            </View>
+            <View style={styles.harvestMetricCard}>
+              <Text style={styles.harvestMetricLabel}>Średnia jakość</Text>
+              <Text style={styles.harvestMetricValue}>
+                {yieldSummary.avgRating == null
+                  ? "Brak"
+                  : formatQualityRating(Math.round(yieldSummary.avgRating))}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.harvestDetailsLinkRow}>
+            <Pressable
+              onPress={() =>
+                router.push(
+                  `/(tabs)/beds/${resolvedBedId}/plantings/${planting.id}/harvest-results`,
+                )
+              }
+              hitSlop={8}
+            >
+              <Text style={styles.harvestDetailsLinkText}>
+                Zobacz szczegóły
+              </Text>
+            </Pressable>
+          </View>
         </Surface>
 
-        <Surface style={styles.section} elevation={0}>
-          <Text style={styles.sectionTitle}>Daty</Text>
-          <Text style={styles.valueText}>
-            Metoda startu: {planting.startMethod ?? "Brak"}
-          </Text>
-          <Text style={styles.valueText}>
-            Data siewu: {formatDate(planting.sowedAt)}
-          </Text>
-        </Surface>
+        {warnings.length > 0 ? (
+          <Surface style={styles.section} elevation={0}>
+            <Text style={styles.sectionTitle}>Ostrzeżenia</Text>
+            <View style={styles.warningList}>
+              {warnings.map((warning, idx) => {
+                const tone = warningSeverityTone(warning.severity);
+                return (
+                  <View
+                    key={`${warning.code}-${idx}`}
+                    style={[
+                      styles.warningCard,
+                      {
+                        backgroundColor: tone.bg,
+                        borderColor: tone.border,
+                      },
+                    ]}
+                  >
+                    <View style={styles.warningTopRow}>
+                      <View
+                        style={[
+                          styles.warningSeverityBadge,
+                          { borderColor: tone.text },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.warningSeverityText,
+                            { color: tone.text },
+                          ]}
+                        >
+                          {tone.label}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.warningTitle}>{warning.title}</Text>
+                    <Text style={styles.warningMessage}>{warning.message}</Text>
+                    {warning.hint ? (
+                      <Text style={styles.warningHint}>
+                        Wskazówka: {warning.hint}
+                      </Text>
+                    ) : null}
+                    {warning.details ? (
+                      <Text style={styles.warningDetails}>
+                        {Object.entries(warning.details)
+                          .map(([key, value]) => `${key}: ${String(value)}`)
+                          .join(" • ")}
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          </Surface>
+        ) : null}
 
-        <PlantingHarvestResultCard
-          planting={planting}
-          onAddPress={() => {
-            setEditingHarvestRecord(null);
-            setHarvestFormVisible(true);
-          }}
-          onEditPress={handleEditHarvestRecord}
-          onDeletePress={handleDeleteHarvestRecord}
-          deletingRecordId={
-            deleteHarvestResultRecord.isPending
-              ? (deleteHarvestResultRecord.variables ?? null)
-              : null
-          }
-        />
-
         <Surface style={styles.section} elevation={0}>
-          <Text style={styles.sectionTitle}>Tasks to do</Text>
+          <Text style={styles.sectionTitle}>Zadania</Text>
           {isPlantingTasksLoading ? <ActivityIndicator /> : null}
 
           {plantingTasksError ? (
@@ -596,6 +916,7 @@ export default function PlantingDetailsScreen() {
                     compact
                     onPress={() => setRescheduleTaskId(task.id)}
                     disabled={updateActionTask.isPending}
+                    style={styles.equalTaskButton}
                   >
                     Przełóż
                   </Button>
@@ -604,20 +925,14 @@ export default function PlantingDetailsScreen() {
                     compact
                     onPress={() => handleMarkTaskDone(task.id)}
                     disabled={updateActionTask.isPending}
+                    style={styles.equalTaskButton}
                   >
-                    Done
+                    Wykonane
                   </Button>
                 </View>
               </View>
             );
           })}
-        </Surface>
-
-        <Surface style={styles.section} elevation={0}>
-          <Text style={styles.sectionTitle}>Notatki</Text>
-          <Text style={styles.valueText}>
-            {planting.notes ? planting.notes : "Brak"}
-          </Text>
         </Surface>
 
         {resolvedPlantingId ? (
@@ -827,15 +1142,33 @@ export default function PlantingDetailsScreen() {
         {resolvedPlantingId ? (
           <PlantingTimelineSection plantingId={resolvedPlantingId} />
         ) : null}
+
+        <View style={styles.metaBlock}>
+          {planting.createdAt ? (
+            <Text style={styles.metaText}>
+              Utworzono: {formatDate(planting.createdAt)}
+            </Text>
+          ) : null}
+          {planting.updatedAt ? (
+            <Text style={styles.metaText}>
+              Zaktualizowano: {formatDate(planting.updatedAt)}
+            </Text>
+          ) : null}
+          {planting.appliedRulesVersion ? (
+            <Text style={styles.metaText}>
+              Wersja reguł: {planting.appliedRulesVersion}
+            </Text>
+          ) : null}
+        </View>
       </ScrollView>
 
       <Portal>
         <Modal
           visible={actionsVisible}
           onDismiss={() => setActionsVisible(false)}
-          contentContainerStyle={styles.modal}
+          contentContainerStyle={styles.actionSheetModal}
         >
-          <Text style={styles.modalTitle}>Akcje</Text>
+          <View style={styles.actionSheetHandle} />
           <View style={styles.modalActionsColumn}>
             <Button
               mode="contained"
@@ -860,9 +1193,6 @@ export default function PlantingDetailsScreen() {
               style={styles.deleteButton}
             >
               Usuń
-            </Button>
-            <Button mode="text" onPress={() => setActionsVisible(false)}>
-              Zamknij
             </Button>
           </View>
         </Modal>
@@ -1270,45 +1600,148 @@ export default function PlantingDetailsScreen() {
 const makeStyles = (theme: MD3Theme) =>
   StyleSheet.create({
     container: {
-      padding: 16,
+      paddingHorizontal: 16,
+      paddingTop: 14,
       paddingBottom: 32,
-      backgroundColor: theme.colors.background,
+      gap: 20,
+      backgroundColor: buildPalette(theme.dark).background,
+    },
+    heroCard: {
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).cardBorder,
+      borderRadius: 24,
+      padding: 22,
+      backgroundColor: buildPalette(theme.dark).cardBg,
       gap: 12,
     },
-    headerRow: {
+    heroMediaCard: {
+      width: "100%",
+      height: 210,
+      borderRadius: 24,
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).chipBorder,
+      backgroundColor: buildPalette(theme.dark).chipBg,
+    },
+    heroMediaImage: {
+      width: "100%",
+      height: "100%",
+    },
+    heroMediaFallback: {
+      width: "100%",
+      height: "100%",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    heroTopRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      marginBottom: 4,
     },
-    headerTitle: {
-      fontSize: 18,
+    heroTag: {
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      backgroundColor: buildPalette(theme.dark).heroTagBg,
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).accentBorder,
+      alignSelf: "flex-start",
+    },
+    heroTagText: {
+      fontSize: 12,
       fontWeight: "600",
-      color: theme.colors.onBackground,
+      color: buildPalette(theme.dark).heroTagText,
+    },
+    heroSettingsButton: {
+      margin: -4,
+    },
+    heroHeadingBlock: {
+      gap: 8,
+    },
+    heroEyebrow: {
+      fontSize: 13,
+      color: buildPalette(theme.dark).secondary,
+      fontWeight: "500",
+    },
+    heroTitle: {
+      fontSize: 28,
+      lineHeight: 33,
+      fontWeight: "700",
+      color: buildPalette(theme.dark).heading,
+    },
+    heroStatusRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "flex-start",
+    },
+    statusBadge: {
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      backgroundColor: buildPalette(theme.dark).accentBg,
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).accentBorder,
+    },
+    statusBadgeText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: buildPalette(theme.dark).accent,
+    },
+    quickChipsRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      paddingTop: 2,
+    },
+    heroMethodText: {
+      fontSize: 15,
+      color: buildPalette(theme.dark).secondary,
+      fontWeight: "500",
     },
     section: {
       borderWidth: 1,
-      borderColor: theme.colors.outline,
-      borderRadius: 12,
-      padding: 12,
-      backgroundColor: theme.colors.surface,
+      borderColor: buildPalette(theme.dark).cardBorder,
+      borderRadius: 22,
+      padding: 20,
+      backgroundColor: buildPalette(theme.dark).cardBg,
+      gap: 12,
     },
     sectionHeaderRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      marginBottom: 6,
+      marginBottom: 4,
       gap: 8,
     },
     sectionTitle: {
-      fontSize: 15,
-      fontWeight: "600",
-      color: theme.colors.onSurface,
+      fontSize: 19,
+      fontWeight: "700",
+      color: buildPalette(theme.dark).heading,
     },
-    valueText: {
-      fontSize: 14,
-      color: theme.colors.onSurface,
-      marginBottom: 4,
+    infoRowCompact: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 4,
+    },
+    infoLabel: {
+      fontSize: 13,
+      color: buildPalette(theme.dark).secondary,
+      flex: 1,
+      fontWeight: "500",
+    },
+    infoValue: {
+      fontSize: 15,
+      color: buildPalette(theme.dark).heading,
+      fontWeight: "600",
+      flex: 1,
+      textAlign: "right",
+    },
+    notesText: {
+      fontSize: 15,
+      lineHeight: 24,
+      color: buildPalette(theme.dark).heading,
     },
     deleteButton: {
       borderColor: theme.colors.error,
@@ -1318,16 +1751,22 @@ const makeStyles = (theme: MD3Theme) =>
       justifyContent: "center",
       alignItems: "center",
       padding: 24,
+      gap: 10,
+    },
+    errorTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: buildPalette(theme.dark).heading,
     },
     errorText: {
       fontSize: 14,
-      color: theme.colors.error,
+      color: buildPalette(theme.dark).secondary,
       marginBottom: 12,
       textAlign: "center",
     },
     emptyText: {
-      fontSize: 13,
-      color: theme.colors.onSurfaceVariant,
+      fontSize: 14,
+      color: buildPalette(theme.dark).secondary,
     },
     segmentedButtons: {
       alignSelf: "flex-start",
@@ -1338,11 +1777,11 @@ const makeStyles = (theme: MD3Theme) =>
       marginBottom: 8,
     },
     problemCard: {
-      borderRadius: 12,
+      borderRadius: 16,
       borderWidth: 1,
-      borderColor: theme.colors.outline,
-      backgroundColor: theme.colors.surface,
-      padding: 12,
+      borderColor: buildPalette(theme.dark).cardBorder,
+      backgroundColor: buildPalette(theme.dark).cardBg,
+      padding: 14,
       marginBottom: 10,
     },
     problemHeader: {
@@ -1356,9 +1795,9 @@ const makeStyles = (theme: MD3Theme) =>
       gap: 6,
     },
     problemTitle: {
-      fontSize: 14,
+      fontSize: 15,
       fontWeight: "600",
-      color: theme.colors.onSurface,
+      color: buildPalette(theme.dark).heading,
       marginRight: 6,
     },
     chipsContainer: {
@@ -1374,11 +1813,11 @@ const makeStyles = (theme: MD3Theme) =>
     },
     problemMeta: {
       fontSize: 12,
-      color: theme.colors.onSurfaceVariant,
+      color: buildPalette(theme.dark).secondary,
     },
     problemNotes: {
       fontSize: 13,
-      color: theme.colors.onSurface,
+      color: buildPalette(theme.dark).heading,
     },
     problemActions: {
       flexDirection: "row",
@@ -1391,6 +1830,28 @@ const makeStyles = (theme: MD3Theme) =>
       borderRadius: 16,
       padding: 16,
       gap: 12,
+    },
+    actionSheetModal: {
+      backgroundColor: theme.colors.surface,
+      marginHorizontal: 0,
+      marginTop: "auto",
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+      padding: 16,
+      paddingBottom: 26,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+      gap: 12,
+    },
+    actionSheetHandle: {
+      alignSelf: "center",
+      width: 52,
+      height: 5,
+      borderRadius: 999,
+      backgroundColor: theme.colors.outline,
+      marginBottom: 2,
     },
     modalActionsColumn: {
       gap: 10,
@@ -1454,34 +1915,187 @@ const makeStyles = (theme: MD3Theme) =>
     },
     taskRow: {
       borderTopWidth: 1,
-      borderColor: theme.colors.outline,
-      paddingVertical: 10,
+      borderColor: buildPalette(theme.dark).cardBorder,
+      paddingVertical: 12,
       gap: 8,
     },
     taskRowHighlighted: {
-      backgroundColor: theme.colors.surfaceVariant,
-      borderRadius: 8,
-      paddingHorizontal: 8,
+      backgroundColor: buildPalette(theme.dark).taskHighlight,
+      borderRadius: 12,
+      paddingHorizontal: 10,
     },
     taskMain: {
       gap: 4,
     },
     taskTitle: {
-      fontSize: 14,
+      fontSize: 15,
       fontWeight: "600",
-      color: theme.colors.onSurface,
+      color: buildPalette(theme.dark).heading,
     },
     taskDescription: {
-      fontSize: 12,
-      color: theme.colors.onSurfaceVariant,
+      fontSize: 13,
+      color: buildPalette(theme.dark).secondary,
     },
     taskMeta: {
       fontSize: 12,
-      color: theme.colors.onSurfaceVariant,
+      color: buildPalette(theme.dark).secondary,
     },
     taskActions: {
       flexDirection: "row",
-      justifyContent: "flex-end",
+      justifyContent: "space-between",
       gap: 8,
+    },
+    equalTaskButton: {
+      flex: 1,
+    },
+    timelineList: {
+      gap: 12,
+    },
+    timelineRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+    },
+    timelineDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 999,
+      backgroundColor: buildPalette(theme.dark).accent,
+      marginTop: 6,
+    },
+    timelineContent: {
+      flex: 1,
+      gap: 2,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: buildPalette(theme.dark).cardBorder,
+      paddingBottom: 10,
+    },
+    timelineLabel: {
+      fontSize: 13,
+      color: buildPalette(theme.dark).secondary,
+      fontWeight: "500",
+    },
+    timelineValue: {
+      fontSize: 15,
+      color: buildPalette(theme.dark).heading,
+      fontWeight: "600",
+    },
+    harvestSummaryGrid: {
+      gap: 10,
+    },
+    harvestMetricCard: {
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).cardBorder,
+      backgroundColor: buildPalette(theme.dark).chipBg,
+      padding: 12,
+      gap: 4,
+    },
+    harvestMetricLabel: {
+      fontSize: 12,
+      color: buildPalette(theme.dark).secondary,
+      fontWeight: "500",
+    },
+    harvestMetricValue: {
+      fontSize: 17,
+      color: buildPalette(theme.dark).heading,
+      fontWeight: "700",
+    },
+    harvestDetailsLinkRow: {
+      alignItems: "flex-end",
+      paddingTop: 4,
+    },
+    harvestDetailsLinkText: {
+      fontSize: 14,
+      color: buildPalette(theme.dark).accent,
+      fontWeight: "600",
+    },
+    warningList: {
+      gap: 12,
+    },
+    warningCard: {
+      borderRadius: 16,
+      borderWidth: 1,
+      padding: 14,
+      gap: 8,
+    },
+    warningTopRow: {
+      flexDirection: "row",
+      justifyContent: "flex-start",
+    },
+    warningSeverityBadge: {
+      borderRadius: 999,
+      borderWidth: 1,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    warningSeverityText: {
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    warningTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: buildPalette(theme.dark).heading,
+    },
+    warningMessage: {
+      fontSize: 14,
+      color: buildPalette(theme.dark).heading,
+      lineHeight: 21,
+    },
+    warningHint: {
+      fontSize: 13,
+      color: buildPalette(theme.dark).secondary,
+      lineHeight: 19,
+    },
+    warningDetails: {
+      fontSize: 12,
+      color: buildPalette(theme.dark).muted,
+      lineHeight: 17,
+    },
+    metaBlock: {
+      marginTop: 4,
+      gap: 4,
+      paddingHorizontal: 2,
+      paddingBottom: 8,
+    },
+    metaText: {
+      fontSize: 12,
+      color: buildPalette(theme.dark).muted,
+    },
+    loadingBarShort: {
+      width: 78,
+      height: 24,
+      borderRadius: 999,
+      backgroundColor: buildPalette(theme.dark).chipBg,
+    },
+    loadingBarTitle: {
+      width: "78%",
+      height: 34,
+      borderRadius: 10,
+      backgroundColor: buildPalette(theme.dark).chipBg,
+    },
+    loadingChipRow: {
+      flexDirection: "row",
+      gap: 8,
+      flexWrap: "wrap",
+    },
+    loadingChip: {
+      width: 104,
+      height: 30,
+      borderRadius: 999,
+      backgroundColor: buildPalette(theme.dark).chipBg,
+    },
+    loadingBarMedium: {
+      width: "50%",
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: buildPalette(theme.dark).chipBg,
+    },
+    loadingBarLong: {
+      width: "100%",
+      height: 16,
+      borderRadius: 10,
+      backgroundColor: buildPalette(theme.dark).chipBg,
     },
   });
