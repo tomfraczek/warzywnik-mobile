@@ -1,8 +1,12 @@
 export type PlantingStatus =
-  | "PLANNED"
-  | "ACTIVE"
-  | "HARVESTING"
-  | "FINISHED"
+  | "NEW"
+  | "SEEDLING_PREPARED"
+  | "SEEDLING_READY_FOR_TRANSPLANT"
+  | "IN_GROUND"
+  | "READY_FOR_FINAL_HARVEST"
+  | "HARVESTED"
+  | "CLEARED"
+  | "FAILED"
   | "CANCELLED";
 
 export type PlantingStartMethod = "DIRECT_SOW" | "TRANSPLANT";
@@ -44,6 +48,7 @@ export type Planting = {
   status: PlantingStatus;
   startMethod?: PlantingStartMethod;
   sowedAt?: string | null;
+  transplantedAt?: string | null;
   plannedStartDate: string;
   actualStartDate?: string | null;
   harvestStartDate?: string | null;
@@ -63,6 +68,7 @@ export type CreatePlantingDto = {
   vegetableId: string;
   startMethod: PlantingStartMethod;
   sowedAt?: string | null;
+  transplantedAt?: string | null;
   plannedStartDate: string;
   actualStartDate?: string | null;
   status?: PlantingStatus;
@@ -70,6 +76,13 @@ export type CreatePlantingDto = {
 };
 
 export type UpdatePlantingDto = Partial<Omit<CreatePlantingDto, "bedId">>;
+
+export type PlantingAvailableStatusesResponse = {
+  plantingId: string;
+  currentStatus: PlantingStatus;
+  startMethod: PlantingStartMethod;
+  availableStatuses: PlantingStatus[];
+};
 
 export type PlantingMutationResponse = {
   planting: Planting;

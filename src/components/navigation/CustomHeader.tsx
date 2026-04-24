@@ -2,26 +2,40 @@ import { OFFLINE_BANNER_EXTRA_HEIGHT } from "@/src/features/network/offline";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { useRouter, useSegments } from "expo-router";
 import { ReactNode, useCallback } from "react";
-import { StyleSheet, View } from "react-native";
-import { Appbar, MD3Theme, useTheme } from "react-native-paper";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Icon, MD3Theme, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type CustomHeaderProps = {
   title?: string;
   showBack?: boolean;
+  onBackPress?: () => void;
+  variant?: "default" | "overlay";
   backRoute?:
     | "/(tabs)/home"
     | "/(tabs)/beds"
     | "/(tabs)/planner"
     | "/(tabs)/education"
     | "/(tabs)/profile";
+  actions?: HeaderAction[];
   rightAction?: ReactNode;
+};
+
+export type HeaderAction = {
+  icon: string;
+  onPress: () => void;
+  disabled?: boolean;
+  hidden?: boolean;
+  accessibilityLabel?: string;
 };
 
 export default function CustomHeader({
   title,
   showBack,
+  onBackPress,
+  variant = "default",
   backRoute,
+  actions,
   rightAction,
 }: CustomHeaderProps) {
   const theme = useTheme<MD3Theme>();
@@ -50,6 +64,10 @@ export default function CustomHeader({
             : "/(tabs)/home";
 
   const handleBack = useCallback(() => {
+    if (onBackPress) {
+      onBackPress();
+      return;
+    }
     if (backRoute) {
       router.replace(backRoute);
       return;
@@ -60,42 +78,153 @@ export default function CustomHeader({
     }
 
     router.replace(fallbackRoute);
-  }, [backRoute, fallbackRoute, router]);
+  }, [backRoute, fallbackRoute, onBackPress, router]);
 
   const shouldShowBack = showBack ?? router.canGoBack();
+  const visibleActions = (actions ?? []).filter((action) => !action.hidden);
+  const isOverlay = variant === "overlay";
+  const actionIconColor = isOverlay ? "#FFFFFF" : theme.colors.onSurface;
 
   return (
-    <Appbar.Header
-      statusBarHeight={
-        insets.top + (isOffline ? OFFLINE_BANNER_EXTRA_HEIGHT : 0)
-      }
+    <View
       style={[
-        styles.container,
+        isOverlay ? styles.overlayContainer : styles.container,
         {
-          backgroundColor: theme.colors.surface,
+          paddingTop:
+            insets.top + (isOffline ? OFFLINE_BANNER_EXTRA_HEIGHT : 0) + 8,
+          backgroundColor: isOverlay ? "transparent" : theme.colors.surface,
         },
       ]}
     >
-      {shouldShowBack ? (
-        <Appbar.BackAction
-          onPress={handleBack}
-          iconColor={theme.colors.onSurface}
-        />
-      ) : null}
-      <Appbar.Content
-        title={title ?? ""}
-        titleStyle={{ color: theme.colors.onSurface }}
-      />
-      {rightAction ? (
-        <View style={styles.rightAction}>{rightAction}</View>
-      ) : null}
-    </Appbar.Header>
+      <View style={styles.row}>
+        <View style={styles.leftGroup}>
+          {shouldShowBack ? (
+            <Pressable
+              onPress={handleBack}
+              style={({ pressed }) => [
+                styles.circleAction,
+                {
+                  borderColor: isOverlay
+                    ? "rgba(255,255,255,0.28)"
+                    : theme.colors.outline,
+                  backgroundColor: isOverlay
+                    ? pressed
+                      ? "rgba(17, 24, 20, 0.72)"
+                      : "rgba(17, 24, 20, 0.52)"
+                    : pressed
+                      ? theme.colors.surfaceVariant
+                      : theme.colors.surface,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Wróć"
+            >
+              <Icon source="arrow-left" size={22} color={actionIconColor} />
+            </Pressable>
+          ) : (
+            <View style={styles.placeholderAction} />
+          )}
+        </View>
+
+        <View style={styles.centerGroup}>
+          {title && !isOverlay ? (
+            <Text style={[styles.title, { color: theme.colors.onSurface }]}>
+              {title}
+            </Text>
+          ) : null}
+        </View>
+
+        <View style={styles.rightGroup}>
+          {visibleActions.map((action, index) => (
+            <Pressable
+              key={`${action.icon}-${index}`}
+              onPress={action.onPress}
+              disabled={action.disabled}
+              style={({ pressed }) => [
+                styles.circleAction,
+                {
+                  borderColor: isOverlay
+                    ? "rgba(255,255,255,0.28)"
+                    : theme.colors.outline,
+                  backgroundColor: isOverlay
+                    ? pressed
+                      ? "rgba(17, 24, 20, 0.72)"
+                      : "rgba(17, 24, 20, 0.52)"
+                    : pressed
+                      ? theme.colors.surfaceVariant
+                      : theme.colors.surface,
+                  opacity: action.disabled ? 0.55 : 1,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={action.accessibilityLabel}
+            >
+              <Icon source={action.icon} size={20} color={actionIconColor} />
+            </Pressable>
+          ))}
+          {rightAction ? (
+            <View style={styles.rightAction}>{rightAction}</View>
+          ) : null}
+        </View>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {},
+  overlayContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  container: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  row: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  leftGroup: {
+    width: 52,
+    alignItems: "flex-start",
+  },
+  centerGroup: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+  },
+  rightGroup: {
+    minWidth: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 8,
+  },
+  circleAction: {
+    width: 42,
+    height: 42,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  placeholderAction: {
+    width: 42,
+    height: 42,
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: "700",
+    textAlign: "center",
+  },
   rightAction: {
-    marginRight: 4,
+    marginRight: 2,
   },
 });

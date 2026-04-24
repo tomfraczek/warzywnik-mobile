@@ -2,6 +2,8 @@ import type {
   PlantingEventType,
   TimelineItem,
 } from "@/src/api/queries/plantings/learningTypes";
+import { PlantingStatus } from "@/src/api/queries/plantings/types";
+import { getPlantingStatusLabel } from "@/src/features/plantings/status";
 
 // ─── Date formatters ────────────────────────────────────────────────────────
 
@@ -171,6 +173,39 @@ export type TimelineItemPresentation = {
   subtitle?: string;
 };
 
+const parsePlantingStatus = (value: unknown): PlantingStatus | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toUpperCase();
+  const validStatuses: PlantingStatus[] = [
+    "NEW",
+    "SEEDLING_PREPARED",
+    "SEEDLING_READY_FOR_TRANSPLANT",
+    "IN_GROUND",
+    "READY_FOR_FINAL_HARVEST",
+    "HARVESTED",
+    "CLEARED",
+    "FAILED",
+    "CANCELLED",
+  ];
+  return validStatuses.includes(normalized as PlantingStatus)
+    ? (normalized as PlantingStatus)
+    : null;
+};
+
+const getStatusChangedSubtitle = (payload?: Record<string, unknown>) => {
+  if (!payload) return undefined;
+
+  const nextStatus =
+    parsePlantingStatus(payload.toStatus) ??
+    parsePlantingStatus(payload.newStatus) ??
+    parsePlantingStatus(payload.status) ??
+    parsePlantingStatus(payload.nextStatus) ??
+    parsePlantingStatus(payload.to);
+
+  if (!nextStatus) return undefined;
+  return `Nowy status: ${getPlantingStatusLabel(nextStatus)}`;
+};
+
 export const getTimelineItemPresentation = (
   item: TimelineItem,
 ): TimelineItemPresentation => {
@@ -179,6 +214,10 @@ export const getTimelineItemPresentation = (
       return {
         icon: getPlantingEventTypeIcon(item.eventType),
         title: mapPlantingEventTypeToLabel(item.eventType),
+        subtitle:
+          item.eventType === "PLANTING_STATUS_CHANGED"
+            ? getStatusChangedSubtitle(item.payload)
+            : undefined,
       };
     case "ACTION_COMPLETED": {
       const subtitle = item.actionType

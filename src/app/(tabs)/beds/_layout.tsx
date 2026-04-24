@@ -25,12 +25,7 @@ export default function BedsLayout() {
         name="[bedId]/plantings/[plantingId]"
         options={{
           title: "Szczegóły uprawy",
-          header: ({ options }) => (
-            <CustomHeader
-              title={options.title?.toString()}
-              backRoute="/(tabs)/beds"
-            />
-          ),
+          headerShown: false,
         }}
       />
       <Stack.Screen

@@ -24,6 +24,11 @@ import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostH
 import { Screen } from "@/src/components/Screen";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import {
+  getPlantingStatusLabel,
+  getPlantingStatusTone,
+  isPlantingActiveLifecycleStatus,
+} from "@/src/features/plantings/status";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
@@ -169,6 +174,7 @@ const PlantingRow = memo(function PlantingRow({
   const vegetableName = isVegetableLoading
     ? "Ładowanie..."
     : (vegetable?.name ?? (vegetableError ? "Brak nazwy" : "Brak nazwy"));
+  const plantingStatusTone = getPlantingStatusTone(planting.status, theme.dark);
 
   return (
     <Pressable style={styles.plantingRow} onPress={onPress}>
@@ -199,7 +205,24 @@ const PlantingRow = memo(function PlantingRow({
           Start: {formatDate(planting.plannedStartDate)}
         </Text>
       </View>
-      <Text style={styles.plantingStatus}>{planting.status}</Text>
+      <View
+        style={[
+          styles.plantingStatusBadge,
+          {
+            backgroundColor: plantingStatusTone.backgroundColor,
+            borderColor: plantingStatusTone.borderColor,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.plantingStatus,
+            { color: plantingStatusTone.textColor },
+          ]}
+        >
+          {getPlantingStatusLabel(planting.status)}
+        </Text>
+      </View>
     </Pressable>
   );
 });
@@ -322,7 +345,10 @@ export default function BedDetailsScreen() {
   const harvestConfirmationVisible =
     !!activeHarvestPrompt && !postHarvestModalVisible;
   const activePlantings = useMemo(
-    () => plantings.filter((planting) => planting.status !== "CANCELLED"),
+    () =>
+      plantings.filter((planting) =>
+        isPlantingActiveLifecycleStatus(planting.status),
+      ),
     [plantings],
   );
 
@@ -1381,8 +1407,13 @@ const makeStyles = (theme: MD3Theme) => {
     },
     plantingStatus: {
       fontSize: 12,
-      color: palette.accent,
-      fontWeight: "600",
+      fontWeight: "500",
+    },
+    plantingStatusBadge: {
+      borderWidth: 1,
+      borderRadius: 999,
+      paddingHorizontal: 11,
+      paddingVertical: 6,
     },
     harvestPromptRow: {
       borderTopWidth: 1,

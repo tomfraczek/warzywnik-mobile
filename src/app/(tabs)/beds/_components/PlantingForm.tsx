@@ -1,8 +1,5 @@
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
-import {
-  PlantingFormValues,
-  plantingStatusOptions,
-} from "@/src/app/(tabs)/beds/_utils/plantingForm";
+import { PlantingFormValues } from "@/src/app/(tabs)/beds/_utils/plantingForm";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { memo, useMemo, useState } from "react";
 import {
@@ -129,7 +126,7 @@ function PlantingFormComponent({
           </Pressable>
         </View>
 
-        <Text style={styles.label}>Data siewu *</Text>
+        <Text style={styles.label}>Data siewu</Text>
         <View style={styles.dateRow}>
           <View style={styles.dateField}>
             <PaperTextInput
@@ -159,31 +156,6 @@ function PlantingFormComponent({
             onChange({ sowedAt: date.toISOString() });
           }}
         />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Status</Text>
-        <View style={styles.statusRow}>
-          {plantingStatusOptions.map((statusOption) => {
-            const isActive = values.status === statusOption.value;
-            return (
-              <Pressable
-                key={statusOption.value}
-                style={[styles.statusChip, isActive && styles.statusChipActive]}
-                onPress={() => onChange({ status: statusOption.value })}
-              >
-                <Text
-                  style={[
-                    styles.statusChipText,
-                    isActive && styles.statusChipTextActive,
-                  ]}
-                >
-                  {statusOption.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
       </View>
 
       <View style={styles.section}>

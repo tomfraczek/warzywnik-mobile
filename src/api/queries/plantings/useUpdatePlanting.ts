@@ -20,6 +20,9 @@ export const useUpdatePlanting = (id: string, bedId?: string) => {
     mutationFn: (payload: UpdatePlantingDto) => updatePlanting({ id, payload }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: plantingKeys.detail(id) });
+      queryClient.invalidateQueries({
+        queryKey: plantingKeys.availableStatuses(id),
+      });
       queryClient.invalidateQueries({ queryKey: plantingKeys.all });
       if (bedId) {
         queryClient.invalidateQueries({

@@ -3,6 +3,7 @@ import { Bed, CultivationEnvironment } from "@/src/api/queries/beds/types";
 import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { Screen } from "@/src/components/Screen";
+import { isPlantingActiveLifecycleStatus } from "@/src/features/plantings/status";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
@@ -421,7 +422,7 @@ export default function BedsListScreen() {
       plantingsQuery.data?.pages.flatMap((page) => page.items) ?? [];
     items.forEach((item) => {
       if (!item.bedId) return;
-      if (item.status === "CANCELLED" || item.status === "FINISHED") return;
+      if (!isPlantingActiveLifecycleStatus(item.status)) return;
       counts.set(item.bedId, (counts.get(item.bedId) ?? 0) + 1);
     });
     return counts;

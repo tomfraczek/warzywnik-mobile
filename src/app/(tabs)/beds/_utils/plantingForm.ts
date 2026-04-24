@@ -5,31 +5,19 @@ import {
   UpdatePlantingDto,
 } from "@/src/api/queries/plantings/types";
 
-export type AllowedPlantingStatus = "PLANNED" | "ACTIVE";
-
 export type PlantingFormValues = {
   vegetableId: string | null;
   vegetableName: string | null;
   startMethod: PlantingStartMethod;
   sowedAt: string;
-  status: AllowedPlantingStatus;
   notes: string;
 };
-
-export const plantingStatusOptions: {
-  value: AllowedPlantingStatus;
-  label: string;
-}[] = [
-  { value: "PLANNED", label: "Planowana" },
-  { value: "ACTIVE", label: "Aktywna" },
-];
 
 export const createEmptyPlantingFormValues = (): PlantingFormValues => ({
   vegetableId: null,
   vegetableName: null,
   startMethod: "DIRECT_SOW",
   sowedAt: "",
-  status: "PLANNED",
   notes: "",
 });
 
@@ -40,15 +28,11 @@ export const plantingToFormValues = (
   vegetableName: planting.vegetable?.name ?? planting.vegetableName ?? "",
   startMethod: planting.startMethod ?? "DIRECT_SOW",
   sowedAt: planting.sowedAt ?? planting.plannedStartDate ?? "",
-  status: planting.status === "ACTIVE" ? "ACTIVE" : "PLANNED",
   notes: planting.notes ?? "",
 });
 
 export const validatePlantingForm = (values: PlantingFormValues) => {
   if (!values.vegetableId) return "Wybierz warzywo.";
-  if (!values.sowedAt.trim()) {
-    return "Podaj datę siewu.";
-  }
 
   return null;
 };
@@ -63,15 +47,16 @@ export const buildCreatePlantingPayload = (
   values: PlantingFormValues,
 ): CreatePlantingDto => {
   const sowedAt = normalizeNullableString(values.sowedAt);
-  const derivedStartDate = sowedAt ?? "";
+  const derivedStartDate = sowedAt ?? new Date().toISOString();
 
   return {
     bedId,
     vegetableId: values.vegetableId as string,
     startMethod: values.startMethod,
     sowedAt,
+    transplantedAt: values.startMethod === "DIRECT_SOW" ? null : undefined,
     plannedStartDate: derivedStartDate,
-    status: values.status,
+    status: "NEW",
     notes: normalizeNullableString(values.notes),
   };
 };
@@ -90,26 +75,19 @@ export const buildUpdatePlantingPayload = (
     payload.startMethod = current.startMethod;
   }
 
-  if (current.startMethod === "DIRECT_SOW") {
+  if (initial.sowedAt !== current.sowedAt) {
     payload.sowedAt = normalizeNullableString(current.sowedAt);
-  }
-
-  if (initial.status !== current.status) {
-    payload.status = current.status;
+    if (payload.sowedAt) {
+      payload.plannedStartDate = payload.sowedAt;
+    }
   }
 
   if (initial.notes !== current.notes) {
     payload.notes = normalizeNullableString(current.notes);
   }
 
-  const normalizedSowedAt = normalizeNullableString(current.sowedAt);
-  const derivedStartDate = normalizedSowedAt ?? "";
-
-  const initialSowedAt = normalizeNullableString(initial.sowedAt);
-  const initialDerivedStartDate = initialSowedAt ?? "";
-
-  if (derivedStartDate !== initialDerivedStartDate) {
-    payload.plannedStartDate = derivedStartDate;
+  if (current.startMethod === "DIRECT_SOW") {
+    payload.transplantedAt = null;
   }
 
   return payload;

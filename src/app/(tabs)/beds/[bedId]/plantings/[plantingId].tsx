@@ -30,9 +30,16 @@ import {
 } from "@/src/api/queries/plantings/types";
 import { useDeletePlanting } from "@/src/api/queries/plantings/useDeletePlanting";
 import { useGetPlanting } from "@/src/api/queries/plantings/useGetPlanting";
+import { useGetPlantingAvailableStatuses } from "@/src/api/queries/plantings/useGetPlantingAvailableStatuses";
+import { useUpdatePlanting } from "@/src/api/queries/plantings/useUpdatePlanting";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { Screen } from "@/src/components/Screen";
+import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import {
+  getPlantingStatusLabel,
+  getPlantingStatusTone,
+} from "@/src/features/plantings/status";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { formatQualityRating, formatYield } from "@/src/utils/learningMappers";
 import { isAxiosError } from "axios";
@@ -76,14 +83,6 @@ const formatDate = (value?: string | null) => {
     month: "long",
     year: "numeric",
   }).format(date);
-};
-
-const STATUS_LABELS: Record<PlantingStatus, string> = {
-  PLANNED: "Zaplanowana",
-  ACTIVE: "Aktywna",
-  HARVESTING: "W trakcie zbiorów",
-  FINISHED: "Zakończona",
-  CANCELLED: "Anulowana",
 };
 
 const START_METHOD_LABELS: Record<PlantingStartMethod, string> = {
@@ -181,6 +180,10 @@ export default function PlantingDetailsScreen() {
   );
 
   const deletePlanting = useDeletePlanting(resolvedBedId);
+  const updatePlanting = useUpdatePlanting(
+    resolvedPlantingId ?? "",
+    resolvedBedId,
+  );
   const {
     data: plantingTasksResponse,
     refetch: refetchPlantingTasks,
@@ -201,6 +204,14 @@ export default function PlantingDetailsScreen() {
   const [harvestFormVisible, setHarvestFormVisible] = useState(false);
   const [editingHarvestRecord, setEditingHarvestRecord] =
     useState<HarvestResultRecord | null>(null);
+
+  const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<PlantingStatus | null>(
+    null,
+  );
+  const [statusErrorMessage, setStatusErrorMessage] = useState<string | null>(
+    null,
+  );
 
   const diseaseOccurrencesQuery = useGetPlantingDiseaseOccurrences(
     resolvedPlantingId ?? null,
@@ -229,6 +240,13 @@ export default function PlantingDetailsScreen() {
     isLoading: isVegetableLoading,
     error: vegetableError,
   } = useGetVegetable(planting?.vegetableId ?? null);
+
+  const availableStatusesQuery = useGetPlantingAvailableStatuses(
+    resolvedPlantingId ?? null,
+    Boolean(statusModalVisible),
+  );
+  const availableStatuses =
+    availableStatusesQuery.data?.availableStatuses ?? [];
 
   const [diseaseModalVisible, setDiseaseModalVisible] = useState(false);
   const [selectedDiseaseId, setSelectedDiseaseId] = useState<string | null>(
@@ -292,7 +310,10 @@ export default function PlantingDetailsScreen() {
 
   const isOffline = useIsOffline();
 
-  const statusLabel = planting ? STATUS_LABELS[planting.status] : "—";
+  const statusLabel = planting ? getPlantingStatusLabel(planting.status) : "—";
+  const statusTone = planting
+    ? getPlantingStatusTone(planting.status, theme.dark)
+    : null;
   const startMethodLabel = planting?.startMethod
     ? START_METHOD_LABELS[planting.startMethod]
     : "Brak";
@@ -330,7 +351,7 @@ export default function PlantingDetailsScreen() {
           yieldKg: planting.yieldKg ?? null,
           qualityRating: planting.yieldQualityRating ?? null,
           notes: planting.yieldNotes ?? null,
-        } satisfies HarvestResultRecord,
+        },
       ];
     }
 
@@ -432,6 +453,37 @@ export default function PlantingDetailsScreen() {
         },
       },
     ]);
+  };
+
+  const openStatusModal = () => {
+    setStatusErrorMessage(null);
+    setSelectedStatus(null);
+    setStatusModalVisible(true);
+  };
+
+  const handleSavePlantingStatus = async () => {
+    if (!planting) return;
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
+    if (!selectedStatus) {
+      setStatusErrorMessage("Wybierz status.");
+      return;
+    }
+    if (selectedStatus === planting.status) {
+      setStatusErrorMessage("To już jest aktualny status.");
+      return;
+    }
+    try {
+      await updatePlanting.mutateAsync({ status: selectedStatus });
+      setStatusModalVisible(false);
+      setSelectedStatus(null);
+      setStatusErrorMessage(null);
+      setSnackbarMessage("Status uprawy został zmieniony.");
+    } catch (err) {
+      setStatusErrorMessage(String(getResponseError(err)));
+    }
   };
 
   const handleMarkTaskDone = async (taskId: string) => {
@@ -683,54 +735,286 @@ export default function PlantingDetailsScreen() {
       safeAreaEdges={["left", "right"]}
     >
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.heroMediaCard}>
-          {vegetable?.imageUrl ? (
-            <Image
-              source={{ uri: vegetable.imageUrl }}
-              style={styles.heroMediaImage}
-            />
-          ) : (
-            <View style={styles.heroMediaFallback}>
-              <Icon
-                source="sprout-outline"
-                size={34}
-                color={palette.secondary}
+        <View style={styles.heroStack}>
+          <View style={styles.heroMediaCard}>
+            {vegetable?.imageUrl ? (
+              <Image
+                source={{ uri: vegetable.imageUrl }}
+                style={styles.heroMediaImage}
               />
-            </View>
-          )}
-        </View>
+            ) : (
+              <View style={styles.heroMediaFallback}>
+                <Icon
+                  source="sprout-outline"
+                  size={34}
+                  color={palette.secondary}
+                />
+              </View>
+            )}
 
-        <Surface style={styles.heroCard} elevation={0}>
-          <View style={styles.heroTopRow}>
-            <View style={styles.heroTag}>
-              <Text style={styles.heroTagText}>Uprawa</Text>
-            </View>
-            <IconButton
-              icon="cog-outline"
-              onPress={() => setActionsVisible(true)}
-              style={styles.heroSettingsButton}
+            <CustomHeader
+              variant="overlay"
+              showBack
+              backRoute="/(tabs)/beds"
+              actions={[
+                {
+                  icon: "pencil",
+                  accessibilityLabel: "Edytuj uprawę",
+                  disabled: isOffline,
+                  onPress: () => {
+                    if (!resolvedBedId || !planting?.id) return;
+                    router.push(
+                      `/(tabs)/beds/${resolvedBedId}/plantings/${planting.id}/edit`,
+                    );
+                  },
+                },
+                {
+                  icon: "trash-can-outline",
+                  accessibilityLabel: "Usuń uprawę",
+                  disabled: deletePlanting.isPending || isOffline,
+                  onPress: handleDelete,
+                },
+              ]}
             />
           </View>
 
-          <View style={styles.heroHeadingBlock}>
-            <Text style={styles.heroEyebrow}>Szczegóły uprawy</Text>
-            <Text style={styles.heroTitle} numberOfLines={2}>
-              {vegetableName || "Szczegóły uprawy"}
-            </Text>
+          <Surface style={styles.heroCard} elevation={0}>
+            <View style={styles.heroHeadingBlock}>
+              <Text
+                style={styles.heroEyebrow}
+              >{`UPRAWA • ${startMethodLabel.toUpperCase()}`}</Text>
+              <Text style={styles.heroTitle} numberOfLines={2}>
+                {vegetableName || "Szczegóły uprawy"}
+              </Text>
+            </View>
 
             <View style={styles.heroStatusRow}>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusBadgeText}>{statusLabel}</Text>
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor:
+                      statusTone?.backgroundColor ?? palette.accentBg,
+                    borderColor:
+                      statusTone?.borderColor ?? palette.accentBorder,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusBadgeDot,
+                    {
+                      backgroundColor: statusTone?.textColor ?? palette.accent,
+                    },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    { color: statusTone?.textColor ?? palette.accent },
+                  ]}
+                >
+                  {statusLabel}
+                </Text>
               </View>
             </View>
-          </View>
+          </Surface>
+        </View>
 
-          <View style={styles.quickChipsRow}>
-            <Text style={styles.heroMethodText}>
-              Metoda: {startMethodLabel}
-            </Text>
+        <Pressable
+          onPress={openStatusModal}
+          style={styles.changeStatusButton}
+          disabled={isOffline}
+        >
+          <View style={styles.changeStatusButtonInner}>
+            <Icon source="swap-horizontal" size={22} color="#FFFFFF" />
+            <Text style={styles.changeStatusButtonText}>Zmień status</Text>
+          </View>
+        </Pressable>
+
+        {warnings.length > 0 ? (
+          <View style={styles.warningHighlightCard}>
+            <View style={styles.warningHighlightIconWrap}>
+              <Icon
+                source="alert-outline"
+                size={22}
+                color={palette.warningCriticalText}
+              />
+            </View>
+            <View style={styles.warningHighlightTextWrap}>
+              <Text style={styles.warningHighlightTitle}>
+                {warnings[0].title}
+              </Text>
+              <Text style={styles.warningHighlightMessage}>
+                {warnings[0].message}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {timelineRows.length > 0 ? (
+          <Surface style={styles.section} elevation={0}>
+            <Text style={styles.sectionTitle}>Etapy wzrostu</Text>
+            <View style={styles.timelineList}>
+              {timelineRows.map((row) => (
+                <View key={row.label} style={styles.timelineRow}>
+                  <View style={styles.timelineDot} />
+                  <View style={styles.timelineContent}>
+                    <Text style={styles.timelineLabel}>{row.label}</Text>
+                    <Text style={styles.timelineValue}>
+                      {row.isPreformatted ? row.value : formatDate(row.value)}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Surface>
+        ) : null}
+
+        <Surface style={styles.section} elevation={0}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Zadania</Text>
+            <Pressable
+              onPress={() => {
+                if (resolvedBedId) {
+                  router.push(`/(tabs)/beds/${resolvedBedId}`);
+                }
+              }}
+            >
+              <Text style={styles.sectionLink}>Zobacz wszystkie</Text>
+            </Pressable>
           </View>
         </Surface>
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
+
+        {false ? <View /> : null}
 
         {timelineRows.length > 0 ? (
           <Surface style={styles.section} elevation={0}>
@@ -1161,6 +1445,118 @@ export default function PlantingDetailsScreen() {
           ) : null}
         </View>
       </ScrollView>
+
+      <Portal>
+        <Modal
+          visible={statusModalVisible}
+          onDismiss={() => {
+            setStatusModalVisible(false);
+          }}
+          contentContainerStyle={styles.statusModal}
+        >
+          <Text style={styles.modalTitle}>Zmień status uprawy</Text>
+          <Text style={styles.statusModalHint}>
+            Aktualny status: {statusLabel}
+          </Text>
+
+          {availableStatusesQuery.isLoading ? (
+            <View style={styles.statusModalStateWrap}>
+              <ActivityIndicator />
+              <Text style={styles.statusModalHint}>Pobieranie statusów…</Text>
+            </View>
+          ) : availableStatusesQuery.error ? (
+            <View style={styles.statusModalStateWrap}>
+              <Text style={styles.modalErrorText}>
+                {String(getResponseError(availableStatusesQuery.error))}
+              </Text>
+              <Button
+                mode="outlined"
+                onPress={() => availableStatusesQuery.refetch()}
+              >
+                Spróbuj ponownie
+              </Button>
+            </View>
+          ) : availableStatuses.length === 0 ? (
+            <View style={styles.statusModalStateWrap}>
+              <Text style={styles.statusModalHint}>
+                Brak dostępnych zmian statusu
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.modalLabel}>Nowy status</Text>
+              <View style={styles.statusOptionsColumn}>
+                {availableStatuses.map((status) => (
+                  <Pressable
+                    key={status}
+                    style={[
+                      styles.statusOptionRow,
+                      selectedStatus === status
+                        ? styles.statusOptionRowActive
+                        : null,
+                    ]}
+                    onPress={() => {
+                      setSelectedStatus(status);
+                      setStatusErrorMessage(null);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.statusOptionText,
+                        selectedStatus === status
+                          ? styles.statusOptionTextActive
+                          : null,
+                      ]}
+                    >
+                      {getPlantingStatusLabel(status)}
+                    </Text>
+                    <Icon
+                      source={
+                        selectedStatus === status
+                          ? "radiobox-marked"
+                          : "radiobox-blank"
+                      }
+                      size={20}
+                      color={
+                        selectedStatus === status
+                          ? buildPalette(theme.dark).accent
+                          : buildPalette(theme.dark).secondary
+                      }
+                    />
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
+
+          {statusErrorMessage ? (
+            <Text style={styles.modalErrorText}>{statusErrorMessage}</Text>
+          ) : null}
+
+          <View style={styles.modalActionsBetween}>
+            <Button
+              mode="outlined"
+              onPress={() => {
+                setStatusModalVisible(false);
+              }}
+            >
+              Anuluj
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleSavePlantingStatus}
+              loading={updatePlanting.isPending}
+              disabled={
+                updatePlanting.isPending ||
+                availableStatuses.length === 0 ||
+                !selectedStatus
+              }
+            >
+              Zapisz
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
 
       <Portal>
         <Modal
@@ -1606,22 +2002,97 @@ const makeStyles = (theme: MD3Theme) =>
       gap: 20,
       backgroundColor: buildPalette(theme.dark).background,
     },
+    heroStack: {
+      marginHorizontal: -16,
+      marginTop: -14,
+      marginBottom: 2,
+    },
+    changeStatusButton: {
+      height: 56,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).accent,
+      backgroundColor: buildPalette(theme.dark).accent,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    changeStatusButtonInner: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    changeStatusButtonText: {
+      fontSize: 17,
+      fontWeight: "700",
+      color: "#FFFFFF",
+    },
+    currentStatusBlock: {
+      gap: 6,
+      marginTop: 2,
+      marginBottom: 2,
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).cardBorder,
+      backgroundColor: buildPalette(theme.dark).cardBg,
+      borderRadius: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      shadowColor: "#000",
+      shadowOpacity: theme.dark ? 0.16 : 0.05,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 1,
+    },
+    currentStatusLabel: {
+      fontSize: 12,
+      fontWeight: "500",
+      color: buildPalette(theme.dark).secondary,
+    },
     heroCard: {
       borderWidth: 1,
       borderColor: buildPalette(theme.dark).cardBorder,
-      borderRadius: 24,
-      padding: 22,
+      borderRadius: 22,
+      padding: 18,
       backgroundColor: buildPalette(theme.dark).cardBg,
       gap: 12,
+      marginHorizontal: 16,
+      marginTop: -44,
+      shadowColor: "#000",
+      shadowOpacity: theme.dark ? 0.3 : 0.08,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 3,
     },
     heroMediaCard: {
       width: "100%",
-      height: 210,
-      borderRadius: 24,
+      height: 248,
+      borderRadius: 0,
       overflow: "hidden",
-      borderWidth: 1,
-      borderColor: buildPalette(theme.dark).chipBorder,
+      borderWidth: 0,
       backgroundColor: buildPalette(theme.dark).chipBg,
+    },
+    heroMediaOverlayTopRow: {
+      position: "absolute",
+      top: 56,
+      left: 16,
+      right: 16,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    heroActionsRightGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    heroCircleAction: {
+      width: 44,
+      height: 44,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(17, 24, 20, 0.52)",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.28)",
     },
     heroMediaImage: {
       width: "100%",
@@ -1681,11 +2152,18 @@ const makeStyles = (theme: MD3Theme) =>
       backgroundColor: buildPalette(theme.dark).accentBg,
       borderWidth: 1,
       borderColor: buildPalette(theme.dark).accentBorder,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    statusBadgeDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 999,
     },
     statusBadgeText: {
-      fontSize: 13,
-      fontWeight: "600",
-      color: buildPalette(theme.dark).accent,
+      fontSize: 12,
+      fontWeight: "500",
     },
     quickChipsRow: {
       flexDirection: "row",
@@ -1717,6 +2195,11 @@ const makeStyles = (theme: MD3Theme) =>
       fontSize: 19,
       fontWeight: "700",
       color: buildPalette(theme.dark).heading,
+    },
+    sectionLink: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: buildPalette(theme.dark).accent,
     },
     infoRowCompact: {
       flexDirection: "row",
@@ -1830,6 +2313,62 @@ const makeStyles = (theme: MD3Theme) =>
       borderRadius: 16,
       padding: 16,
       gap: 12,
+    },
+    statusModal: {
+      backgroundColor: theme.colors.surface,
+      marginHorizontal: 16,
+      borderRadius: 22,
+      padding: 20,
+      gap: 14,
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).cardBorder,
+    },
+    statusModalHint: {
+      fontSize: 13,
+      color: buildPalette(theme.dark).secondary,
+      lineHeight: 20,
+    },
+    statusModalStateWrap: {
+      gap: 10,
+      alignItems: "flex-start",
+    },
+    statusSelectInput: {
+      backgroundColor: buildPalette(theme.dark).cardBg,
+      minHeight: 54,
+    },
+    statusOptionsColumn: {
+      gap: 8,
+    },
+    statusOptionRow: {
+      minHeight: 52,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).cardBorder,
+      backgroundColor: buildPalette(theme.dark).cardBg,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+    },
+    statusOptionRowActive: {
+      borderColor: buildPalette(theme.dark).accentBorder,
+      backgroundColor: buildPalette(theme.dark).accentBg,
+    },
+    statusOptionText: {
+      fontSize: 15,
+      color: buildPalette(theme.dark).heading,
+      flex: 1,
+    },
+    statusOptionTextActive: {
+      color: buildPalette(theme.dark).accent,
+      fontWeight: "600",
+    },
+    modalErrorText: {
+      fontSize: 13,
+      color: theme.colors.error,
+      fontWeight: "500",
     },
     actionSheetModal: {
       backgroundColor: theme.colors.surface,
@@ -2052,6 +2591,38 @@ const makeStyles = (theme: MD3Theme) =>
       fontSize: 12,
       color: buildPalette(theme.dark).muted,
       lineHeight: 17,
+    },
+    warningHighlightCard: {
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).warningCriticalBorder,
+      backgroundColor: buildPalette(theme.dark).warningCriticalBg,
+      borderRadius: 16,
+      padding: 12,
+      flexDirection: "row",
+      gap: 10,
+      alignItems: "flex-start",
+    },
+    warningHighlightIconWrap: {
+      width: 32,
+      height: 32,
+      borderRadius: 999,
+      backgroundColor: buildPalette(theme.dark).background,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    warningHighlightTextWrap: {
+      flex: 1,
+      gap: 2,
+    },
+    warningHighlightTitle: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: buildPalette(theme.dark).heading,
+    },
+    warningHighlightMessage: {
+      fontSize: 13,
+      color: buildPalette(theme.dark).secondary,
+      lineHeight: 19,
     },
     metaBlock: {
       marginTop: 4,
