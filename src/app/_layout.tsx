@@ -1,8 +1,8 @@
 // app/_layout.tsx (albo odpowiedni RootLayout w Twoim projekcie)
 
 import { setAuthErrorHandler, setAuthTokenProvider } from "@/src/api/axios";
-import { OfflineBanner } from "@/src/components/OfflineBanner";
 import { AuthFlowLoader } from "@/src/components/AuthFlowLoader";
+import { OfflineBanner } from "@/src/components/OfflineBanner";
 import { isSsoAuthInProgress } from "@/src/features/push/authFlowState";
 import { ClerkProvider, useAuth, useClerk } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";

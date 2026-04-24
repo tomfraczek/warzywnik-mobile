@@ -3,19 +3,19 @@ import { Stack } from "expo-router";
 
 export default function BedsLayout() {
   return (
-    <Stack
-      screenOptions={{
-        header: ({ options }) => (
-          <CustomHeader title={options.title?.toString()} />
-        ),
-      }}
-    >
+    <Stack>
       <Stack.Screen
         name="index"
         options={{ title: "Grządki", headerShown: false }}
       />
       <Stack.Screen name="new" options={{ title: "Nowa grządka" }} />
-      <Stack.Screen name="[bedId]" options={{ title: "Szczegóły" }} />
+      <Stack.Screen
+        name="[bedId]"
+        options={{
+          title: "Szczegóły",
+          header: () => <CustomHeader title="Podgląd grządki" showBack />,
+        }}
+      />
       <Stack.Screen name="[bedId]/edit" options={{ title: "Edytuj grządkę" }} />
       <Stack.Screen
         name="[bedId]/plantings/new"

@@ -753,7 +753,7 @@ export default function PlantingDetailsScreen() {
             )}
 
             <CustomHeader
-              variant="overlay"
+              overlay
               showBack
               backRoute="/(tabs)/beds"
               actions={[

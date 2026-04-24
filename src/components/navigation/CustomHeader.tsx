@@ -10,6 +10,7 @@ type CustomHeaderProps = {
   title?: string;
   showBack?: boolean;
   onBackPress?: () => void;
+  overlay?: boolean;
   variant?: "default" | "overlay";
   backRoute?:
     | "/(tabs)/home"
@@ -33,6 +34,7 @@ export default function CustomHeader({
   title,
   showBack,
   onBackPress,
+  overlay,
   variant = "default",
   backRoute,
   actions,
@@ -82,8 +84,9 @@ export default function CustomHeader({
 
   const shouldShowBack = showBack ?? router.canGoBack();
   const visibleActions = (actions ?? []).filter((action) => !action.hidden);
-  const isOverlay = variant === "overlay";
+  const isOverlay = overlay ?? variant === "overlay";
   const actionIconColor = isOverlay ? "#FFFFFF" : theme.colors.onSurface;
+  const dark = theme.dark;
 
   return (
     <View
@@ -92,7 +95,7 @@ export default function CustomHeader({
         {
           paddingTop:
             insets.top + (isOffline ? OFFLINE_BANNER_EXTRA_HEIGHT : 0) + 8,
-          backgroundColor: isOverlay ? "transparent" : theme.colors.surface,
+          backgroundColor: dark ? "#141816" : "#F7F8F5",
         },
       ]}
     >
@@ -124,11 +127,14 @@ export default function CustomHeader({
           ) : (
             <View style={styles.placeholderAction} />
           )}
-        </View>
-
-        <View style={styles.centerGroup}>
-          {title && !isOverlay ? (
-            <Text style={[styles.title, { color: theme.colors.onSurface }]}>
+          {title ? (
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.title,
+                { color: isOverlay ? "#FFFFFF" : theme.colors.onSurface },
+              ]}
+            >
               {title}
             </Text>
           ) : null}
@@ -191,14 +197,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   leftGroup: {
-    width: 52,
-    alignItems: "flex-start",
-  },
-  centerGroup: {
     flex: 1,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 8,
+    gap: 10,
+    minWidth: 0,
   },
   rightGroup: {
     minWidth: 52,
@@ -220,9 +223,10 @@ const styles = StyleSheet.create({
     height: 42,
   },
   title: {
-    fontSize: 17,
+    flex: 1,
+    fontSize: 18,
     fontWeight: "700",
-    textAlign: "center",
+    textAlign: "left",
   },
   rightAction: {
     marginRight: 2,
