@@ -90,6 +90,19 @@ const START_METHOD_LABELS: Record<PlantingStartMethod, string> = {
   TRANSPLANT: "Rozsada",
 };
 
+const PLANTING_STATUS_DESCRIPTIONS: Record<PlantingStatus, string> = {
+  NEW: "Uprawa została utworzona i czeka na start prac.",
+  SEEDLING_PREPARED: "Przygotowano rozsadę lub miejsce do rozpoczęcia uprawy.",
+  SEEDLING_READY_FOR_TRANSPLANT:
+    "Rozsada jest gotowa do przesadzenia na miejsce docelowe.",
+  IN_GROUND: "Uprawa znajduje się już w gruncie i jest w trakcie wzrostu.",
+  READY_FOR_FINAL_HARVEST: "Rośliny są gotowe do końcowego zbioru.",
+  HARVESTED: "Zbiory zostały wykonane.",
+  CLEARED: "Uprawa została uprzątnięta po zakończeniu sezonu.",
+  FAILED: "Uprawa zakończyła się niepowodzeniem.",
+  CANCELLED: "Uprawa została anulowana i nie będzie kontynuowana.",
+};
+
 type ExtendedPlanting = Planting & {
   timelineTimezone?: string | null;
   appliedRulesVersion?: string | null;
@@ -1500,29 +1513,45 @@ export default function PlantingDetailsScreen() {
                       setStatusErrorMessage(null);
                     }}
                   >
-                    <Text
-                      style={[
-                        styles.statusOptionText,
-                        selectedStatus === status
-                          ? styles.statusOptionTextActive
-                          : null,
-                      ]}
-                    >
-                      {getPlantingStatusLabel(status)}
-                    </Text>
-                    <Icon
-                      source={
-                        selectedStatus === status
-                          ? "radiobox-marked"
-                          : "radiobox-blank"
-                      }
-                      size={20}
-                      color={
-                        selectedStatus === status
-                          ? buildPalette(theme.dark).accent
-                          : buildPalette(theme.dark).secondary
-                      }
-                    />
+                    <View style={styles.statusOptionMain}>
+                      <Text
+                        style={[
+                          styles.statusOptionText,
+                          selectedStatus === status
+                            ? styles.statusOptionTextActive
+                            : null,
+                        ]}
+                      >
+                        {getPlantingStatusLabel(status) || status}
+                      </Text>
+
+                      <View style={styles.statusOptionInfoRow}>
+                        <Icon
+                          source="information-outline"
+                          size={14}
+                          color={buildPalette(theme.dark).secondary}
+                        />
+                        <Text style={styles.statusOptionInfoText}>
+                          {PLANTING_STATUS_DESCRIPTIONS[status]}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.statusOptionRadioWrap}>
+                      <Icon
+                        source={
+                          selectedStatus === status
+                            ? "radiobox-marked"
+                            : "radiobox-blank"
+                        }
+                        size={20}
+                        color={
+                          selectedStatus === status
+                            ? buildPalette(theme.dark).accent
+                            : buildPalette(theme.dark).secondary
+                        }
+                      />
+                    </View>
                   </Pressable>
                 ))}
               </View>
@@ -2340,7 +2369,7 @@ const makeStyles = (theme: MD3Theme) =>
       gap: 8,
     },
     statusOptionRow: {
-      minHeight: 52,
+      minHeight: 0,
       borderRadius: 14,
       borderWidth: 1,
       borderColor: buildPalette(theme.dark).cardBorder,
@@ -2348,22 +2377,46 @@ const makeStyles = (theme: MD3Theme) =>
       paddingHorizontal: 14,
       paddingVertical: 12,
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       justifyContent: "space-between",
       gap: 10,
+    },
+    statusOptionMain: {
+      flex: 1,
+      gap: 6,
+      paddingRight: 6,
+    },
+    statusOptionRadioWrap: {
+      marginTop: 2,
+      marginRight: -2,
+      minWidth: 20,
+      alignItems: "center",
     },
     statusOptionRowActive: {
       borderColor: buildPalette(theme.dark).accentBorder,
       backgroundColor: buildPalette(theme.dark).accentBg,
     },
     statusOptionText: {
-      fontSize: 15,
+      fontSize: 16,
+      lineHeight: 22,
       color: buildPalette(theme.dark).heading,
-      flex: 1,
+      fontWeight: "700",
     },
     statusOptionTextActive: {
       color: buildPalette(theme.dark).accent,
       fontWeight: "600",
+    },
+    statusOptionInfoRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 6,
+    },
+    statusOptionInfoText: {
+      flex: 1,
+      fontSize: 12,
+      lineHeight: 17,
+      color: buildPalette(theme.dark).secondary,
+      fontWeight: "400",
     },
     modalErrorText: {
       fontSize: 13,

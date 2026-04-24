@@ -95,7 +95,11 @@ export default function CustomHeader({
         {
           paddingTop:
             insets.top + (isOffline ? OFFLINE_BANNER_EXTRA_HEIGHT : 0) + 8,
-          backgroundColor: dark ? "#141816" : "#F7F8F5",
+          backgroundColor: isOverlay
+            ? "transparent"
+            : dark
+              ? "#141816"
+              : "#F7F8F5",
         },
       ]}
     >

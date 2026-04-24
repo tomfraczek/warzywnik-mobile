@@ -218,11 +218,11 @@ export function BedSeasonHistorySection({ bedId }: Props) {
           />
         </View>
         <Text style={styles.emptyInfoTitle}>
-          Historia upraw pojawi się tutaj
+          Podsumowania sezonów pojawią się tutaj
         </Text>
         <Text style={styles.emptyInfoText}>
-          Po zakończeniu pierwszego sezonu na tej grządce zobaczysz w tym
-          miejscu historię upraw.
+          Ta sekcja pokazuje zakończone sezony na tej grządce. Bieżącą historię
+          uprawy znajdziesz w szczegółach aktywnej uprawy.
         </Text>
       </View>
     );
