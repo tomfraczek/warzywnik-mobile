@@ -2,8 +2,6 @@ import { getResponseError } from "@/src/api/axios";
 import { useGetBed } from "@/src/api/queries/beds/useGetBed";
 import { Warning } from "@/src/api/queries/plantings/types";
 import { useCreatePlanting } from "@/src/api/queries/plantings/useCreatePlanting";
-import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
-import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { PlantingForm } from "@/src/app/(tabs)/beds/_components/PlantingForm";
 import { WarningsModal } from "@/src/app/(tabs)/beds/_components/WarningsModal";
 import { consumeSelectedVegetable } from "@/src/app/(tabs)/beds/_state/vegetableSelectionStore";
@@ -13,6 +11,8 @@ import {
   createEmptyPlantingFormValues,
   validatePlantingForm,
 } from "@/src/app/(tabs)/beds/_utils/plantingForm";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -112,6 +112,7 @@ export default function PlantingCreateScreen() {
         onSubmit={handleSubmit}
         submitLabel="Dodaj uprawę"
         isSubmitting={createPlanting.isPending}
+        showSowedAt={false}
         onPickVegetable={() => router.push("/(tabs)/beds/vegetables")}
         onClearVegetable={() =>
           setValues((prev) => ({

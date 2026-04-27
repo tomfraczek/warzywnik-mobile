@@ -20,6 +20,7 @@ type PlantingFormProps = {
   onSubmit: () => void;
   submitLabel: string;
   isSubmitting?: boolean;
+  showSowedAt?: boolean;
   onPickVegetable: () => void;
   onClearVegetable?: () => void;
 };
@@ -45,6 +46,7 @@ function PlantingFormComponent({
   onSubmit,
   submitLabel,
   isSubmitting,
+  showSowedAt = true,
   onPickVegetable,
   onClearVegetable,
 }: PlantingFormProps) {
@@ -126,36 +128,40 @@ function PlantingFormComponent({
           </Pressable>
         </View>
 
-        <Text style={styles.label}>Data siewu</Text>
-        <View style={styles.dateRow}>
-          <View style={styles.dateField}>
-            <PaperTextInput
-              mode="outlined"
-              value={isoToDateOnly(values.sowedAt)}
-              placeholder="YYYY-MM-DD"
-              editable={false}
-              right={
-                <PaperTextInput.Icon
-                  icon="calendar"
-                  onPress={() => setSowedOpen(true)}
+        {showSowedAt ? (
+          <>
+            <Text style={styles.label}>Data siewu</Text>
+            <View style={styles.dateRow}>
+              <View style={styles.dateField}>
+                <PaperTextInput
+                  mode="outlined"
+                  value={isoToDateOnly(values.sowedAt)}
+                  placeholder="YYYY-MM-DD"
+                  editable={false}
+                  right={
+                    <PaperTextInput.Icon
+                      icon="calendar"
+                      onPress={() => setSowedOpen(true)}
+                    />
+                  }
                 />
-              }
-            />
-          </View>
-        </View>
+              </View>
+            </View>
 
-        <DatePickerModal
-          locale="pl"
-          mode="single"
-          visible={sowedOpen}
-          date={sowedDate ?? new Date()}
-          onDismiss={() => setSowedOpen(false)}
-          onConfirm={({ date }) => {
-            setSowedOpen(false);
-            if (!date) return;
-            onChange({ sowedAt: date.toISOString() });
-          }}
-        />
+            <DatePickerModal
+              locale="pl"
+              mode="single"
+              visible={sowedOpen}
+              date={sowedDate ?? new Date()}
+              onDismiss={() => setSowedOpen(false)}
+              onConfirm={({ date }) => {
+                setSowedOpen(false);
+                if (!date) return;
+                onChange({ sowedAt: date.toISOString() });
+              }}
+            />
+          </>
+        ) : null}
       </View>
 
       <View style={styles.section}>

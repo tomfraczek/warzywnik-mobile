@@ -49,7 +49,7 @@ export type Planting = {
   startMethod?: PlantingStartMethod;
   sowedAt?: string | null;
   transplantedAt?: string | null;
-  plannedStartDate: string;
+  plannedStartDate?: string | null;
   actualStartDate?: string | null;
   harvestStartDate?: string | null;
   harvestEndDate?: string | null;
@@ -69,7 +69,7 @@ export type CreatePlantingDto = {
   startMethod: PlantingStartMethod;
   sowedAt?: string | null;
   transplantedAt?: string | null;
-  plannedStartDate: string;
+  plannedStartDate?: string | null;
   actualStartDate?: string | null;
   status?: PlantingStatus;
   notes?: string | null;

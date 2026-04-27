@@ -46,16 +46,10 @@ export const buildCreatePlantingPayload = (
   bedId: string,
   values: PlantingFormValues,
 ): CreatePlantingDto => {
-  const sowedAt = normalizeNullableString(values.sowedAt);
-  const derivedStartDate = sowedAt ?? new Date().toISOString();
-
   return {
     bedId,
     vegetableId: values.vegetableId as string,
     startMethod: values.startMethod,
-    sowedAt,
-    transplantedAt: values.startMethod === "DIRECT_SOW" ? null : undefined,
-    plannedStartDate: derivedStartDate,
     status: "NEW",
     notes: normalizeNullableString(values.notes),
   };

@@ -105,6 +105,38 @@ const PLANTING_STATUS_DESCRIPTIONS: Record<PlantingStatus, string> = {
   CANCELLED: "Uprawa została anulowana i nie będzie kontynuowana.",
 };
 
+type GrowthStep = {
+  key: PlantingStatus;
+  label: string;
+};
+
+type GrowthStepState = "done" | "current" | "pending";
+
+type GrowthTimelineStep = GrowthStep & {
+  state: GrowthStepState;
+};
+
+const DIRECT_SOW_GROWTH_STEPS: GrowthStep[] = [
+  { key: "NEW", label: "Nowa uprawa" },
+  { key: "IN_GROUND", label: "Wsadzenie do gruntu" },
+  { key: "READY_FOR_FINAL_HARVEST", label: "Gotowe do zbioru" },
+  { key: "HARVESTED", label: "Zbiory" },
+  { key: "CLEARED", label: "Uprzątnięte" },
+];
+
+const TRANSPLANT_GROWTH_STEPS: GrowthStep[] = [
+  { key: "NEW", label: "Nowa uprawa" },
+  { key: "SEEDLING_PREPARED", label: "Rozsada przygotowana" },
+  {
+    key: "SEEDLING_READY_FOR_TRANSPLANT",
+    label: "Rozsada gotowa do przesadzenia",
+  },
+  { key: "IN_GROUND", label: "Wsadzenie do gruntu" },
+  { key: "READY_FOR_FINAL_HARVEST", label: "Gotowe do zbioru" },
+  { key: "HARVESTED", label: "Zbiory" },
+  { key: "CLEARED", label: "Uprzątnięte" },
+];
+
 type ExtendedPlanting = Planting & {
   timelineTimezone?: string | null;
   appliedRulesVersion?: string | null;
@@ -242,13 +274,21 @@ export default function PlantingDetailsScreen() {
     null,
   );
 
-  const diseaseOccurrencesQuery = useGetPlantingDiseaseOccurrences(
+  const diseaseActiveQuery = useGetPlantingDiseaseOccurrences(
     resolvedPlantingId ?? null,
-    problemStatus,
+    "active",
   );
-  const pestOccurrencesQuery = useGetPlantingPestOccurrences(
+  const diseaseResolvedQuery = useGetPlantingDiseaseOccurrences(
     resolvedPlantingId ?? null,
-    problemStatus,
+    "resolved",
+  );
+  const pestActiveQuery = useGetPlantingPestOccurrences(
+    resolvedPlantingId ?? null,
+    "active",
+  );
+  const pestResolvedQuery = useGetPlantingPestOccurrences(
+    resolvedPlantingId ?? null,
+    "resolved",
   );
 
   const createDiseaseOccurrence = useCreatePlantingDiseaseOccurrence(
@@ -325,9 +365,24 @@ export default function PlantingDetailsScreen() {
     [pestDictionaryQuery.data?.pages],
   );
 
+  const diseaseOccurrencesQuery =
+    problemStatus === "active" ? diseaseActiveQuery : diseaseResolvedQuery;
+  const pestOccurrencesQuery =
+    problemStatus === "active" ? pestActiveQuery : pestResolvedQuery;
+
   const diseaseOccurrences = (diseaseOccurrencesQuery.data ??
     []) as DiseaseOccurrence[];
   const pestOccurrences = (pestOccurrencesQuery.data ?? []) as PestOccurrence[];
+  const hasAnyResolvedProblems =
+    (diseaseResolvedQuery.data?.length ?? 0) +
+      (pestResolvedQuery.data?.length ?? 0) >
+    0;
+  const hasAnyProblems =
+    (diseaseActiveQuery.data?.length ?? 0) +
+      (pestActiveQuery.data?.length ?? 0) +
+      (diseaseResolvedQuery.data?.length ?? 0) +
+      (pestResolvedQuery.data?.length ?? 0) >
+    0;
   const plantingTasks = useMemo(
     () => sortTasksByDueAt(plantingTasksResponse?.items ?? []),
     [plantingTasksResponse?.items],
@@ -387,18 +442,6 @@ export default function PlantingDetailsScreen() {
     ? START_METHOD_LABELS[planting.startMethod]
     : "Brak";
 
-  const plannedHarvestWindowLabel = useMemo(() => {
-    const start = planting?.harvestWindowStart ?? planting?.harvestStartDate;
-    const end = planting?.harvestWindowEnd ?? planting?.harvestEndDate;
-    if (!start && !end) return null;
-    return `${formatDate(start)} – ${formatDate(end)}`;
-  }, [
-    planting?.harvestWindowStart,
-    planting?.harvestWindowEnd,
-    planting?.harvestStartDate,
-    planting?.harvestEndDate,
-  ]);
-
   const harvestRecords = useMemo(() => {
     if (!planting) return [];
     const records = Array.isArray(planting.harvestResults)
@@ -448,29 +491,44 @@ export default function PlantingDetailsScreen() {
   }, [harvestRecords]);
 
   const warnings = planting?.warnings ?? [];
-  const timelineRows = useMemo(
-    () =>
-      [
-        { label: "Planowany start", value: planting?.plannedStartDate },
-        { label: "Rzeczywisty start", value: planting?.actualStartDate },
-        { label: "Siew", value: planting?.sowedAt },
-        { label: "Rozsadzenie", value: planting?.transplantedAt },
-        {
-          label: "Planowane okno zbiorów",
-          value: plannedHarvestWindowLabel,
-          isPreformatted: true,
-        },
-        { label: "Zebrano", value: planting?.harvestedAt },
-      ].filter((row) => Boolean(row.value)),
-    [
-      planting?.plannedStartDate,
-      planting?.actualStartDate,
-      planting?.sowedAt,
-      planting?.transplantedAt,
-      plannedHarvestWindowLabel,
-      planting?.harvestedAt,
-    ],
-  );
+  const growthTimelineSteps = useMemo<GrowthTimelineStep[]>(() => {
+    if (!planting) return [];
+
+    const baseSteps =
+      planting.startMethod === "TRANSPLANT"
+        ? TRANSPLANT_GROWTH_STEPS
+        : DIRECT_SOW_GROWTH_STEPS;
+
+    const currentStatus = planting.status;
+    const currentIndex = baseSteps.findIndex(
+      (step) => step.key === currentStatus,
+    );
+
+    if (currentIndex >= 0) {
+      return baseSteps.map((step, index) => {
+        let state: GrowthStepState = "pending";
+        if (index < currentIndex) state = "done";
+        if (index === currentIndex) state = "current";
+
+        return {
+          ...step,
+          state,
+        };
+      });
+    }
+
+    return [
+      ...baseSteps.map((step) => ({
+        ...step,
+        state: "done" as const,
+      })),
+      {
+        key: currentStatus,
+        label: getPlantingStatusLabel(currentStatus) || currentStatus,
+        state: "current" as const,
+      },
+    ];
+  }, [planting]);
 
   const warningSeverityTone = (severity: Warning["severity"]) => {
     if (severity === "CRITICAL") {
@@ -937,21 +995,81 @@ export default function PlantingDetailsScreen() {
           </View>
         ) : null}
 
-        {timelineRows.length > 0 ? (
+        {growthTimelineSteps.length > 0 ? (
           <Surface style={styles.section} elevation={0}>
             <Text style={styles.sectionTitle}>Etapy wzrostu</Text>
-            <View style={styles.timelineList}>
-              {timelineRows.map((row) => (
-                <View key={row.label} style={styles.timelineRow}>
-                  <View style={styles.timelineDot} />
-                  <View style={styles.timelineContent}>
-                    <Text style={styles.timelineLabel}>{row.label}</Text>
-                    <Text style={styles.timelineValue}>
-                      {row.isPreformatted ? row.value : formatDate(row.value)}
-                    </Text>
+            <View style={styles.growthTimelineList}>
+              {growthTimelineSteps.map((step, index) => {
+                const isLast = index === growthTimelineSteps.length - 1;
+                const isDone = step.state === "done";
+                const isCurrent = step.state === "current";
+
+                return (
+                  <View
+                    key={`${step.key}-${index}`}
+                    style={styles.growthTimelineRow}
+                  >
+                    <View style={styles.growthIconColumn}>
+                      <View
+                        style={[
+                          styles.growthIconCircle,
+                          isDone
+                            ? styles.growthIconCircleDone
+                            : isCurrent
+                              ? styles.growthIconCircleCurrent
+                              : styles.growthIconCirclePending,
+                        ]}
+                      >
+                        {isDone ? (
+                          <Icon source="check" size={14} color="#FFFFFF" />
+                        ) : isCurrent ? (
+                          <View style={styles.growthIconInnerDot} />
+                        ) : null}
+                      </View>
+
+                      {!isLast ? (
+                        <View
+                          style={[
+                            styles.growthConnector,
+                            isDone ? styles.growthConnectorDone : null,
+                          ]}
+                        />
+                      ) : null}
+                    </View>
+
+                    <View
+                      style={[
+                        styles.growthContent,
+                        isCurrent ? styles.growthContentCurrent : null,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.growthTitle,
+                          isCurrent ? styles.growthTitleCurrent : null,
+                          !isDone && !isCurrent
+                            ? styles.growthTitlePending
+                            : null,
+                        ]}
+                      >
+                        {step.label}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.growthSubtitle,
+                          isCurrent ? styles.growthSubtitleCurrent : null,
+                        ]}
+                      >
+                        {isDone
+                          ? "Zakończono"
+                          : isCurrent
+                            ? "Obecny etap"
+                            : "Oczekujące"}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </Surface>
         ) : null}
@@ -962,59 +1080,6 @@ export default function PlantingDetailsScreen() {
             <Text style={styles.notesText}>{planting.notes}</Text>
           </Surface>
         ) : null}
-
-        <Surface style={styles.section} elevation={0}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Wyniki zbiorów</Text>
-            <Button
-              mode="text"
-              onPress={() => {
-                setEditingHarvestRecord(null);
-                setHarvestFormVisible(true);
-              }}
-            >
-              Dodaj rekord
-            </Button>
-          </View>
-
-          <View style={styles.harvestSummaryGrid}>
-            <View style={styles.harvestMetricCard}>
-              <Text style={styles.harvestMetricLabel}>Liczba wpisów</Text>
-              <Text style={styles.harvestMetricValue}>
-                {yieldSummary.recordsCount}
-              </Text>
-            </View>
-            <View style={styles.harvestMetricCard}>
-              <Text style={styles.harvestMetricLabel}>Łączny plon</Text>
-              <Text style={styles.harvestMetricValue}>
-                {formatYield(yieldSummary.totalYield)}
-              </Text>
-            </View>
-            <View style={styles.harvestMetricCard}>
-              <Text style={styles.harvestMetricLabel}>Średnia jakość</Text>
-              <Text style={styles.harvestMetricValue}>
-                {yieldSummary.avgRating == null
-                  ? "Brak"
-                  : formatQualityRating(Math.round(yieldSummary.avgRating))}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.harvestDetailsLinkRow}>
-            <Pressable
-              onPress={() =>
-                router.push(
-                  `/(tabs)/beds/${resolvedBedId}/plantings/${planting.id}/harvest-results`,
-                )
-              }
-              hitSlop={8}
-            >
-              <Text style={styles.harvestDetailsLinkText}>
-                Zobacz szczegóły
-              </Text>
-            </Pressable>
-          </View>
-        </Surface>
 
         {warnings.length > 0 ? (
           <Surface style={styles.section} elevation={0}>
@@ -1102,14 +1167,38 @@ export default function PlantingDetailsScreen() {
                 {
                   value: "overdue",
                   label: `Zaległe (${groupedPlantingTasks.overdue.length})`,
+                  style: [
+                    styles.segmentedButtonItem,
+                    tasksFilter === "overdue"
+                      ? styles.segmentedButtonItemActive
+                      : null,
+                  ],
+                  checkedColor: palette.accent,
+                  uncheckedColor: palette.secondary,
                 },
                 {
                   value: "today",
                   label: `Dziś (${groupedPlantingTasks.today.length})`,
+                  style: [
+                    styles.segmentedButtonItem,
+                    tasksFilter === "today"
+                      ? styles.segmentedButtonItemActive
+                      : null,
+                  ],
+                  checkedColor: palette.accent,
+                  uncheckedColor: palette.secondary,
                 },
                 {
                   value: "upcoming",
                   label: `7 dni (${groupedPlantingTasks.upcoming7Days.length})`,
+                  style: [
+                    styles.segmentedButtonItem,
+                    tasksFilter === "upcoming"
+                      ? styles.segmentedButtonItemActive
+                      : null,
+                  ],
+                  checkedColor: palette.accent,
+                  uncheckedColor: palette.secondary,
                 },
               ]}
               style={styles.segmentedButtons}
@@ -1193,6 +1282,8 @@ export default function PlantingDetailsScreen() {
                   ? setDiseaseModalVisible(true)
                   : setPestModalVisible(true)
               }
+              style={styles.problemHeaderActionButton}
+              labelStyle={styles.problemHeaderActionLabel}
             >
               {problemsTab === "diseases" ? "Dodaj chorobę" : "Dodaj szkodnika"}
             </Button>
@@ -1204,25 +1295,52 @@ export default function PlantingDetailsScreen() {
               setProblemsTab(value as "diseases" | "pests")
             }
             buttons={[
-              { value: "diseases", label: "Choroby" },
-              { value: "pests", label: "Szkodniki" },
+              {
+                value: "diseases",
+                label: "Choroby",
+                style: [
+                  styles.segmentedButtonItem,
+                  problemsTab === "diseases"
+                    ? styles.segmentedButtonItemActive
+                    : null,
+                ],
+                checkedColor: palette.accent,
+                uncheckedColor: palette.secondary,
+              },
+              {
+                value: "pests",
+                label: "Szkodniki",
+                style: [
+                  styles.segmentedButtonItem,
+                  problemsTab === "pests"
+                    ? styles.segmentedButtonItemActive
+                    : null,
+                ],
+                checkedColor: palette.accent,
+                uncheckedColor: palette.secondary,
+              },
             ]}
             style={styles.segmentedButtons}
           />
 
-          <Button
-            mode="text"
-            onPress={() =>
-              setProblemStatus((prev) =>
-                prev === "active" ? "resolved" : "active",
-              )
-            }
-            style={styles.toggleButton}
-          >
-            {problemStatus === "active" ? "Pokaż opanowane" : "Pokaż aktywne"}
-          </Button>
+          {hasAnyResolvedProblems ? (
+            <Button
+              mode="outlined"
+              onPress={() =>
+                setProblemStatus((prev) =>
+                  prev === "active" ? "resolved" : "active",
+                )
+              }
+              style={styles.toggleButton}
+              labelStyle={styles.toggleButtonLabel}
+            >
+              {problemStatus === "active" ? "Pokaż opanowane" : "Pokaż aktywne"}
+            </Button>
+          ) : null}
 
-          {problemsTab === "diseases" ? (
+          {!hasAnyProblems ? (
+            <Text style={styles.emptyText}>Brak zgłoszonych problemów.</Text>
+          ) : problemsTab === "diseases" ? (
             diseaseOccurrencesQuery.isLoading ? (
               <ActivityIndicator />
             ) : diseaseOccurrencesQuery.error ? (
@@ -1386,6 +1504,63 @@ export default function PlantingDetailsScreen() {
         {resolvedPlantingId ? (
           <PlantingTimelineSection plantingId={resolvedPlantingId} />
         ) : null}
+
+        <Surface style={styles.section} elevation={0}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Wyniki zbiorów</Text>
+            <Button
+              mode="text"
+              onPress={() => {
+                setEditingHarvestRecord(null);
+                setHarvestFormVisible(true);
+              }}
+            >
+              Dodaj rekord
+            </Button>
+          </View>
+
+          {yieldSummary.recordsCount > 0 ? (
+            <>
+              <View style={styles.harvestSummaryGrid}>
+                <View style={styles.harvestMetricCard}>
+                  <Text style={styles.harvestMetricLabel}>Liczba wpisów</Text>
+                  <Text style={styles.harvestMetricValue}>
+                    {yieldSummary.recordsCount}
+                  </Text>
+                </View>
+                <View style={styles.harvestMetricCard}>
+                  <Text style={styles.harvestMetricLabel}>Łączny plon</Text>
+                  <Text style={styles.harvestMetricValue}>
+                    {formatYield(yieldSummary.totalYield)}
+                  </Text>
+                </View>
+                <View style={styles.harvestMetricCard}>
+                  <Text style={styles.harvestMetricLabel}>Średnia jakość</Text>
+                  <Text style={styles.harvestMetricValue}>
+                    {yieldSummary.avgRating == null
+                      ? "Brak"
+                      : formatQualityRating(Math.round(yieldSummary.avgRating))}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.harvestDetailsLinkRow}>
+                <Pressable
+                  onPress={() =>
+                    router.push(
+                      `/(tabs)/beds/${resolvedBedId}/plantings/${planting.id}/harvest-results`,
+                    )
+                  }
+                  hitSlop={8}
+                >
+                  <Text style={styles.harvestDetailsLinkText}>
+                    Zobacz szczegóły
+                  </Text>
+                </Pressable>
+              </View>
+            </>
+          ) : null}
+        </Surface>
 
         <View style={styles.metaBlock}>
           {planting.createdAt ? (
@@ -2259,9 +2434,31 @@ const makeStyles = (theme: MD3Theme) =>
       alignSelf: "flex-start",
       marginBottom: 6,
     },
+    segmentedButtonItem: {
+      borderColor: buildPalette(theme.dark).cardBorder,
+      backgroundColor: buildPalette(theme.dark).cardBg,
+    },
+    segmentedButtonItemActive: {
+      borderColor: buildPalette(theme.dark).accentBorder,
+      backgroundColor: buildPalette(theme.dark).accentBg,
+    },
     toggleButton: {
       alignSelf: "flex-start",
       marginBottom: 8,
+      borderColor: buildPalette(theme.dark).cardBorder,
+      backgroundColor: buildPalette(theme.dark).cardBg,
+    },
+    toggleButtonLabel: {
+      color: buildPalette(theme.dark).accent,
+      fontWeight: "600",
+    },
+    problemHeaderActionButton: {
+      borderColor: buildPalette(theme.dark).cardBorder,
+      backgroundColor: buildPalette(theme.dark).cardBg,
+    },
+    problemHeaderActionLabel: {
+      color: buildPalette(theme.dark).accent,
+      fontWeight: "600",
     },
     problemCard: {
       borderRadius: 16,
@@ -2524,6 +2721,89 @@ const makeStyles = (theme: MD3Theme) =>
     },
     equalTaskButton: {
       flex: 1,
+    },
+    growthTimelineList: {
+      gap: 0,
+    },
+    growthTimelineRow: {
+      flexDirection: "row",
+      gap: 10,
+    },
+    growthIconColumn: {
+      width: 28,
+      alignItems: "center",
+    },
+    growthIconCircle: {
+      width: 24,
+      height: 24,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    growthIconCircleDone: {
+      backgroundColor: buildPalette(theme.dark).accent,
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).accent,
+    },
+    growthIconCircleCurrent: {
+      borderWidth: 2,
+      borderColor: buildPalette(theme.dark).accent,
+      backgroundColor: buildPalette(theme.dark).cardBg,
+    },
+    growthIconCirclePending: {
+      borderWidth: 1.5,
+      borderColor: buildPalette(theme.dark).cardBorder,
+      backgroundColor: buildPalette(theme.dark).cardBg,
+    },
+    growthIconInnerDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 999,
+      backgroundColor: buildPalette(theme.dark).accent,
+    },
+    growthConnector: {
+      flex: 1,
+      width: 2,
+      minHeight: 20,
+      marginTop: 4,
+      backgroundColor: buildPalette(theme.dark).cardBorder,
+    },
+    growthConnectorDone: {
+      backgroundColor: buildPalette(theme.dark).accentBorder,
+    },
+    growthContent: {
+      flex: 1,
+      paddingBottom: 12,
+      gap: 3,
+    },
+    growthContentCurrent: {
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).accentBorder,
+      backgroundColor: buildPalette(theme.dark).accentBg,
+      borderRadius: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      marginBottom: 10,
+    },
+    growthTitle: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: buildPalette(theme.dark).heading,
+    },
+    growthTitleCurrent: {
+      color: buildPalette(theme.dark).accent,
+      fontWeight: "700",
+    },
+    growthTitlePending: {
+      color: buildPalette(theme.dark).muted,
+    },
+    growthSubtitle: {
+      fontSize: 12,
+      color: buildPalette(theme.dark).secondary,
+    },
+    growthSubtitleCurrent: {
+      color: buildPalette(theme.dark).accent,
+      fontWeight: "600",
     },
     timelineList: {
       gap: 12,
