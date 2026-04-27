@@ -27,6 +27,10 @@ export const useUpdatePestOccurrence = (id?: string) => {
         queryKey: pestOccurrenceKeys.detail(targetId),
       });
       queryClient.invalidateQueries({ queryKey: pestOccurrenceKeys.all });
+      queryClient.invalidateQueries({
+        queryKey: ["plantings", "timeline"],
+        exact: false,
+      });
     },
   });
 };

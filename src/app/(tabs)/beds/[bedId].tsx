@@ -22,6 +22,7 @@ import { BedSeasonHistorySection } from "@/src/app/(tabs)/beds/_components/BedSe
 import { HarvestConfirmationModal } from "@/src/app/(tabs)/beds/_components/HarvestConfirmationModal";
 import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostHarvestActionsModal";
 import { Screen } from "@/src/components/Screen";
+import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import {
@@ -46,7 +47,6 @@ import {
 import {
   Button,
   Icon,
-  IconButton,
   MD3Theme,
   Modal,
   Portal,
@@ -584,6 +584,31 @@ export default function BedDetailsScreen() {
       style={{ backgroundColor: palette.background }}
       safeAreaEdges={["left", "right"]}
     >
+      <CustomHeader
+        title="Podgląd grządki"
+        showBack
+        backRoute="/(tabs)/beds"
+        actions={[
+          {
+            icon: "pencil",
+            accessibilityLabel: "Edytuj grządkę",
+            disabled: deleteBed.isPending || isOffline,
+            onPress: () => {
+              if (!bed?.id) return;
+              router.push(`/(tabs)/beds/${bed.id}/edit`);
+            },
+          },
+          {
+            icon: "trash-can-outline",
+            accessibilityLabel: "Usuń grządkę",
+            disabled: deleteBed.isPending || isOffline,
+            onPress: () => {
+              setDeleteConfirmationStep(true);
+              setActionsVisible(true);
+            },
+          },
+        ]}
+      />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.heroCard}>
           <View style={styles.heroTopRow}>
@@ -594,16 +619,6 @@ export default function BedDetailsScreen() {
                 Grządka
               </Text>
             </View>
-            <IconButton
-              icon="cog-outline"
-              size={20}
-              iconColor={palette.secondary}
-              onPress={() => {
-                setDeleteConfirmationStep(false);
-                setActionsVisible(true);
-              }}
-              style={styles.heroSettingsButton}
-            />
           </View>
 
           <View style={styles.titleRow}>

@@ -1,5 +1,6 @@
 import { restClient } from "@/src/api/axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { plantingKeys } from "../plantings/plantingKeys";
 import { diseaseOccurrenceKeys } from "./diseaseOccurrenceKeys";
 import { CreateDiseaseOccurrenceDto, DiseaseOccurrence } from "./types";
 
@@ -31,6 +32,9 @@ export const useCreatePlantingDiseaseOccurrence = (
         });
         queryClient.invalidateQueries({
           queryKey: diseaseOccurrenceKeys.list({ plantingId, status: "all" }),
+        });
+        queryClient.invalidateQueries({
+          queryKey: plantingKeys.timeline(plantingId),
         });
       }
       queryClient.invalidateQueries({ queryKey: diseaseOccurrenceKeys.all });

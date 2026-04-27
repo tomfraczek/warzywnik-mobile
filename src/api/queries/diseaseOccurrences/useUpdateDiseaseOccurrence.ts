@@ -30,6 +30,10 @@ export const useUpdateDiseaseOccurrence = (id?: string) => {
         queryKey: diseaseOccurrenceKeys.detail(targetId),
       });
       queryClient.invalidateQueries({ queryKey: diseaseOccurrenceKeys.all });
+      queryClient.invalidateQueries({
+        queryKey: ["plantings", "timeline"],
+        exact: false,
+      });
     },
   });
 };

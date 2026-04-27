@@ -109,6 +109,10 @@ export const mapPlantingEventTypeToLabel = (
     PLANTING_HARVEST_STARTED: "Rozpoczęto zbiór",
     PLANTING_HARVEST_FINISHED: "Zakończono zbiór",
     PLANTING_ACTION_COMPLETED: "Wykonano zabieg",
+    PEST_OCCURRENCE_ADDED: "Dodano wystąpienie szkodnika",
+    PEST_OCCURRENCE_STATUS_CHANGED: "Zmieniono status wystąpienia szkodnika",
+    DISEASE_OCCURRENCE_ADDED: "Dodano wystąpienie choroby",
+    DISEASE_OCCURRENCE_STATUS_CHANGED: "Zmieniono status wystąpienia choroby",
   };
   return labels[eventType] ?? eventType;
 };
@@ -126,8 +130,32 @@ export const getPlantingEventTypeIcon = (
     PLANTING_HARVEST_STARTED: "basket-outline",
     PLANTING_HARVEST_FINISHED: "basket",
     PLANTING_ACTION_COMPLETED: "check-circle-outline",
+    PEST_OCCURRENCE_ADDED: "bug-outline",
+    PEST_OCCURRENCE_STATUS_CHANGED: "bug-check-outline",
+    DISEASE_OCCURRENCE_ADDED: "alert-circle-outline",
+    DISEASE_OCCURRENCE_STATUS_CHANGED: "alert-circle-check-outline",
   };
   return icons[eventType] ?? "calendar-outline";
+};
+
+const getPlantingEventTypeIconColor = (
+  eventType: PlantingEventType,
+): TimelineItemPresentation["iconColor"] => {
+  if (
+    eventType === "DISEASE_OCCURRENCE_ADDED" ||
+    eventType === "DISEASE_OCCURRENCE_STATUS_CHANGED"
+  ) {
+    return "danger";
+  }
+
+  if (
+    eventType === "PEST_OCCURRENCE_ADDED" ||
+    eventType === "PEST_OCCURRENCE_STATUS_CHANGED"
+  ) {
+    return "warning";
+  }
+
+  return "default";
 };
 
 // ─── Action type labels ───────────────────────────────────────────────────────
@@ -206,13 +234,168 @@ const getStatusChangedSubtitle = (payload?: Record<string, unknown>) => {
   return `Nowy status: ${getPlantingStatusLabel(nextStatus)}`;
 };
 
+const getStringPayloadValue = (
+  payload: Record<string, unknown> | undefined,
+  ...keys: string[]
+): string | null => {
+  if (!payload) return null;
+  for (const key of keys) {
+    const value = payload[key];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+  }
+  return null;
+};
+
+const getOccurrenceStatusLabelFromPayload = (
+  payload: Record<string, unknown> | undefined,
+  ...keys: string[]
+) => {
+  const rawStatus = getStringPayloadValue(payload, ...keys);
+  return rawStatus ? mapOccurrenceStatusToLabel(rawStatus) : null;
+};
+
+const getPestAddedSubtitle = (payload?: Record<string, unknown>) => {
+  const status = getOccurrenceStatusLabelFromPayload(payload, "status");
+  const notes = getStringPayloadValue(payload, "notes");
+
+  if (status && notes) return `${status} • ${notes}`;
+  if (status) return status;
+  if (notes) return notes;
+  return undefined;
+};
+
+const getPestStatusChangedSubtitle = (payload?: Record<string, unknown>) => {
+  const previous = getOccurrenceStatusLabelFromPayload(
+    payload,
+    "previousStatus",
+    "oldStatus",
+    "fromStatus",
+  );
+  const next = getOccurrenceStatusLabelFromPayload(
+    payload,
+    "status",
+    "newStatus",
+    "toStatus",
+  );
+
+  if (previous && next) return `${previous} → ${next}`;
+  if (next) return `Nowy status: ${next}`;
+  return undefined;
+};
+
+const getDiseaseAddedSubtitle = (payload?: Record<string, unknown>) => {
+  const status = getOccurrenceStatusLabelFromPayload(payload, "status");
+  const severityRaw = getStringPayloadValue(payload, "severity");
+  const severity = severityRaw ? mapDiseaseSeverityToLabel(severityRaw) : null;
+  const notes = getStringPayloadValue(payload, "notes");
+
+  const parts = [status, severity, notes].filter(Boolean);
+  return parts.length > 0 ? parts.join(" • ") : undefined;
+};
+
+const getDiseaseStatusChangedSubtitle = (payload?: Record<string, unknown>) => {
+  const previous = getOccurrenceStatusLabelFromPayload(
+    payload,
+    "previousStatus",
+    "oldStatus",
+    "fromStatus",
+  );
+  const next = getOccurrenceStatusLabelFromPayload(
+    payload,
+    "status",
+    "newStatus",
+    "toStatus",
+  );
+  const severityRaw = getStringPayloadValue(payload, "severity");
+  const severity = severityRaw ? mapDiseaseSeverityToLabel(severityRaw) : null;
+
+  const statusText =
+    previous && next
+      ? `${previous} → ${next}`
+      : next
+        ? `Nowy status: ${next}`
+        : null;
+
+  const parts = [statusText, severity].filter(Boolean);
+  return parts.length > 0 ? parts.join(" • ") : undefined;
+};
+
+const getOccurrenceEventTitle = (
+  payload: Record<string, unknown> | undefined,
+  singularLabel: string,
+  possibleNameKeys: string[],
+  fallbackLabel: string,
+) => {
+  const name = getStringPayloadValue(payload, ...possibleNameKeys);
+  return `${singularLabel}: ${name ?? fallbackLabel}`;
+};
+
 export const getTimelineItemPresentation = (
   item: TimelineItem,
 ): TimelineItemPresentation => {
   switch (item.type) {
     case "PLANTING_EVENT":
+      if (item.eventType === "PEST_OCCURRENCE_ADDED") {
+        return {
+          icon: getPlantingEventTypeIcon(item.eventType),
+          iconColor: getPlantingEventTypeIconColor(item.eventType),
+          title: getOccurrenceEventTitle(
+            item.payload,
+            "Szkodnik",
+            ["pestName", "name"],
+            "Nieznany szkodnik",
+          ),
+          subtitle: getPestAddedSubtitle(item.payload),
+        };
+      }
+
+      if (item.eventType === "PEST_OCCURRENCE_STATUS_CHANGED") {
+        return {
+          icon: getPlantingEventTypeIcon(item.eventType),
+          iconColor: getPlantingEventTypeIconColor(item.eventType),
+          title: getOccurrenceEventTitle(
+            item.payload,
+            "Szkodnik",
+            ["pestName", "name"],
+            "Nieznany szkodnik",
+          ),
+          subtitle: getPestStatusChangedSubtitle(item.payload),
+        };
+      }
+
+      if (item.eventType === "DISEASE_OCCURRENCE_ADDED") {
+        return {
+          icon: getPlantingEventTypeIcon(item.eventType),
+          iconColor: getPlantingEventTypeIconColor(item.eventType),
+          title: getOccurrenceEventTitle(
+            item.payload,
+            "Choroba",
+            ["diseaseName", "name"],
+            "Nieznana choroba",
+          ),
+          subtitle: getDiseaseAddedSubtitle(item.payload),
+        };
+      }
+
+      if (item.eventType === "DISEASE_OCCURRENCE_STATUS_CHANGED") {
+        return {
+          icon: getPlantingEventTypeIcon(item.eventType),
+          iconColor: getPlantingEventTypeIconColor(item.eventType),
+          title: getOccurrenceEventTitle(
+            item.payload,
+            "Choroba",
+            ["diseaseName", "name"],
+            "Nieznana choroba",
+          ),
+          subtitle: getDiseaseStatusChangedSubtitle(item.payload),
+        };
+      }
+
       return {
         icon: getPlantingEventTypeIcon(item.eventType),
+        iconColor: getPlantingEventTypeIconColor(item.eventType),
         title: mapPlantingEventTypeToLabel(item.eventType),
         subtitle:
           item.eventType === "PLANTING_STATUS_CHANGED"

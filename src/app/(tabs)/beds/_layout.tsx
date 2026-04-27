@@ -1,4 +1,3 @@
-import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { Stack } from "expo-router";
 
 export default function BedsLayout() {
@@ -13,7 +12,7 @@ export default function BedsLayout() {
         name="[bedId]"
         options={{
           title: "Szczegóły",
-          header: () => <CustomHeader title="Podgląd grządki" showBack />,
+          headerShown: false,
         }}
       />
       <Stack.Screen name="[bedId]/edit" options={{ title: "Edytuj grządkę" }} />
