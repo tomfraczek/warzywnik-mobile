@@ -525,9 +525,15 @@ export default function PlantingDetailsScreen() {
         };
       });
 
-      return allSteps.filter(
-        (step, index) => step.state !== "pending" || index === currentIndex + 1,
-      );
+      const doneSteps = allSteps.filter((step) => step.state === "done");
+      const currentStep = allSteps.find((step) => step.state === "current");
+      const nextStep = allSteps.find((step) => step.state === "pending");
+
+      return [
+        ...doneSteps,
+        ...(currentStep ? [currentStep] : []),
+        ...(nextStep ? [nextStep] : []),
+      ];
     }
 
     return [
