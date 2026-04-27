@@ -47,7 +47,7 @@ import { formatQualityRating, formatYield } from "@/src/utils/learningMappers";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -260,6 +260,7 @@ export default function PlantingDetailsScreen() {
   const [tasksFilter, setTasksFilter] = useState<
     "overdue" | "today" | "upcoming"
   >("today");
+  const [taskIdsCompleting, setTaskIdsCompleting] = useState<string[]>([]);
   const [taskToCloseId, setTaskToCloseId] = useState<string | null>(null);
   const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
   const [harvestFormVisible, setHarvestFormVisible] = useState(false);
@@ -428,6 +429,14 @@ export default function PlantingDetailsScreen() {
     return groupedPlantingTasks.upcoming7Days;
   }, [groupedPlantingTasks, tasksFilter]);
 
+  useEffect(() => {
+    if (taskIdsCompleting.length === 0) return;
+    const visibleTaskIds = new Set(plantingTasks.map((task) => task.id));
+    setTaskIdsCompleting((prev) =>
+      prev.filter((taskId) => visibleTaskIds.has(taskId)),
+    );
+  }, [plantingTasks, taskIdsCompleting.length]);
+
   const vegetableName = isVegetableLoading
     ? "Ładowanie..."
     : (vegetable?.name ?? (vegetableError ? "Brak danych" : "Brak danych"));
@@ -505,7 +514,7 @@ export default function PlantingDetailsScreen() {
     );
 
     if (currentIndex >= 0) {
-      return baseSteps.map((step, index) => {
+      const allSteps = baseSteps.map((step, index) => {
         let state: GrowthStepState = "pending";
         if (index < currentIndex) state = "done";
         if (index === currentIndex) state = "current";
@@ -515,6 +524,10 @@ export default function PlantingDetailsScreen() {
           state,
         };
       });
+
+      return allSteps.filter(
+        (step, index) => step.state !== "pending" || index === currentIndex + 1,
+      );
     }
 
     return [
@@ -618,6 +631,14 @@ export default function PlantingDetailsScreen() {
       Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
       return;
     }
+    if (taskIdsCompleting.includes(taskId)) {
+      return;
+    }
+
+    setTaskIdsCompleting((prev) =>
+      prev.includes(taskId) ? prev : [...prev, taskId],
+    );
+
     try {
       await updateActionTask.mutateAsync({
         id: taskId,
@@ -626,6 +647,7 @@ export default function PlantingDetailsScreen() {
       setSnackbarMessage("Zadanie oznaczone jako wykonane.");
       await refetchPlantingTasks();
     } catch (err) {
+      setTaskIdsCompleting((prev) => prev.filter((id) => id !== taskId));
       Alert.alert("Błąd", String(getResponseError(err)));
     }
   };
@@ -1003,13 +1025,19 @@ export default function PlantingDetailsScreen() {
                 const isLast = index === growthTimelineSteps.length - 1;
                 const isDone = step.state === "done";
                 const isCurrent = step.state === "current";
+                const isNext = step.state === "pending";
 
                 return (
                   <View
                     key={`${step.key}-${index}`}
                     style={styles.growthTimelineRow}
                   >
-                    <View style={styles.growthIconColumn}>
+                    <View
+                      style={[
+                        styles.growthIconColumn,
+                        isNext ? styles.growthIconColumnNext : null,
+                      ]}
+                    >
                       <View
                         style={[
                           styles.growthIconCircle,
@@ -1041,6 +1069,7 @@ export default function PlantingDetailsScreen() {
                       style={[
                         styles.growthContent,
                         isCurrent ? styles.growthContentCurrent : null,
+                        isNext ? styles.growthContentNext : null,
                       ]}
                     >
                       <Text
@@ -1154,7 +1183,48 @@ export default function PlantingDetailsScreen() {
           {!isPlantingTasksLoading &&
           !plantingTasksError &&
           groupedPlantingTasks.visibleCount === 0 ? (
-            <Text style={styles.emptyText}>Brak zadań do wykonania.</Text>
+            <View style={styles.tasksCelebrationCard}>
+              <View style={styles.tasksCelebrationConfettiLayer}>
+                <View style={styles.tasksConfettiA}>
+                  <Icon
+                    source="party-popper"
+                    size={18}
+                    color={buildPalette(theme.dark).accent}
+                  />
+                </View>
+                <View style={styles.tasksConfettiB}>
+                  <Icon
+                    source="party-popper"
+                    size={14}
+                    color={buildPalette(theme.dark).heroTagText}
+                  />
+                </View>
+                <View style={styles.tasksConfettiC}>
+                  <Icon
+                    source="star-four-points"
+                    size={14}
+                    color={buildPalette(theme.dark).accent}
+                  />
+                </View>
+                <View style={styles.tasksConfettiD}>
+                  <Icon
+                    source="star-four-points"
+                    size={12}
+                    color={buildPalette(theme.dark).secondary}
+                  />
+                </View>
+              </View>
+              <View style={styles.tasksCelebrationContent}>
+                <Icon
+                  source="party-popper"
+                  size={22}
+                  color={buildPalette(theme.dark).accent}
+                />
+                <Text style={styles.tasksCelebrationText}>
+                  Jesteś na bieżąco
+                </Text>
+              </View>
+            </View>
           ) : null}
 
           {groupedPlantingTasks.visibleCount > 0 ? (
@@ -1213,6 +1283,7 @@ export default function PlantingDetailsScreen() {
           {filteredPlantingTasks.map((task) => {
             const isHighlighted = highlightedActionTaskId === task.id;
             const isOverdueTask = tasksFilter === "overdue";
+            const isTaskCompleting = taskIdsCompleting.includes(task.id);
 
             return (
               <View
@@ -1248,7 +1319,11 @@ export default function PlantingDetailsScreen() {
                     mode="outlined"
                     compact
                     onPress={() => setRescheduleTaskId(task.id)}
-                    disabled={isOverdueTask || updateActionTask.isPending}
+                    disabled={
+                      isOverdueTask ||
+                      updateActionTask.isPending ||
+                      isTaskCompleting
+                    }
                     style={styles.equalTaskButton}
                   >
                     Przełóż
@@ -1257,7 +1332,11 @@ export default function PlantingDetailsScreen() {
                     mode="contained"
                     compact
                     onPress={() => handleMarkTaskDone(task.id)}
-                    disabled={isOverdueTask || updateActionTask.isPending}
+                    disabled={
+                      isOverdueTask ||
+                      updateActionTask.isPending ||
+                      isTaskCompleting
+                    }
                     style={styles.equalTaskButton}
                   >
                     Wykonane
@@ -2430,6 +2509,52 @@ const makeStyles = (theme: MD3Theme) =>
       fontSize: 14,
       color: buildPalette(theme.dark).secondary,
     },
+    tasksCelebrationCard: {
+      position: "relative",
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).accentBorder,
+      backgroundColor: buildPalette(theme.dark).accentBg,
+      borderRadius: 14,
+      overflow: "hidden",
+      marginTop: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 14,
+    },
+    tasksCelebrationConfettiLayer: {
+      ...StyleSheet.absoluteFillObject,
+      opacity: 0.45,
+    },
+    tasksConfettiA: {
+      position: "absolute",
+      top: 8,
+      left: 10,
+    },
+    tasksConfettiB: {
+      position: "absolute",
+      top: 6,
+      right: 12,
+    },
+    tasksConfettiC: {
+      position: "absolute",
+      bottom: 8,
+      left: 26,
+    },
+    tasksConfettiD: {
+      position: "absolute",
+      bottom: 10,
+      right: 30,
+    },
+    tasksCelebrationContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    tasksCelebrationText: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: buildPalette(theme.dark).accent,
+    },
     segmentedButtons: {
       alignSelf: "flex-start",
       marginBottom: 6,
@@ -2733,6 +2858,9 @@ const makeStyles = (theme: MD3Theme) =>
       width: 28,
       alignItems: "center",
     },
+    growthIconColumnNext: {
+      opacity: 0.5,
+    },
     growthIconCircle: {
       width: 24,
       height: 24,
@@ -2784,6 +2912,9 @@ const makeStyles = (theme: MD3Theme) =>
       paddingHorizontal: 10,
       paddingVertical: 8,
       marginBottom: 10,
+    },
+    growthContentNext: {
+      opacity: 0.55,
     },
     growthTitle: {
       fontSize: 14,
