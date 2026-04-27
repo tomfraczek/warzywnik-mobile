@@ -4,7 +4,13 @@ import {
   formatLocalDateTime,
   getTimelineItemPresentation,
 } from "@/src/utils/learningMappers";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Button, Icon, MD3Theme, Surface, useTheme } from "react-native-paper";
 
 // ─── Single timeline item row ─────────────────────────────────────────────────
@@ -136,7 +142,12 @@ export function PlantingTimelineSection({ plantingId }: Props) {
       ) : null}
 
       {!isLoading && !error && (data?.items ?? []).length > 0 ? (
-        <View style={styles.timeline}>
+        <ScrollView
+          style={styles.timelineScroll}
+          contentContainerStyle={styles.timeline}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+        >
           {(data?.items ?? []).map((item, idx, arr) => (
             <TimelineItemRow
               key={`${item.type}-${item.time}-${idx}`}
@@ -144,7 +155,7 @@ export function PlantingTimelineSection({ plantingId }: Props) {
               isLast={idx === arr.length - 1}
             />
           ))}
-        </View>
+        </ScrollView>
       ) : null}
     </Surface>
   );
@@ -179,6 +190,9 @@ const makeStyles = (theme: MD3Theme) =>
     },
     retryBtn: {
       alignSelf: "flex-start",
+    },
+    timelineScroll: {
+      maxHeight: 360,
     },
     timeline: {
       gap: 0,

@@ -8,6 +8,7 @@ export type PlantingEventType =
   | "PLANTING_HARVEST_STARTED"
   | "PLANTING_HARVEST_FINISHED"
   | "PLANTING_ACTION_COMPLETED"
+  | "PLANTING_ACTION_RESCHEDULED"
   | "PEST_OCCURRENCE_ADDED"
   | "PEST_OCCURRENCE_STATUS_CHANGED"
   | "DISEASE_OCCURRENCE_ADDED"
@@ -23,10 +24,12 @@ export type PlantingEventItem = {
 export type ActionCompletedItem = {
   time: string;
   type: "ACTION_COMPLETED";
+  eventType?: "PLANTING_ACTION_COMPLETED";
   taskId: string;
   title: string;
   actionType: string | null;
   source: string;
+  label?: string;
 };
 
 export type PestOccurrenceItem = {

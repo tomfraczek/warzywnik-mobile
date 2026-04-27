@@ -30,6 +30,10 @@ export const useUpdateActionTask = () => {
       queryClient.invalidateQueries({ queryKey: ["bed-action-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["calendar"] });
       queryClient.invalidateQueries({ queryKey: ["me", "tasks"] });
+      queryClient.invalidateQueries({
+        queryKey: ["plantings", "timeline"],
+        exact: false,
+      });
     },
   });
 };

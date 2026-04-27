@@ -109,6 +109,7 @@ export const mapPlantingEventTypeToLabel = (
     PLANTING_HARVEST_STARTED: "Rozpoczęto zbiór",
     PLANTING_HARVEST_FINISHED: "Zakończono zbiór",
     PLANTING_ACTION_COMPLETED: "Wykonano zabieg",
+    PLANTING_ACTION_RESCHEDULED: "Przełożono termin zabiegu",
     PEST_OCCURRENCE_ADDED: "Dodano wystąpienie szkodnika",
     PEST_OCCURRENCE_STATUS_CHANGED: "Zmieniono status wystąpienia szkodnika",
     DISEASE_OCCURRENCE_ADDED: "Dodano wystąpienie choroby",
@@ -130,6 +131,7 @@ export const getPlantingEventTypeIcon = (
     PLANTING_HARVEST_STARTED: "basket-outline",
     PLANTING_HARVEST_FINISHED: "basket",
     PLANTING_ACTION_COMPLETED: "check-circle-outline",
+    PLANTING_ACTION_RESCHEDULED: "calendar-clock-outline",
     PEST_OCCURRENCE_ADDED: "bug-outline",
     PEST_OCCURRENCE_STATUS_CHANGED: "bug-check-outline",
     DISEASE_OCCURRENCE_ADDED: "alert-circle-outline",
@@ -163,14 +165,43 @@ const getPlantingEventTypeIconColor = (
 export const mapActionTypeToLabel = (actionType: string | null): string => {
   if (!actionType) return "Zabieg";
   const labels: Record<string, string> = {
-    WATERING: "Podlewanie",
-    FERTILIZATION: "Nawożenie",
-    PROTECTION: "Zabieg ochronny",
     SOWING: "Siew",
     TRANSPLANTING: "Przesadzanie",
+    THINNING: "Przerywka",
+    HARDENING: "Hartowanie",
+    WATERING: "Podlewanie",
+    FERTILIZATION: "Nawożenie",
     PRUNING: "Przycinanie",
-    SOIL_WORK: "Praca glebowa",
+    WEEDING: "Odchwaszczanie",
+    STAKING: "Palikowanie",
     HARVEST: "Zbiór",
+    PEST_CONTROL: "Kontrola szkodników",
+    DISEASE_CONTROL: "Kontrola chorób",
+    SPRAYING: "Oprysk",
+    PHYSICAL_PROTECTION: "Ochrona fizyczna",
+    TRAP_SETUP: "Zakładanie pułapek",
+    SOIL_PREPARATION: "Przygotowanie gleby",
+    SOIL_AMENDMENT: "Ulepszanie gleby",
+    MULCHING: "Ściółkowanie",
+    SOIL_TESTING: "Badanie gleby",
+    SOIL_REGENERATION: "Regeneracja gleby",
+    IRRIGATION_SETUP: "Montaż nawadniania",
+    MONITORING: "Monitoring",
+    ROTATION_PLANNING: "Planowanie zmianowania",
+    BED_READY: "Przygotowanie grządki",
+    CLIMATE_CONTROL: "Kontrola klimatu",
+    VENTILATION: "Wentylacja",
+    HUMIDITY_REDUCTION: "Obniżanie wilgotności",
+    SHADING: "Cieniowanie",
+    STRUCTURE_INSPECTION: "Przegląd konstrukcji",
+    STRUCTURE_REPAIR: "Naprawa konstrukcji",
+    SPACE_HYGIENE: "Higiena przestrzeni",
+    SEASONAL_PREPARATION: "Przygotowanie sezonowe",
+    MANUAL_CUSTOM: "Zadanie własne",
+    PROTECTION: "Zabieg ochronny",
+    INSPECTION_MONITORING: "Monitoring i inspekcja",
+    SOIL_MOISTURE_MONITORING: "Kontrola wilgotności gleby",
+    SOIL_WORK: "Praca glebowa",
     INSPECTION: "Inspekcja",
   };
   return labels[actionType.toUpperCase()] ?? actionType;
@@ -179,14 +210,43 @@ export const mapActionTypeToLabel = (actionType: string | null): string => {
 export const getActionTypeIcon = (actionType: string | null): string => {
   if (!actionType) return "check-circle-outline";
   const icons: Record<string, string> = {
-    WATERING: "water-outline",
-    FERTILIZATION: "leaf",
-    PROTECTION: "shield-check-outline",
     SOWING: "seed-outline",
     TRANSPLANTING: "transfer",
+    THINNING: "filter-variant-remove",
+    HARDENING: "weather-windy",
+    WATERING: "water-outline",
+    FERTILIZATION: "leaf",
     PRUNING: "content-cut",
-    SOIL_WORK: "shovel",
+    WEEDING: "sprout-outline",
+    STAKING: "fence",
     HARVEST: "basket-outline",
+    PEST_CONTROL: "bug-outline",
+    DISEASE_CONTROL: "alert-circle-outline",
+    SPRAYING: "spray",
+    PHYSICAL_PROTECTION: "shield-outline",
+    TRAP_SETUP: "mouse",
+    SOIL_PREPARATION: "shovel",
+    SOIL_AMENDMENT: "leaf-circle-outline",
+    MULCHING: "layers-outline",
+    SOIL_TESTING: "flask-outline",
+    SOIL_REGENERATION: "leaf-maple",
+    IRRIGATION_SETUP: "pipe",
+    MONITORING: "magnify",
+    ROTATION_PLANNING: "rotate-3d-variant",
+    BED_READY: "check-decagram-outline",
+    CLIMATE_CONTROL: "tune-variant",
+    VENTILATION: "fan",
+    HUMIDITY_REDUCTION: "water-off-outline",
+    SHADING: "weather-sunny-alert",
+    STRUCTURE_INSPECTION: "home-search-outline",
+    STRUCTURE_REPAIR: "hammer-wrench",
+    SPACE_HYGIENE: "spray-bottle",
+    SEASONAL_PREPARATION: "calendar-cog",
+    MANUAL_CUSTOM: "pencil-outline",
+    PROTECTION: "shield-check-outline",
+    INSPECTION_MONITORING: "text-box-search-outline",
+    SOIL_MOISTURE_MONITORING: "water-percent",
+    SOIL_WORK: "shovel",
     INSPECTION: "magnify",
   };
   return icons[actionType.toUpperCase()] ?? "check-circle-outline";
@@ -332,6 +392,35 @@ const getOccurrenceEventTitle = (
   return `${singularLabel}: ${name ?? fallbackLabel}`;
 };
 
+const getActionRescheduledSubtitle = (payload?: Record<string, unknown>) => {
+  const actionType = getStringPayloadValue(payload, "actionType", "type");
+  const previousDueAt = getStringPayloadValue(payload, "previousDueAt");
+  const nextDueAt = getStringPayloadValue(payload, "nextDueAt");
+
+  const datePart =
+    previousDueAt && nextDueAt
+      ? `${formatLocalDateTime(previousDueAt)} → ${formatLocalDateTime(nextDueAt)}`
+      : nextDueAt
+        ? `Nowy termin: ${formatLocalDateTime(nextDueAt)}`
+        : undefined;
+
+  const actionTypePart = actionType ? mapActionTypeToLabel(actionType) : null;
+  return [actionTypePart, datePart].filter(Boolean).join(" • ") || undefined;
+};
+
+const getActionRescheduledTitle = (payload?: Record<string, unknown>) => {
+  const actionTitle = getStringPayloadValue(
+    payload,
+    "actionTitle",
+    "title",
+    "taskTitle",
+    "name",
+  );
+  return actionTitle
+    ? `Przełożono termin zabiegu: ${actionTitle}`
+    : "Przełożono termin zabiegu";
+};
+
 export const getTimelineItemPresentation = (
   item: TimelineItem,
 ): TimelineItemPresentation => {
@@ -393,6 +482,15 @@ export const getTimelineItemPresentation = (
         };
       }
 
+      if (item.eventType === "PLANTING_ACTION_RESCHEDULED") {
+        return {
+          icon: getPlantingEventTypeIcon(item.eventType),
+          iconColor: getPlantingEventTypeIconColor(item.eventType),
+          title: getActionRescheduledTitle(item.payload),
+          subtitle: getActionRescheduledSubtitle(item.payload),
+        };
+      }
+
       return {
         icon: getPlantingEventTypeIcon(item.eventType),
         iconColor: getPlantingEventTypeIconColor(item.eventType),
@@ -408,7 +506,7 @@ export const getTimelineItemPresentation = (
         : undefined;
       return {
         icon: getActionTypeIcon(item.actionType),
-        title: item.title,
+        title: item.label?.trim() || `Wykonano zabieg ${item.title}`,
         subtitle,
       };
     }
