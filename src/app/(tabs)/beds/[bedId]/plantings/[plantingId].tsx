@@ -1,5 +1,6 @@
 import { getResponseError } from "@/src/api/axios";
 import { ActionTask } from "@/src/api/queries/actionTasks/types";
+import { useDeleteActionTask } from "@/src/api/queries/actionTasks/useDeleteActionTask";
 import { useGetPlantingActionTasks } from "@/src/api/queries/actionTasks/useGetPlantingActionTasks";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
 import {
@@ -41,6 +42,7 @@ import {
   getPlantingStatusTone,
 } from "@/src/features/plantings/status";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
+import { getLocalDateKey, getTodayKey } from "@/src/utils/date";
 import { formatQualityRating, formatYield } from "@/src/utils/learningMappers";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
@@ -162,6 +164,13 @@ const parseIsoDate = (value?: string | null) => {
   return Number.isNaN(d.getTime()) ? undefined : d;
 };
 
+const addDaysToDateKey = (dateKey: string, days: number) => {
+  const base = new Date(`${dateKey}T12:00:00`);
+  if (Number.isNaN(base.getTime())) return dateKey;
+  base.setDate(base.getDate() + days);
+  return getLocalDateKey(base);
+};
+
 const getStatusLabel = (
   status: DiseaseOccurrenceStatus | PestOccurrenceStatus,
 ) => {
@@ -186,6 +195,8 @@ export default function PlantingDetailsScreen() {
   const highlightedActionTaskId = Array.isArray(actionTaskId)
     ? actionTaskId[0]
     : actionTaskId;
+  const todayKey = getTodayKey();
+  const upcomingLimitKey = addDaysToDateKey(todayKey, 7);
   const router = useRouter();
 
   const { data, isLoading, error, refetch } = useGetPlanting(
@@ -204,6 +215,7 @@ export default function PlantingDetailsScreen() {
     error: plantingTasksError,
   } = useGetPlantingActionTasks(resolvedPlantingId ?? null, "pending");
   const updateActionTask = useUpdateActionTask();
+  const deleteActionTask = useDeleteActionTask();
 
   const [problemsTab, setProblemsTab] = useState<"diseases" | "pests">(
     "diseases",
@@ -213,6 +225,10 @@ export default function PlantingDetailsScreen() {
   );
   const [actionsVisible, setActionsVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [tasksFilter, setTasksFilter] = useState<
+    "overdue" | "today" | "upcoming"
+  >("today");
+  const [taskToCloseId, setTaskToCloseId] = useState<string | null>(null);
   const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
   const [harvestFormVisible, setHarvestFormVisible] = useState(false);
   const [editingHarvestRecord, setEditingHarvestRecord] =
@@ -316,6 +332,46 @@ export default function PlantingDetailsScreen() {
     () => sortTasksByDueAt(plantingTasksResponse?.items ?? []),
     [plantingTasksResponse?.items],
   );
+  const groupedPlantingTasks = useMemo(() => {
+    const overdue: ActionTask[] = [];
+    const today: ActionTask[] = [];
+    const upcoming7Days: ActionTask[] = [];
+
+    plantingTasks.forEach((task) => {
+      const dueDateKey = isoToDateOnly(task.dueAt);
+
+      if (!dueDateKey) {
+        upcoming7Days.push(task);
+        return;
+      }
+
+      if (dueDateKey < todayKey) {
+        overdue.push(task);
+        return;
+      }
+
+      if (dueDateKey === todayKey) {
+        today.push(task);
+        return;
+      }
+
+      if (dueDateKey <= upcomingLimitKey) {
+        upcoming7Days.push(task);
+      }
+    });
+
+    return {
+      overdue,
+      today,
+      upcoming7Days,
+      visibleCount: overdue.length + today.length + upcoming7Days.length,
+    };
+  }, [plantingTasks, todayKey, upcomingLimitKey]);
+  const filteredPlantingTasks = useMemo(() => {
+    if (tasksFilter === "overdue") return groupedPlantingTasks.overdue;
+    if (tasksFilter === "today") return groupedPlantingTasks.today;
+    return groupedPlantingTasks.upcoming7Days;
+  }, [groupedPlantingTasks, tasksFilter]);
 
   const vegetableName = isVegetableLoading
     ? "Ładowanie..."
@@ -527,6 +583,22 @@ export default function PlantingDetailsScreen() {
         payload: { dueAt },
       });
       setSnackbarMessage("Termin zadania został zmieniony.");
+      await refetchPlantingTasks();
+    } catch (err) {
+      Alert.alert("Błąd", String(getResponseError(err)));
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!taskToCloseId) return;
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
+    try {
+      await deleteActionTask.mutateAsync(taskToCloseId);
+      setTaskToCloseId(null);
+      setSnackbarMessage("Zadanie zostało usunięte.");
       await refetchPlantingTasks();
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
@@ -884,170 +956,6 @@ export default function PlantingDetailsScreen() {
           </Surface>
         ) : null}
 
-        <Surface style={styles.section} elevation={0}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Zadania</Text>
-            <Pressable
-              onPress={() => {
-                if (resolvedBedId) {
-                  router.push(`/(tabs)/beds/${resolvedBedId}`);
-                }
-              }}
-            >
-              <Text style={styles.sectionLink}>Zobacz wszystkie</Text>
-            </Pressable>
-          </View>
-        </Surface>
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {false ? <View /> : null}
-
-        {timelineRows.length > 0 ? (
-          <Surface style={styles.section} elevation={0}>
-            <Text style={styles.sectionTitle}>Terminy i etapy</Text>
-            <View style={styles.timelineList}>
-              {timelineRows.map((row) => (
-                <View key={row.label} style={styles.timelineRow}>
-                  <View style={styles.timelineDot} />
-                  <View style={styles.timelineContent}>
-                    <Text style={styles.timelineLabel}>{row.label}</Text>
-                    <Text style={styles.timelineValue}>
-                      {row.isPreformatted ? row.value : formatDate(row.value)}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </Surface>
-        ) : null}
-
         {planting.notes ? (
           <Surface style={styles.section} elevation={0}>
             <Text style={styles.sectionTitle}>Notatki</Text>
@@ -1180,12 +1088,42 @@ export default function PlantingDetailsScreen() {
 
           {!isPlantingTasksLoading &&
           !plantingTasksError &&
-          plantingTasks.length === 0 ? (
+          groupedPlantingTasks.visibleCount === 0 ? (
             <Text style={styles.emptyText}>Brak zadań do wykonania.</Text>
           ) : null}
 
-          {plantingTasks.map((task) => {
+          {groupedPlantingTasks.visibleCount > 0 ? (
+            <SegmentedButtons
+              value={tasksFilter}
+              onValueChange={(value) =>
+                setTasksFilter(value as "overdue" | "today" | "upcoming")
+              }
+              buttons={[
+                {
+                  value: "overdue",
+                  label: `Zaległe (${groupedPlantingTasks.overdue.length})`,
+                },
+                {
+                  value: "today",
+                  label: `Dziś (${groupedPlantingTasks.today.length})`,
+                },
+                {
+                  value: "upcoming",
+                  label: `7 dni (${groupedPlantingTasks.upcoming7Days.length})`,
+                },
+              ]}
+              style={styles.segmentedButtons}
+            />
+          ) : null}
+
+          {groupedPlantingTasks.visibleCount > 0 &&
+          filteredPlantingTasks.length === 0 ? (
+            <Text style={styles.emptyText}>Brak zaległych zadań.</Text>
+          ) : null}
+
+          {filteredPlantingTasks.map((task) => {
             const isHighlighted = highlightedActionTaskId === task.id;
+            const isOverdueTask = tasksFilter === "overdue";
 
             return (
               <View
@@ -1196,7 +1134,16 @@ export default function PlantingDetailsScreen() {
                 ]}
               >
                 <View style={styles.taskMain}>
-                  <Text style={styles.taskTitle}>{task.title}</Text>
+                  <View style={styles.taskTopRow}>
+                    <Text style={styles.taskTitle}>{task.title}</Text>
+                    <IconButton
+                      icon="close"
+                      size={18}
+                      onPress={() => setTaskToCloseId(task.id)}
+                      disabled={deleteActionTask.isPending}
+                      style={styles.taskCloseButton}
+                    />
+                  </View>
                   {task.description ? (
                     <Text style={styles.taskDescription}>
                       {task.description}
@@ -1212,7 +1159,7 @@ export default function PlantingDetailsScreen() {
                     mode="outlined"
                     compact
                     onPress={() => setRescheduleTaskId(task.id)}
-                    disabled={updateActionTask.isPending}
+                    disabled={isOverdueTask || updateActionTask.isPending}
                     style={styles.equalTaskButton}
                   >
                     Przełóż
@@ -1221,7 +1168,7 @@ export default function PlantingDetailsScreen() {
                     mode="contained"
                     compact
                     onPress={() => handleMarkTaskDone(task.id)}
-                    disabled={updateActionTask.isPending}
+                    disabled={isOverdueTask || updateActionTask.isPending}
                     style={styles.equalTaskButton}
                   >
                     Wykonane
@@ -1582,6 +1529,34 @@ export default function PlantingDetailsScreen() {
               }
             >
               Zapisz
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
+
+      <Portal>
+        <Modal
+          visible={!!taskToCloseId}
+          onDismiss={() => setTaskToCloseId(null)}
+          contentContainerStyle={styles.modal}
+        >
+          <Text style={styles.modalTitle}>Zamknąć zadanie?</Text>
+          <Text style={styles.statusModalHint}>
+            Zadanie zostanie usunięte. Tej operacji nie można cofnąć.
+          </Text>
+
+          <View style={styles.modalActionsBetween}>
+            <Button mode="outlined" onPress={() => setTaskToCloseId(null)}>
+              Anuluj
+            </Button>
+            <Button
+              mode="contained"
+              onPress={handleDeleteTask}
+              loading={deleteActionTask.isPending}
+              disabled={deleteActionTask.isPending || isOffline}
+              buttonColor={theme.colors.error}
+            >
+              Usuń
             </Button>
           </View>
         </Modal>
@@ -2519,10 +2494,20 @@ const makeStyles = (theme: MD3Theme) =>
     taskMain: {
       gap: 4,
     },
+    taskTopRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 8,
+    },
+    taskCloseButton: {
+      margin: -8,
+    },
     taskTitle: {
       fontSize: 15,
       fontWeight: "600",
       color: buildPalette(theme.dark).heading,
+      flex: 1,
     },
     taskDescription: {
       fontSize: 13,
