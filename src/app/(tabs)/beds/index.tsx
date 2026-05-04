@@ -4,6 +4,7 @@ import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { Screen } from "@/src/components/Screen";
 import { isPlantingActiveLifecycleStatus } from "@/src/features/plantings/status";
+import { getTodayKey } from "@/src/utils/date";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
@@ -75,6 +76,11 @@ const ENV_ICONS: Record<CultivationEnvironment, string> = {
   POT_INDOOR: "home-outline",
   GREENHOUSE: "greenhouse",
   TUNNEL: "tunnel-outline",
+};
+
+const isoToDateOnly = (iso?: string | null) => {
+  if (!iso) return "";
+  return iso.split("T")[0] ?? "";
 };
 
 // ─── shimmer ─────────────────────────────────────────────────────────────────
@@ -149,8 +155,16 @@ function BedCard({
   onPress: () => void;
 }) {
   const env = bed.cultivationEnvironment;
+  const todayKey = getTodayKey();
   const { data: pendingTasksData } = useGetBedActionTasks(bed.id, "pending");
-  const hasPendingTasks = (pendingTasksData?.items.length ?? 0) > 0;
+  const relevantPendingTasks = (pendingTasksData?.items ?? []).filter(
+    (task) => {
+      if (task.suppressedAt) return false;
+      const dueDateKey = isoToDateOnly(task.dueAt);
+      return Boolean(dueDateKey) && dueDateKey <= todayKey;
+    },
+  );
+  const hasPendingTasks = relevantPendingTasks.length > 0;
   const soilName = bed.soil?.name ?? null;
   const hasDimensions = bed.lengthCm || bed.widthCm || bed.depthCm;
   const hasMeasurements =

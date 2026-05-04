@@ -11,7 +11,14 @@ const createSingleBedActionTask = async (
   bedId: string,
   item: CreateBedActionTaskItemDto,
 ) => {
-  const { data } = await restClient.post(`/beds/${bedId}/action-tasks`, item);
+  const payload = {
+    actionTemplateId: item.actionTemplateId,
+    ...(item.dueDate ? { dueDate: item.dueDate } : {}),
+  };
+  const { data } = await restClient.post(
+    `/beds/${bedId}/action-tasks`,
+    payload,
+  );
   return data;
 };
 
@@ -19,10 +26,17 @@ const createBedActionTasksBulk = async (
   bedId: string,
   payload: CreateBedActionTasksBulkDto,
 ) => {
+  const normalizedPayload: CreateBedActionTasksBulkDto = {
+    items: payload.items.map((item) => ({
+      actionTemplateId: item.actionTemplateId,
+      ...(item.dueDate ? { dueDate: item.dueDate } : {}),
+    })),
+  };
+
   try {
     const { data } = await restClient.post(
       `/beds/${bedId}/action-tasks/bulk`,
-      payload,
+      normalizedPayload,
     );
     return data;
   } catch (error) {
@@ -35,7 +49,7 @@ const createBedActionTasksBulk = async (
     }
 
     const created = [];
-    for (const item of payload.items) {
+    for (const item of normalizedPayload.items) {
       const single = await createSingleBedActionTask(bedId, item);
       created.push(single);
     }
@@ -62,6 +76,10 @@ export const useCreateBedActionTasksBulk = (bedId: string | null) => {
       queryClient.invalidateQueries({ queryKey: ["bed-details", bedId] });
       queryClient.invalidateQueries({ queryKey: ["bed", bedId] });
       queryClient.invalidateQueries({ queryKey: bedKeys.detail(bedId) });
+      queryClient.invalidateQueries({ queryKey: ["me", "tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["plantings"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["beds"], exact: false });
     },
   });
 };

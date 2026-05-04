@@ -1,12 +1,17 @@
 import { getResponseError } from "@/src/api/axios";
-import { ActionTask } from "@/src/api/queries/actionTasks/types";
+import {
+  ActionTask,
+  getActionTaskSourceLabel,
+  resolveActionTaskSourceType,
+} from "@/src/api/queries/actionTasks/types";
+import { useDeleteActionTask } from "@/src/api/queries/actionTasks/useDeleteActionTask";
 import { useGetBedActionTasks } from "@/src/api/queries/actionTasks/useGetBedActionTasks";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
 import { bedKeys } from "@/src/api/queries/beds/bedKeys";
 import {
-  ActionTemplate,
   CreateBedActionTaskItemDto,
   HarvestPromptItem,
+  PostHarvestProposal,
 } from "@/src/api/queries/beds/harvestTypes";
 import { Bed } from "@/src/api/queries/beds/types";
 import { useCreateBedActionTasksBulk } from "@/src/api/queries/beds/useCreateBedActionTasksBulk";
@@ -31,6 +36,7 @@ import {
   isPlantingActiveLifecycleStatus,
 } from "@/src/features/plantings/status";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
+import { getTodayKey } from "@/src/utils/date";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -116,6 +122,11 @@ const formatDate = (value?: string | null) => {
   return value.split("T")[0];
 };
 
+const dueDateKey = (value?: string | null) => {
+  if (!value) return "";
+  return value.split("T")[0] ?? "";
+};
+
 const sortTasksByDueAt = (tasks: ActionTask[]) =>
   [...tasks].sort((a, b) => {
     const aDue = a.dueAt ?? "9999-12-31";
@@ -132,13 +143,6 @@ const sortTaskHistoryDesc = (tasks: ActionTask[]) =>
     const bDate = getTaskRecordDate(b) ?? "0000-01-01";
     return bDate.localeCompare(aDate);
   });
-
-const getTaskSourceLabel = (source?: ActionTask["source"]) => {
-  if (source === "MANUAL") return "Manualne";
-  if (source === "VEGETABLE_RULE") return "Automatyczne";
-  if (source === "WEATHER_WARNING") return "Pogodowe";
-  return "Nieznane";
-};
 
 const getTaskStatusLabel = (status: ActionTask["status"]) => {
   if (status === "done") return "Wykonane";
@@ -239,6 +243,7 @@ export default function BedDetailsScreen() {
   const highlightedActionTaskId = Array.isArray(actionTaskId)
     ? actionTaskId[0]
     : actionTaskId;
+  const todayKey = getTodayKey();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isBedDeleted, setIsBedDeleted] = useState(false);
@@ -274,6 +279,7 @@ export default function BedDetailsScreen() {
   const deleteBed = useDeleteBed();
   const updateBed = useUpdateBed(resolvedBedId ?? "");
   const updateActionTask = useUpdateActionTask();
+  const deleteActionTask = useDeleteActionTask();
 
   const bed = data as Bed | undefined;
   const plantings = useMemo(
@@ -287,7 +293,7 @@ export default function BedDetailsScreen() {
   const [actionsVisible, setActionsVisible] = useState(false);
 
   const [postHarvestActions, setPostHarvestActions] = useState<
-    ActionTemplate[]
+    PostHarvestProposal[]
   >([]);
   const [deleteConfirmationStep, setDeleteConfirmationStep] = useState(false);
 
@@ -301,8 +307,16 @@ export default function BedDetailsScreen() {
   );
   const pendingTasks = useMemo(
     () =>
-      sortTasksByDueAt(bedTasks.filter((task) => task.status === "pending")),
-    [bedTasks],
+      sortTasksByDueAt(
+        bedTasks.filter(
+          (task) =>
+            task.status === "pending" &&
+            !task.suppressedAt &&
+            Boolean(dueDateKey(task.dueAt)) &&
+            dueDateKey(task.dueAt) <= todayKey,
+        ),
+      ),
+    [bedTasks, todayKey],
   );
   const historyTasks = useMemo(
     () =>
@@ -358,13 +372,13 @@ export default function BedDetailsScreen() {
   const attentionPlantingIds = useMemo(() => {
     const ids = new Set<string>();
     harvestPrompts.forEach((prompt) => ids.add(prompt.plantingId));
-    bedTasks.forEach((task) => {
-      if (task.status === "pending" && task.plantingId) {
+    pendingTasks.forEach((task) => {
+      if (task.plantingId) {
         ids.add(task.plantingId);
       }
     });
     return ids;
-  }, [bedTasks, harvestPrompts]);
+  }, [harvestPrompts, pendingTasks]);
 
   const isOffline = useIsOffline();
 
@@ -421,8 +435,9 @@ export default function BedDetailsScreen() {
       setSnackbarMessage("Dodano zadania po zbiorach");
       await refetchHarvestPrompts();
       await refetchBedTasks();
-    } catch (err) {
-      Alert.alert("Błąd", String(getResponseError(err)));
+      await refetchPlantings();
+    } catch {
+      Alert.alert("Błąd", "Nie udało się dodać zadań po zbiorach");
     }
   };
 
@@ -436,25 +451,24 @@ export default function BedDetailsScreen() {
         id: taskId,
         payload: { status: "done" },
       });
-      setSnackbarMessage("Zadanie oznaczone jako wykonane.");
+      setSnackbarMessage("Zadanie wykonane");
       await refetchBedTasks();
+      await refetchPlantings();
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
     }
   };
 
-  const handleCancelTask = async (taskId: string) => {
+  const handleDeleteTask = async (taskId: string) => {
     if (isOffline) {
       Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
       return;
     }
     try {
-      await updateActionTask.mutateAsync({
-        id: taskId,
-        payload: { status: "canceled" },
-      });
-      setSnackbarMessage("Zadanie zostało anulowane.");
+      await deleteActionTask.mutateAsync(taskId);
+      setSnackbarMessage("Zadanie usunięte");
       await refetchBedTasks();
+      await refetchPlantings();
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
     }
@@ -945,16 +959,22 @@ export default function BedDetailsScreen() {
                   <Text style={styles.taskMeta}>
                     Termin: {formatDate(task.dueAt)}
                   </Text>
+                  <StatusBadge
+                    label={getActionTaskSourceLabel(
+                      resolveActionTaskSourceType(task),
+                    )}
+                    tone="neutral"
+                  />
                 </View>
 
                 <View style={styles.taskActions}>
                   <Button
                     mode="outlined"
                     style={styles.taskActionButton}
-                    onPress={() => handleCancelTask(task.id)}
-                    disabled={updateActionTask.isPending || isOffline}
+                    onPress={() => handleDeleteTask(task.id)}
+                    disabled={deleteActionTask.isPending || isOffline}
                   >
-                    Anuluj
+                    Usuń
                   </Button>
                   <Button
                     mode="contained"
@@ -1013,7 +1033,8 @@ export default function BedDetailsScreen() {
                   Data: {formatDate(getTaskRecordDate(task))}
                 </Text>
                 <Text style={styles.taskMeta}>
-                  Źródło: {getTaskSourceLabel(task.source)}
+                  Źródło:{" "}
+                  {getActionTaskSourceLabel(resolveActionTaskSourceType(task))}
                 </Text>
               </View>
 

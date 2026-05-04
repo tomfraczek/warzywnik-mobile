@@ -1,8 +1,6 @@
 import { getResponseError } from "@/src/api/axios";
 import { useDeleteActionTask } from "@/src/api/queries/actionTasks/useDeleteActionTask";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
-import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
-import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { Bed } from "@/src/api/queries/beds/types";
 import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
 import { CalendarTaskItem } from "@/src/api/queries/calendar/types";
@@ -18,16 +16,21 @@ import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { TaskItem } from "@/src/components/ui/TaskItem";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import {
   formatTaskDayPart,
   formatTaskHorizon,
   formatTaskScope,
   formatTaskTargetType,
   getTaskMeta,
+  getTaskSourceTypeLabel,
   getTaskTechnicalDetails,
+  isTaskActive,
   resolveTaskPresentation,
+  resolveTaskSourceType,
 } from "@/src/features/tasks/model";
 import { asNonEmptyString } from "@/src/features/warnings/model";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { radius, spacing } from "@/src/theme/ui";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
@@ -233,7 +236,7 @@ export default function PlannerScreen() {
     const tomorrow: MeTaskItem[] = [];
 
     [...(tasksQuery.data?.items ?? [])]
-      .filter((task) => normalizeTaskStatus(task.status) === "pending")
+      .filter((task) => isTaskActive(task))
       .sort((a, b) => toDateValue(a) - toDateValue(b))
       .forEach((task) => {
         const dueAt = getTaskMeta(task, "dueAt", "due_at");
@@ -271,7 +274,7 @@ export default function PlannerScreen() {
     return timeline
       .map((day) => {
         const tasks = day.tasks.filter((task) => {
-          if (normalizeTaskStatus(task.status) !== "pending") return false;
+          if (!isTaskActive(asPlannerTaskItem(task))) return false;
           const localDueDate = toLocalDateKey(task.dueAt ?? day.date);
           if (!localDueDate) return true;
           return localDueDate !== todayKey && localDueDate !== tomorrowKey;
@@ -393,6 +396,9 @@ export default function PlannerScreen() {
                       bedsById,
                       plantingsById,
                     });
+                    const sourceLabel = getTaskSourceTypeLabel(
+                      resolveTaskSourceType(task),
+                    );
 
                     return (
                       <Surface
@@ -410,6 +416,9 @@ export default function PlannerScreen() {
                             ? ` • ${presentation.cropLabel}`
                             : ""}
                         </Text>
+                        {sourceLabel ? (
+                          <StatusBadge label={sourceLabel} tone="neutral" />
+                        ) : null}
 
                         <View style={styles.actionsRow}>
                           <Button
@@ -446,6 +455,9 @@ export default function PlannerScreen() {
                       bedsById,
                       plantingsById,
                     });
+                    const sourceLabel = getTaskSourceTypeLabel(
+                      resolveTaskSourceType(task),
+                    );
 
                     return (
                       <Surface
@@ -463,6 +475,9 @@ export default function PlannerScreen() {
                             ? ` • ${presentation.cropLabel}`
                             : ""}
                         </Text>
+                        {sourceLabel ? (
+                          <StatusBadge label={sourceLabel} tone="neutral" />
+                        ) : null}
 
                         <View style={styles.actionsRow}>
                           <Button
@@ -518,6 +533,9 @@ export default function PlannerScreen() {
                     bedsById,
                     plantingsById,
                   });
+                  const sourceLabel = getTaskSourceTypeLabel(
+                    resolveTaskSourceType(plannerTask),
+                  );
 
                   return (
                     <Surface
@@ -536,6 +554,9 @@ export default function PlannerScreen() {
                           ? ` • ${presentation.cropLabel}`
                           : ""}
                       </Text>
+                      {sourceLabel ? (
+                        <StatusBadge label={sourceLabel} tone="neutral" />
+                      ) : null}
 
                       {presentation.horizon === "OPERATIONAL" ? (
                         <Text style={styles.taskMetaStrong}>

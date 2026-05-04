@@ -1,5 +1,9 @@
 import { getResponseError } from "@/src/api/axios";
-import { ActionTask } from "@/src/api/queries/actionTasks/types";
+import {
+  ActionTask,
+  getActionTaskSourceLabel,
+  resolveActionTaskSourceType,
+} from "@/src/api/queries/actionTasks/types";
 import { useGetBedActionTasks } from "@/src/api/queries/actionTasks/useGetBedActionTasks";
 import { Screen } from "@/src/components/Screen";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
@@ -9,7 +13,7 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { MD3Theme, Text, useTheme } from "react-native-paper";
 
 type HistoryStatusFilter = "all" | "done" | "canceled";
-type HistorySourceFilter = "all" | "manual" | "automatyczne" | "pogodowe";
+type HistorySourceFilter = "all" | "manual" | "automatyczne" | "sugestia";
 
 const formatDate = (value?: string | null) => {
   if (!value) return "Brak";
@@ -25,13 +29,6 @@ const sortTaskHistoryDesc = (tasks: ActionTask[]) =>
     const bDate = getTaskRecordDate(b) ?? "0000-01-01";
     return bDate.localeCompare(aDate);
   });
-
-const getTaskSourceLabel = (source?: ActionTask["source"]) => {
-  if (source === "MANUAL") return "Manualne";
-  if (source === "VEGETABLE_RULE") return "Automatyczne";
-  if (source === "WEATHER_WARNING") return "Pogodowe";
-  return "Nieznane";
-};
 
 const getTaskStatusLabel = (status: ActionTask["status"]) => {
   if (status === "done") return "Wykonane";
@@ -93,11 +90,12 @@ export default function BedHistoryScreen() {
     });
 
     return statusFiltered.filter((task) => {
+      const sourceType = resolveActionTaskSourceType(task);
       if (historySourceFilter === "all") return true;
-      if (historySourceFilter === "manual") return task.source === "MANUAL";
+      if (historySourceFilter === "manual") return sourceType === "MANUAL";
       if (historySourceFilter === "automatyczne")
-        return task.source === "VEGETABLE_RULE";
-      return task.source === "WEATHER_WARNING";
+        return sourceType === "AUTOMATION";
+      return sourceType === "SUGGESTION";
     });
   }, [allHistoryTasks, historySourceFilter, historyStatusFilter]);
 
@@ -146,9 +144,9 @@ export default function BedHistoryScreen() {
           <View style={styles.filterChipsWrap}>
             {[
               { value: "all", label: "Wszystkie" },
-              { value: "manual", label: "Manualne" },
+              { value: "manual", label: "Ręczne" },
               { value: "automatyczne", label: "Automatyczne" },
-              { value: "pogodowe", label: "Pogodowe" },
+              { value: "sugestia", label: "Sugestia" },
             ].map((item) => {
               const isActive = historySourceFilter === item.value;
               return (
@@ -197,7 +195,8 @@ export default function BedHistoryScreen() {
                   Data: {formatDate(getTaskRecordDate(task))}
                 </Text>
                 <Text style={styles.taskMeta}>
-                  Źródło: {getTaskSourceLabel(task.source)}
+                  Źródło:{" "}
+                  {getActionTaskSourceLabel(resolveActionTaskSourceType(task))}
                 </Text>
               </View>
               <StatusBadge

@@ -148,6 +148,48 @@ export const isTaskPending = (task: TaskItem) => {
   return (task.status ?? "").trim().toLowerCase() === "pending";
 };
 
+export const isTaskSuppressed = (task: TaskItem) => {
+  return Boolean(task.suppressedAt ?? getTaskMeta(task, "suppressedAt"));
+};
+
+export const isTaskActive = (task: TaskItem) => {
+  return isTaskPending(task) && !isTaskSuppressed(task);
+};
+
+export const resolveTaskSourceType = (
+  task: TaskItem,
+): "MANUAL" | "AUTOMATION" | "SUGGESTION" | null => {
+  const sourceType =
+    asNonEmptyString(task.sourceType) ?? getTaskMeta(task, "sourceType");
+  const normalizedSourceType = sourceType?.toUpperCase();
+
+  if (
+    normalizedSourceType === "MANUAL" ||
+    normalizedSourceType === "AUTOMATION" ||
+    normalizedSourceType === "SUGGESTION"
+  ) {
+    return normalizedSourceType;
+  }
+
+  const source =
+    asNonEmptyString(task.source) ?? getTaskMeta(task, "source", "taskSource");
+  const normalizedSource = source?.toUpperCase();
+  if (normalizedSource === "MANUAL") return "MANUAL";
+  if (normalizedSource === "AUTOMATION") return "AUTOMATION";
+  if (normalizedSource === "SUGGESTION") return "SUGGESTION";
+  if (normalizedSource === "VEGETABLE_RULE") return "AUTOMATION";
+  return null;
+};
+
+export const getTaskSourceTypeLabel = (
+  sourceType: "MANUAL" | "AUTOMATION" | "SUGGESTION" | null,
+) => {
+  if (sourceType === "MANUAL") return "Ręczne";
+  if (sourceType === "AUTOMATION") return "Automatyczne";
+  if (sourceType === "SUGGESTION") return "Sugestia";
+  return null;
+};
+
 const getDueAtValue = (task: TaskItem) => {
   return getTaskMeta(task, "dueAt", "due_at");
 };

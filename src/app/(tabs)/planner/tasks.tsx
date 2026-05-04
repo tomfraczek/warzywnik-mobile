@@ -1,23 +1,26 @@
 import { getResponseError } from "@/src/api/axios";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
-import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
-import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { TaskItem as MeTaskItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { Screen } from "@/src/components/Screen";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import {
   getTaskAffectedBedsCount,
   getTaskAffectsAllBeds,
   getTaskLocationLabel,
   getTaskMeta,
+  getTaskSourceTypeLabel,
   getTaskWarningCode,
   getTasksForLater,
   getTasksForToday,
   getTasksForTomorrow,
   getTasksWithNoDueDate,
+  isTaskActive,
   isWeatherWarningTask,
+  resolveTaskSourceType,
 } from "@/src/features/tasks/model";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { radius, spacing } from "@/src/theme/ui";
 import { formatIsoDateTime, isoToLocalDateKey } from "@/src/utils/date";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -51,6 +54,7 @@ function WeatherTaskCard({ task, onDone, isDoneLoading }: TaskCardProps) {
   const affectedBedsCount = getTaskAffectedBedsCount(task);
   const locationLabel = getTaskLocationLabel(task);
   const dueAt = getTaskMeta(task, "dueAt", "due_at");
+  const sourceTypeLabel = getTaskSourceTypeLabel(resolveTaskSourceType(task));
 
   const targetLabel =
     task.targetType === "PLANTING"
@@ -101,6 +105,9 @@ function WeatherTaskCard({ task, onDone, isDoneLoading }: TaskCardProps) {
       {warningCode ? (
         <StatusBadge label={warningCode.replace(/_/g, " ")} tone="info" />
       ) : null}
+      {sourceTypeLabel ? (
+        <StatusBadge label={sourceTypeLabel} tone="neutral" />
+      ) : null}
 
       <View style={styles.actions}>
         {onDone ? (
@@ -143,7 +150,7 @@ export default function PlannerTasksScreen() {
   const updateActionTask = useUpdateActionTask();
 
   const allTasks = useMemo(
-    () => tasksQuery.data?.items ?? [],
+    () => (tasksQuery.data?.items ?? []).filter((task) => isTaskActive(task)),
     [tasksQuery.data?.items],
   );
 

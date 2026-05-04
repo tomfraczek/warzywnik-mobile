@@ -1,4 +1,4 @@
-import { ActionTemplate } from "@/src/api/queries/beds/harvestTypes";
+import { PostHarvestProposal } from "@/src/api/queries/beds/harvestTypes";
 import { memo, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
@@ -14,19 +14,19 @@ import { DatePickerModal } from "react-native-paper-dates";
 
 type TaskSelection = {
   actionTemplateId: string;
-  dueAt?: string;
+  dueDate?: string;
 };
 
 type PostHarvestActionsModalProps = {
   visible: boolean;
-  actions: ActionTemplate[];
+  actions: PostHarvestProposal[];
   isSubmitting?: boolean;
   onCancel: () => void;
   onSubmit: (selection: TaskSelection[]) => void;
 };
 
-const resolveTemplateId = (action: ActionTemplate) =>
-  action.actionTemplateId ?? action.templateId ?? action.id ?? null;
+const resolveTemplateId = (proposal: PostHarvestProposal) =>
+  proposal.actionTemplate?.id ?? null;
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
@@ -70,11 +70,11 @@ function PostHarvestActionsModalComponent({
   const selectableActions = useMemo(
     () =>
       actions
-        .map((action) => ({
-          ...action,
-          resolvedTemplateId: resolveTemplateId(action),
+        .map((proposal) => ({
+          ...proposal,
+          resolvedTemplateId: resolveTemplateId(proposal),
         }))
-        .filter((action) => !!action.resolvedTemplateId),
+        .filter((proposal) => !!proposal.resolvedTemplateId),
     [actions],
   );
 
@@ -83,9 +83,9 @@ function PostHarvestActionsModalComponent({
 
     // Default behavior: preselect all available post-harvest actions.
     const initialSelection = selectableActions.reduce<Record<string, boolean>>(
-      (acc, action) => {
-        if (action.resolvedTemplateId) {
-          acc[action.resolvedTemplateId] = true;
+      (acc, proposal) => {
+        if (proposal.resolvedTemplateId) {
+          acc[proposal.resolvedTemplateId] = true;
         }
         return acc;
       },
@@ -96,14 +96,17 @@ function PostHarvestActionsModalComponent({
 
     // Initialize default due dates using offset from proposal.
     const initialDueAt = selectableActions.reduce<Record<string, string>>(
-      (acc, action) => {
-        if (!action.resolvedTemplateId) {
+      (acc, proposal) => {
+        if (!proposal.resolvedTemplateId) {
           return acc;
         }
 
-        acc[action.resolvedTemplateId] = getDefaultDueDateIso(
-          action.defaultDueOffsetDays,
-        );
+        const offsetDays =
+          typeof proposal.offsetDays === "number"
+            ? proposal.offsetDays
+            : proposal.actionTemplate?.defaultDueOffsetDays;
+
+        acc[proposal.resolvedTemplateId] = getDefaultDueDateIso(offsetDays);
         return acc;
       },
       {},
@@ -138,21 +141,21 @@ function PostHarvestActionsModalComponent({
           {selectableActions.length === 0 ? (
             <Text style={styles.emptyText}>Brak akcji do dodania.</Text>
           ) : (
-            selectableActions.map((action) => {
-              if (!action.resolvedTemplateId) {
+            selectableActions.map((proposal) => {
+              if (!proposal.resolvedTemplateId) {
                 return null;
               }
 
-              const checked = !!selectedIds[action.resolvedTemplateId];
+              const checked = !!selectedIds[proposal.resolvedTemplateId];
 
               return (
                 <Pressable
-                  key={action.resolvedTemplateId}
+                  key={proposal.resolvedTemplateId}
                   style={styles.row}
                   onPress={() =>
                     setSelectedIds((prev) => ({
                       ...prev,
-                      [action.resolvedTemplateId as string]: !checked,
+                      [proposal.resolvedTemplateId as string]: !checked,
                     }))
                   }
                 >
@@ -161,29 +164,31 @@ function PostHarvestActionsModalComponent({
                     onPress={() =>
                       setSelectedIds((prev) => ({
                         ...prev,
-                        [action.resolvedTemplateId as string]: !checked,
+                        [proposal.resolvedTemplateId as string]: !checked,
                       }))
                     }
                   />
                   <View style={styles.rowTextWrap}>
-                    <Text style={styles.actionName}>{action.name}</Text>
-                    {action.description ? (
+                    <Text style={styles.actionName}>
+                      {proposal.actionTemplate.name}
+                    </Text>
+                    {proposal.actionTemplate.description ? (
                       <Text style={styles.actionDescription}>
-                        {action.description}
+                        {proposal.actionTemplate.description}
                       </Text>
                     ) : null}
 
                     <Pressable
                       onPress={() =>
                         checked &&
-                        setPickerTemplateId(action.resolvedTemplateId)
+                        setPickerTemplateId(proposal.resolvedTemplateId)
                       }
                     >
                       <TextInput
                         mode="outlined"
                         label="Termin"
                         value={toDateOnly(
-                          dueAtByTemplateId[action.resolvedTemplateId],
+                          dueAtByTemplateId[proposal.resolvedTemplateId],
                         )}
                         editable={false}
                         disabled={!checked}
@@ -218,7 +223,8 @@ function PostHarvestActionsModalComponent({
                 )
                 .map((action) => ({
                   actionTemplateId: action.resolvedTemplateId as string,
-                  dueAt: dueAtByTemplateId[action.resolvedTemplateId as string],
+                  dueDate:
+                    dueAtByTemplateId[action.resolvedTemplateId as string],
                 }));
 
               onSubmit(selection);

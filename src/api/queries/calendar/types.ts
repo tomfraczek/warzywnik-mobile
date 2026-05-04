@@ -8,11 +8,19 @@ export type CalendarTaskItem = {
   bedId?: string | null;
   plantingId?: string | null;
   source?: string;
+  sourceType?: "MANUAL" | "AUTOMATION" | "SUGGESTION" | string;
+  sourceKey?: string | null;
+  isUserModified?: boolean;
+  suppressedAt?: string | null;
   actionTemplate?: {
     id: string;
+    slug?: string;
     name: string;
+    target?: string;
     scope?: string;
     type?: string;
+    description?: string | null;
+    defaultDueOffsetDays?: number | null;
   } | null;
 };
 

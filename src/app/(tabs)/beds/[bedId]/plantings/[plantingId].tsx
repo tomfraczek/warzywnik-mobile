@@ -1,5 +1,9 @@
 import { getResponseError } from "@/src/api/axios";
-import { ActionTask } from "@/src/api/queries/actionTasks/types";
+import {
+  ActionTask,
+  getActionTaskSourceLabel,
+  resolveActionTaskSourceType,
+} from "@/src/api/queries/actionTasks/types";
 import { useDeleteActionTask } from "@/src/api/queries/actionTasks/useDeleteActionTask";
 import { useGetPlantingActionTasks } from "@/src/api/queries/actionTasks/useGetPlantingActionTasks";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
@@ -36,13 +40,14 @@ import { useUpdatePlanting } from "@/src/api/queries/plantings/useUpdatePlanting
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { Screen } from "@/src/components/Screen";
 import CustomHeader from "@/src/components/navigation/CustomHeader";
+import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import {
   getPlantingStatusLabel,
   getPlantingStatusTone,
 } from "@/src/features/plantings/status";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
-import { getLocalDateKey, getTodayKey } from "@/src/utils/date";
+import { getTodayKey } from "@/src/utils/date";
 import { formatQualityRating, formatYield } from "@/src/utils/learningMappers";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
@@ -184,23 +189,13 @@ const sortTasksByDueAt = (tasks: ActionTask[]) =>
 
 const isoToDateOnly = (iso?: string | null) => {
   if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad2 = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  return iso.split("T")[0] ?? "";
 };
 
 const parseIsoDate = (value?: string | null) => {
   if (!value) return undefined;
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? undefined : d;
-};
-
-const addDaysToDateKey = (dateKey: string, days: number) => {
-  const base = new Date(`${dateKey}T12:00:00`);
-  if (Number.isNaN(base.getTime())) return dateKey;
-  base.setDate(base.getDate() + days);
-  return getLocalDateKey(base);
 };
 
 const getStatusLabel = (
@@ -228,7 +223,6 @@ export default function PlantingDetailsScreen() {
     ? actionTaskId[0]
     : actionTaskId;
   const todayKey = getTodayKey();
-  const upcomingLimitKey = addDaysToDateKey(todayKey, 7);
   const router = useRouter();
 
   const { data, isLoading, error, refetch } = useGetPlanting(
@@ -257,9 +251,7 @@ export default function PlantingDetailsScreen() {
   );
   const [actionsVisible, setActionsVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
-  const [tasksFilter, setTasksFilter] = useState<
-    "overdue" | "today" | "upcoming"
-  >("today");
+  const [tasksFilter, setTasksFilter] = useState<"overdue" | "today">("today");
   const [taskIdsCompleting, setTaskIdsCompleting] = useState<string[]>([]);
   const [taskToCloseId, setTaskToCloseId] = useState<string | null>(null);
   const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
@@ -315,8 +307,53 @@ export default function PlantingDetailsScreen() {
     resolvedPlantingId ?? null,
     Boolean(statusModalVisible),
   );
-  const availableStatuses =
-    availableStatusesQuery.data?.availableStatuses ?? [];
+  const availableStatuses = useMemo(
+    () => availableStatusesQuery.data?.availableStatuses ?? [],
+    [availableStatusesQuery.data?.availableStatuses],
+  );
+  const lifecycleOrder = useMemo<PlantingStatus[]>(() => {
+    const steps =
+      planting?.startMethod === "TRANSPLANT"
+        ? TRANSPLANT_GROWTH_STEPS
+        : DIRECT_SOW_GROWTH_STEPS;
+
+    return steps.map((step) => step.key);
+  }, [planting?.startMethod]);
+  const statusOptionsByDirection = useMemo(() => {
+    const next: PlantingStatus[] = [];
+    const rollback: PlantingStatus[] = [];
+    const other: PlantingStatus[] = [];
+    const currentStatus = planting?.status;
+
+    if (!currentStatus) {
+      return { next, rollback, other };
+    }
+
+    const currentIndex = lifecycleOrder.indexOf(currentStatus);
+    const orderIndexByStatus = new Map<PlantingStatus, number>(
+      lifecycleOrder.map((status, index) => [status, index]),
+    );
+
+    availableStatuses.forEach((status) => {
+      const candidateIndex = orderIndexByStatus.get(status);
+
+      if (currentIndex >= 0 && candidateIndex != null) {
+        if (candidateIndex > currentIndex) {
+          next.push(status);
+          return;
+        }
+
+        if (candidateIndex < currentIndex) {
+          rollback.push(status);
+          return;
+        }
+      }
+
+      other.push(status);
+    });
+
+    return { next, rollback, other };
+  }, [availableStatuses, lifecycleOrder, planting?.status]);
 
   const [diseaseModalVisible, setDiseaseModalVisible] = useState(false);
   const [selectedDiseaseId, setSelectedDiseaseId] = useState<string | null>(
@@ -385,19 +422,22 @@ export default function PlantingDetailsScreen() {
       (pestResolvedQuery.data?.length ?? 0) >
     0;
   const plantingTasks = useMemo(
-    () => sortTasksByDueAt(plantingTasksResponse?.items ?? []),
+    () =>
+      sortTasksByDueAt(
+        (plantingTasksResponse?.items ?? []).filter(
+          (task) => task.status === "pending" && !task.suppressedAt,
+        ),
+      ),
     [plantingTasksResponse?.items],
   );
   const groupedPlantingTasks = useMemo(() => {
     const overdue: ActionTask[] = [];
     const today: ActionTask[] = [];
-    const upcoming7Days: ActionTask[] = [];
 
     plantingTasks.forEach((task) => {
       const dueDateKey = isoToDateOnly(task.dueAt);
 
       if (!dueDateKey) {
-        upcoming7Days.push(task);
         return;
       }
 
@@ -408,25 +448,18 @@ export default function PlantingDetailsScreen() {
 
       if (dueDateKey === todayKey) {
         today.push(task);
-        return;
-      }
-
-      if (dueDateKey <= upcomingLimitKey) {
-        upcoming7Days.push(task);
       }
     });
 
     return {
       overdue,
       today,
-      upcoming7Days,
-      visibleCount: overdue.length + today.length + upcoming7Days.length,
+      visibleCount: overdue.length + today.length,
     };
-  }, [plantingTasks, todayKey, upcomingLimitKey]);
+  }, [plantingTasks, todayKey]);
   const filteredPlantingTasks = useMemo(() => {
     if (tasksFilter === "overdue") return groupedPlantingTasks.overdue;
-    if (tasksFilter === "today") return groupedPlantingTasks.today;
-    return groupedPlantingTasks.upcoming7Days;
+    return groupedPlantingTasks.today;
   }, [groupedPlantingTasks, tasksFilter]);
 
   useEffect(() => {
@@ -450,6 +483,18 @@ export default function PlantingDetailsScreen() {
   const startMethodLabel = planting?.startMethod
     ? START_METHOD_LABELS[planting.startMethod]
     : "Brak";
+  const expectedHarvestWindowStart =
+    planting?.harvestWindowStart ?? planting?.harvestStartDate ?? null;
+  const expectedHarvestWindowEnd =
+    planting?.harvestWindowEnd ?? planting?.harvestEndDate ?? null;
+  const expectedHarvestWindowLabel =
+    expectedHarvestWindowStart && expectedHarvestWindowEnd
+      ? `${formatDate(expectedHarvestWindowStart)} – ${formatDate(expectedHarvestWindowEnd)}`
+      : expectedHarvestWindowStart
+        ? `Od ${formatDate(expectedHarvestWindowStart)}`
+        : expectedHarvestWindowEnd
+          ? `Do ${formatDate(expectedHarvestWindowEnd)}`
+          : "Brak danych";
 
   const harvestRecords = useMemo(() => {
     if (!planting) return [];
@@ -500,6 +545,29 @@ export default function PlantingDetailsScreen() {
   }, [harvestRecords]);
 
   const warnings = planting?.warnings ?? [];
+
+  useEffect(() => {
+    if (!__DEV__) return;
+    if (!planting?.id) return;
+
+    console.log("[PlantingDetails] transplantedAt", {
+      plantingId: planting.id,
+      transplantedAt: planting.transplantedAt ?? null,
+    });
+  }, [planting?.id, planting?.transplantedAt]);
+
+  useEffect(() => {
+    if (!__DEV__) return;
+    if (!resolvedPlantingId) return;
+
+    console.log("[PlantingDetails] plantingTasks", {
+      plantingId: resolvedPlantingId,
+      hasTasks: plantingTasks.length > 0,
+      count: plantingTasks.length,
+      taskIds: plantingTasks.map((task) => task.id),
+    });
+  }, [resolvedPlantingId, plantingTasks]);
+
   const growthTimelineSteps = useMemo<GrowthTimelineStep[]>(() => {
     if (!planting) return [];
 
@@ -650,8 +718,9 @@ export default function PlantingDetailsScreen() {
         id: taskId,
         payload: { status: "done" },
       });
-      setSnackbarMessage("Zadanie oznaczone jako wykonane.");
+      setSnackbarMessage("Zadanie wykonane");
       await refetchPlantingTasks();
+      await refetch();
     } catch (err) {
       setTaskIdsCompleting((prev) => prev.filter((id) => id !== taskId));
       Alert.alert("Błąd", String(getResponseError(err)));
@@ -670,6 +739,7 @@ export default function PlantingDetailsScreen() {
       });
       setSnackbarMessage("Termin zadania został zmieniony.");
       await refetchPlantingTasks();
+      await refetch();
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
     }
@@ -684,8 +754,9 @@ export default function PlantingDetailsScreen() {
     try {
       await deleteActionTask.mutateAsync(taskToCloseId);
       setTaskToCloseId(null);
-      setSnackbarMessage("Zadanie zostało usunięte.");
+      setSnackbarMessage("Zadanie usunięte");
       await refetchPlantingTasks();
+      await refetch();
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
     }
@@ -850,6 +921,56 @@ export default function PlantingDetailsScreen() {
     return theme.colors.primary;
   };
 
+  const renderStatusOption = (status: PlantingStatus) => (
+    <Pressable
+      key={status}
+      style={[
+        styles.statusOptionRow,
+        selectedStatus === status ? styles.statusOptionRowActive : null,
+      ]}
+      onPress={() => {
+        setSelectedStatus(status);
+        setStatusErrorMessage(null);
+      }}
+    >
+      <View style={styles.statusOptionMain}>
+        <Text
+          style={[
+            styles.statusOptionText,
+            selectedStatus === status ? styles.statusOptionTextActive : null,
+          ]}
+        >
+          {getPlantingStatusLabel(status) || status}
+        </Text>
+
+        <View style={styles.statusOptionInfoRow}>
+          <Icon
+            source="information-outline"
+            size={14}
+            color={buildPalette(theme.dark).secondary}
+          />
+          <Text style={styles.statusOptionInfoText}>
+            {PLANTING_STATUS_DESCRIPTIONS[status]}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.statusOptionRadioWrap}>
+        <Icon
+          source={
+            selectedStatus === status ? "radiobox-marked" : "radiobox-blank"
+          }
+          size={20}
+          color={
+            selectedStatus === status
+              ? buildPalette(theme.dark).accent
+              : buildPalette(theme.dark).secondary
+          }
+        />
+      </View>
+    </Pressable>
+  );
+
   if (isLoading) {
     return (
       <Screen
@@ -988,6 +1109,15 @@ export default function PlantingDetailsScreen() {
                   {statusLabel}
                 </Text>
               </View>
+            </View>
+
+            <View style={styles.heroHarvestWindowBlock}>
+              <Text style={styles.heroHarvestWindowLabel}>
+                Oczekiwane okno zbioru
+              </Text>
+              <Text style={styles.heroHarvestWindowValue}>
+                {expectedHarvestWindowLabel}
+              </Text>
             </View>
           </Surface>
         </View>
@@ -1237,7 +1367,7 @@ export default function PlantingDetailsScreen() {
             <SegmentedButtons
               value={tasksFilter}
               onValueChange={(value) =>
-                setTasksFilter(value as "overdue" | "today" | "upcoming")
+                setTasksFilter(value as "overdue" | "today")
               }
               buttons={[
                 {
@@ -1258,18 +1388,6 @@ export default function PlantingDetailsScreen() {
                   style: [
                     styles.segmentedButtonItem,
                     tasksFilter === "today"
-                      ? styles.segmentedButtonItemActive
-                      : null,
-                  ],
-                  checkedColor: palette.accent,
-                  uncheckedColor: palette.secondary,
-                },
-                {
-                  value: "upcoming",
-                  label: `7 dni (${groupedPlantingTasks.upcoming7Days.length})`,
-                  style: [
-                    styles.segmentedButtonItem,
-                    tasksFilter === "upcoming"
                       ? styles.segmentedButtonItemActive
                       : null,
                   ],
@@ -1318,6 +1436,12 @@ export default function PlantingDetailsScreen() {
                   <Text style={styles.taskMeta}>
                     Termin: {formatDate(task.dueAt)}
                   </Text>
+                  <StatusBadge
+                    label={getActionTaskSourceLabel(
+                      resolveActionTaskSourceType(task),
+                    )}
+                    tone="neutral"
+                  />
                 </View>
 
                 <View style={styles.taskActions}>
@@ -1705,63 +1829,36 @@ export default function PlantingDetailsScreen() {
           ) : (
             <>
               <Text style={styles.modalLabel}>Nowy status</Text>
-              <View style={styles.statusOptionsColumn}>
-                {availableStatuses.map((status) => (
-                  <Pressable
-                    key={status}
-                    style={[
-                      styles.statusOptionRow,
-                      selectedStatus === status
-                        ? styles.statusOptionRowActive
-                        : null,
-                    ]}
-                    onPress={() => {
-                      setSelectedStatus(status);
-                      setStatusErrorMessage(null);
-                    }}
-                  >
-                    <View style={styles.statusOptionMain}>
-                      <Text
-                        style={[
-                          styles.statusOptionText,
-                          selectedStatus === status
-                            ? styles.statusOptionTextActive
-                            : null,
-                        ]}
-                      >
-                        {getPlantingStatusLabel(status) || status}
-                      </Text>
+              {statusOptionsByDirection.next.length > 0 ? (
+                <View style={styles.statusOptionGroup}>
+                  <Text style={styles.statusOptionGroupTitle}>
+                    Kolejny etap
+                  </Text>
+                  <View style={styles.statusOptionsColumn}>
+                    {statusOptionsByDirection.next.map(renderStatusOption)}
+                  </View>
+                </View>
+              ) : null}
 
-                      <View style={styles.statusOptionInfoRow}>
-                        <Icon
-                          source="information-outline"
-                          size={14}
-                          color={buildPalette(theme.dark).secondary}
-                        />
-                        <Text style={styles.statusOptionInfoText}>
-                          {PLANTING_STATUS_DESCRIPTIONS[status]}
-                        </Text>
-                      </View>
-                    </View>
+              {statusOptionsByDirection.rollback.length > 0 ? (
+                <View style={styles.statusOptionGroup}>
+                  <Text style={styles.statusOptionGroupTitle}>
+                    Cofnięcie etapu
+                  </Text>
+                  <View style={styles.statusOptionsColumn}>
+                    {statusOptionsByDirection.rollback.map(renderStatusOption)}
+                  </View>
+                </View>
+              ) : null}
 
-                    <View style={styles.statusOptionRadioWrap}>
-                      <Icon
-                        source={
-                          selectedStatus === status
-                            ? "radiobox-marked"
-                            : "radiobox-blank"
-                        }
-                        size={20}
-                        color={
-                          selectedStatus === status
-                            ? buildPalette(theme.dark).accent
-                            : buildPalette(theme.dark).secondary
-                        }
-                      />
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
+              {statusOptionsByDirection.other.length > 0 ? (
+                <View style={styles.statusOptionGroup}>
+                  <Text style={styles.statusOptionGroupTitle}>Inne</Text>
+                  <View style={styles.statusOptionsColumn}>
+                    {statusOptionsByDirection.other.map(renderStatusOption)}
+                  </View>
+                </View>
+              ) : null}
             </>
           )}
 
@@ -2409,6 +2506,20 @@ const makeStyles = (theme: MD3Theme) =>
       alignItems: "center",
       justifyContent: "flex-start",
     },
+    heroHarvestWindowBlock: {
+      gap: 4,
+      marginTop: 2,
+    },
+    heroHarvestWindowLabel: {
+      fontSize: 12,
+      color: buildPalette(theme.dark).secondary,
+      fontWeight: "500",
+    },
+    heroHarvestWindowValue: {
+      fontSize: 15,
+      color: buildPalette(theme.dark).heading,
+      fontWeight: "600",
+    },
     statusBadge: {
       borderRadius: 999,
       paddingHorizontal: 12,
@@ -2670,6 +2781,16 @@ const makeStyles = (theme: MD3Theme) =>
     },
     statusOptionsColumn: {
       gap: 8,
+    },
+    statusOptionGroup: {
+      gap: 8,
+    },
+    statusOptionGroupTitle: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: buildPalette(theme.dark).secondary,
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
     },
     statusOptionRow: {
       minHeight: 0,

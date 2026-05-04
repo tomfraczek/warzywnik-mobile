@@ -1,8 +1,6 @@
 import { getResponseError } from "@/src/api/axios";
 import { useDeleteActionTask } from "@/src/api/queries/actionTasks/useDeleteActionTask";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
-import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
-import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { Bed } from "@/src/api/queries/beds/types";
 import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
 import { CalendarTaskItem } from "@/src/api/queries/calendar/types";
@@ -11,16 +9,22 @@ import { Planting } from "@/src/api/queries/plantings/types";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { TaskItem as MeTaskItem } from "@/src/api/queries/users/meTypes";
 import { Screen } from "@/src/components/Screen";
+import { StatusBadge } from "@/src/components/ui/StatusBadge";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import {
   formatTaskDayPart,
   formatTaskHorizon,
   formatTaskScope,
   formatTaskTargetType,
   getTaskMeta,
+  getTaskSourceTypeLabel,
   getTaskTechnicalDetails,
+  isTaskActive,
   resolveTaskPresentation,
+  resolveTaskSourceType,
 } from "@/src/features/tasks/model";
 import { asNonEmptyString } from "@/src/features/warnings/model";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { radius, spacing } from "@/src/theme/ui";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
@@ -223,102 +227,113 @@ export default function PlannerCalendarScreen() {
               {day.tasks.length > 0 ? (
                 <View style={styles.groupSection}>
                   <Text style={styles.groupTitle}>Tasks</Text>
-                  {day.tasks.map((task) => {
-                    const plannerTask = asPlannerTaskItem(task);
-                    const presentation = resolveTaskPresentation(plannerTask, {
-                      bedsById,
-                      plantingsById,
-                    });
-                    const dueAt =
-                      getTaskMeta(plannerTask, "dueAt", "due_at") ??
-                      task.dueAt ??
-                      day.date;
+                  {day.tasks
+                    .filter((task) => isTaskActive(asPlannerTaskItem(task)))
+                    .map((task) => {
+                      const plannerTask = asPlannerTaskItem(task);
+                      const presentation = resolveTaskPresentation(
+                        plannerTask,
+                        {
+                          bedsById,
+                          plantingsById,
+                        },
+                      );
+                      const sourceLabel = getTaskSourceTypeLabel(
+                        resolveTaskSourceType(plannerTask),
+                      );
+                      const dueAt =
+                        getTaskMeta(plannerTask, "dueAt", "due_at") ??
+                        task.dueAt ??
+                        day.date;
 
-                    return (
-                      <Surface
-                        key={task.id}
-                        style={styles.taskCard}
-                        elevation={0}
-                      >
-                        <Text style={styles.itemTitle}>{task.title}</Text>
-                        <Text style={styles.itemMeta}>Termin: {dueAt}</Text>
-                        <Text style={styles.itemMeta}>
-                          {presentation.locationLabel}
-                          {presentation.cropLabel
-                            ? ` • ${presentation.cropLabel}`
-                            : ""}
-                        </Text>
-
-                        {presentation.horizon === "OPERATIONAL" ? (
-                          <Text style={styles.taskMetaStrong}>
-                            {presentation.dayLabel ?? "Dziś/Jutro"}
-                            {presentation.dayPart === "DAY"
-                              ? " • w dzień"
-                              : presentation.dayPart === "NIGHT"
-                                ? " • w nocy"
-                                : ""}
+                      return (
+                        <Surface
+                          key={task.id}
+                          style={styles.taskCard}
+                          elevation={0}
+                        >
+                          <Text style={styles.itemTitle}>{task.title}</Text>
+                          <Text style={styles.itemMeta}>Termin: {dueAt}</Text>
+                          <Text style={styles.itemMeta}>
+                            {presentation.locationLabel}
+                            {presentation.cropLabel
+                              ? ` • ${presentation.cropLabel}`
+                              : ""}
                           </Text>
-                        ) : null}
+                          {sourceLabel ? (
+                            <StatusBadge label={sourceLabel} tone="neutral" />
+                          ) : null}
 
-                        <View style={styles.actionsRow}>
-                          {presentation.targetType === "planting" &&
-                          presentation.plantingId ? (
-                            <Button
-                              mode="outlined"
-                              onPress={() =>
-                                router.push(
-                                  `/plantings/${presentation.plantingId}`,
-                                )
-                              }
-                            >
-                              Uprawa
-                            </Button>
+                          {presentation.horizon === "OPERATIONAL" ? (
+                            <Text style={styles.taskMetaStrong}>
+                              {presentation.dayLabel ?? "Dziś/Jutro"}
+                              {presentation.dayPart === "DAY"
+                                ? " • w dzień"
+                                : presentation.dayPart === "NIGHT"
+                                  ? " • w nocy"
+                                  : ""}
+                            </Text>
                           ) : null}
-                          {presentation.targetType === "bed" &&
-                          presentation.bedId ? (
-                            <Button
-                              mode="outlined"
-                              onPress={() =>
-                                router.push(
-                                  `/(tabs)/beds/${presentation.bedId}`,
-                                )
-                              }
-                            >
-                              Grządka
-                            </Button>
-                          ) : null}
-                          {presentation.targetType === "user" ? (
-                            <Button
-                              mode="outlined"
-                              onPress={() =>
-                                router.push("/(tabs)/home/weather")
-                              }
-                            >
-                              Lokalizacja
-                            </Button>
-                          ) : null}
-                          <Button
-                            mode="outlined"
-                            onPress={() => handleDelete(task.id)}
-                            disabled={deleteActionTask.isPending || isOffline}
-                          >
-                            Usuń
-                          </Button>
-                          <Button
-                            mode="contained"
-                            onPress={() => handleDone(task.id)}
-                            disabled={updateActionTask.isPending || isOffline}
-                          >
-                            Done
-                          </Button>
-                        </View>
 
-                        {__DEV__ ? (
-                          <TaskTechnicalDetails item={plannerTask} />
-                        ) : null}
-                      </Surface>
-                    );
-                  })}
+                          <View style={styles.actionsRow}>
+                            {presentation.targetType === "planting" &&
+                            presentation.plantingId ? (
+                              <Button
+                                mode="outlined"
+                                onPress={() =>
+                                  router.push(
+                                    `/plantings/${presentation.plantingId}`,
+                                  )
+                                }
+                              >
+                                Uprawa
+                              </Button>
+                            ) : null}
+                            {presentation.targetType === "bed" &&
+                            presentation.bedId ? (
+                              <Button
+                                mode="outlined"
+                                onPress={() =>
+                                  router.push(
+                                    `/(tabs)/beds/${presentation.bedId}`,
+                                  )
+                                }
+                              >
+                                Grządka
+                              </Button>
+                            ) : null}
+                            {presentation.targetType === "user" ? (
+                              <Button
+                                mode="outlined"
+                                onPress={() =>
+                                  router.push("/(tabs)/home/weather")
+                                }
+                              >
+                                Lokalizacja
+                              </Button>
+                            ) : null}
+                            <Button
+                              mode="outlined"
+                              onPress={() => handleDelete(task.id)}
+                              disabled={deleteActionTask.isPending || isOffline}
+                            >
+                              Usuń
+                            </Button>
+                            <Button
+                              mode="contained"
+                              onPress={() => handleDone(task.id)}
+                              disabled={updateActionTask.isPending || isOffline}
+                            >
+                              Done
+                            </Button>
+                          </View>
+
+                          {__DEV__ ? (
+                            <TaskTechnicalDetails item={plannerTask} />
+                          ) : null}
+                        </Surface>
+                      );
+                    })}
                 </View>
               ) : null}
             </Surface>

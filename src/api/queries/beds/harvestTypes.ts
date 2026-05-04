@@ -1,12 +1,21 @@
 export type HarvestConfirmationAnswer = "yes" | "no";
 
-export type ActionTemplate = {
-  actionTemplateId?: string;
-  templateId?: string;
-  id?: string;
+export type PostHarvestActionTemplate = {
+  id: string;
+  slug: string;
   name: string;
+  target?: string;
+  type?: string;
   description?: string | null;
   defaultDueOffsetDays?: number | null;
+};
+
+export type PostHarvestProposal = {
+  actionTemplate: PostHarvestActionTemplate;
+  offsetDays: number;
+  schedule: "ONCE" | "EVERY_N_DAYS";
+  everyNDays: number | null;
+  occurrencesLimit: number | null;
 };
 
 export type HarvestPromptItem = {
@@ -22,12 +31,12 @@ export type BedHarvestPromptsResponse = {
 export type HarvestConfirmationResponse = {
   bedId: string;
   plantingId: string;
-  proposals: ActionTemplate[];
+  proposals: PostHarvestProposal[];
 };
 
 export type CreateBedActionTaskItemDto = {
   actionTemplateId: string;
-  dueAt?: string;
+  dueDate?: string;
 };
 
 export type CreateBedActionTasksBulkDto = {

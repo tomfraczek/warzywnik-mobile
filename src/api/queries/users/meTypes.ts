@@ -112,6 +112,7 @@ export type WarningsResponse = {
 };
 
 export type TaskSource = "WEATHER_WARNING" | "AUTOMATION" | string;
+export type TaskSourceType = "MANUAL" | "AUTOMATION" | "SUGGESTION";
 export type TaskStatus = "PENDING" | "DONE" | "CANCELED";
 export type TaskTargetType = "USER" | "BED" | "PLANTING";
 export type TaskStatusFilter = "pending" | "done" | "all";
@@ -133,10 +134,23 @@ export type TaskItem = {
   dueAt?: string | null;
   status: string;
   source?: TaskSource;
+  sourceType?: TaskSourceType | string;
+  sourceKey?: string | null;
+  isUserModified?: boolean;
+  suppressedAt?: string | null;
   /** "USER" | "BED" | "PLANTING" – uppercase from the new API contract. */
   targetType?: TaskTargetType | string;
   plantingId?: string | null;
   bedId?: string | null;
+  actionTemplate?: {
+    id: string;
+    slug?: string;
+    name: string;
+    target?: string;
+    type?: string;
+    description?: string | null;
+    defaultDueOffsetDays?: number | null;
+  } | null;
   isManuallyRescheduled?: boolean;
   meta?: TaskMetaDto | null;
 } & Record<string, unknown>;
