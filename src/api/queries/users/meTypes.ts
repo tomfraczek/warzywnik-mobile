@@ -114,17 +114,22 @@ export type WarningsResponse = {
 export type TaskSource = "WEATHER_WARNING" | "AUTOMATION" | string;
 export type TaskSourceType = "MANUAL" | "AUTOMATION" | "SUGGESTION";
 export type TaskStatus = "PENDING" | "DONE" | "CANCELED";
-export type TaskTargetType = "USER" | "BED" | "PLANTING";
+export type TaskTargetType = "USER" | "BED" | "PLANTING" | "SPACE";
 export type TaskStatusFilter = "pending" | "done" | "all";
 
 /** Metadata attached to a task – provides context about scope and origin. */
 export type TaskMetaDto = {
-  scope?: WarningScope;
-  affectsAllBeds: boolean;
+  scope?: WarningScope | "SPACE";
+  affectsAllBeds?: boolean;
   affectedBedIds?: string[];
   affectedBedsCount?: number;
   locationLabel?: string | null;
   warningCode?: WarningCode;
+  aggregationScope?: "bed" | "space" | "user" | "none";
+  affectedPlantingIds?: string[];
+  affectedVegetables?: string[];
+  originPlantingTaskCount?: number;
+  [key: string]: unknown;
 };
 
 export type TaskItem = {
@@ -142,6 +147,8 @@ export type TaskItem = {
   targetType?: TaskTargetType | string;
   plantingId?: string | null;
   bedId?: string | null;
+  bedName?: string | null;
+  vegetableName?: string | null;
   actionTemplate?: {
     id: string;
     slug?: string;
@@ -153,6 +160,7 @@ export type TaskItem = {
   } | null;
   isManuallyRescheduled?: boolean;
   meta?: TaskMetaDto | null;
+  metadata?: TaskMetaDto | null;
 } & Record<string, unknown>;
 
 export type TasksResponse = {

@@ -4,7 +4,6 @@ import {
   getActionTaskSourceLabel,
   resolveActionTaskSourceType,
 } from "@/src/api/queries/actionTasks/types";
-import { useDeleteActionTask } from "@/src/api/queries/actionTasks/useDeleteActionTask";
 import { useGetPlantingActionTasks } from "@/src/api/queries/actionTasks/useGetPlantingActionTasks";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
 import {
@@ -57,6 +56,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -189,7 +189,10 @@ const sortTasksByDueAt = (tasks: ActionTask[]) =>
 
 const isoToDateOnly = (iso?: string | null) => {
   if (!iso) return "";
-  return iso.split("T")[0] ?? "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 };
 
 const parseIsoDate = (value?: string | null) => {
@@ -241,7 +244,6 @@ export default function PlantingDetailsScreen() {
     error: plantingTasksError,
   } = useGetPlantingActionTasks(resolvedPlantingId ?? null, "pending");
   const updateActionTask = useUpdateActionTask();
-  const deleteActionTask = useDeleteActionTask();
 
   const [problemsTab, setProblemsTab] = useState<"diseases" | "pests">(
     "diseases",
@@ -251,10 +253,11 @@ export default function PlantingDetailsScreen() {
   );
   const [actionsVisible, setActionsVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
-  const [tasksFilter, setTasksFilter] = useState<"overdue" | "today">("today");
+  const [tasksFilter, setTasksFilter] = useState<"active" | "overdue">(
+    "active",
+  );
   const [taskIdsCompleting, setTaskIdsCompleting] = useState<string[]>([]);
-  const [taskToCloseId, setTaskToCloseId] = useState<string | null>(null);
-  const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
+  const [taskInfoTask, setTaskInfoTask] = useState<ActionTask | null>(null);
   const [harvestFormVisible, setHarvestFormVisible] = useState(false);
   const [editingHarvestRecord, setEditingHarvestRecord] =
     useState<HarvestResultRecord | null>(null);
@@ -301,7 +304,10 @@ export default function PlantingDetailsScreen() {
     data: vegetable,
     isLoading: isVegetableLoading,
     error: vegetableError,
+    refetch: refetchVegetable,
   } = useGetVegetable(planting?.vegetableId ?? null);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const availableStatusesQuery = useGetPlantingAvailableStatuses(
     resolvedPlantingId ?? null,
@@ -432,12 +438,15 @@ export default function PlantingDetailsScreen() {
   );
   const groupedPlantingTasks = useMemo(() => {
     const overdue: ActionTask[] = [];
-    const today: ActionTask[] = [];
+    const active: ActionTask[] = [];
+    let invalidDueAtCount = 0;
 
     plantingTasks.forEach((task) => {
       const dueDateKey = isoToDateOnly(task.dueAt);
 
       if (!dueDateKey) {
+        invalidDueAtCount += 1;
+        active.push(task);
         return;
       }
 
@@ -446,20 +455,19 @@ export default function PlantingDetailsScreen() {
         return;
       }
 
-      if (dueDateKey === todayKey) {
-        today.push(task);
-      }
+      active.push(task);
     });
 
     return {
       overdue,
-      today,
-      visibleCount: overdue.length + today.length,
+      active,
+      invalidDueAtCount,
+      visibleCount: plantingTasks.length,
     };
   }, [plantingTasks, todayKey]);
   const filteredPlantingTasks = useMemo(() => {
     if (tasksFilter === "overdue") return groupedPlantingTasks.overdue;
-    return groupedPlantingTasks.today;
+    return groupedPlantingTasks.active;
   }, [groupedPlantingTasks, tasksFilter]);
 
   useEffect(() => {
@@ -565,8 +573,13 @@ export default function PlantingDetailsScreen() {
       hasTasks: plantingTasks.length > 0,
       count: plantingTasks.length,
       taskIds: plantingTasks.map((task) => task.id),
+      groups: {
+        active: groupedPlantingTasks.active.length,
+        overdue: groupedPlantingTasks.overdue.length,
+      },
+      invalidDueAtCount: groupedPlantingTasks.invalidDueAtCount,
     });
-  }, [resolvedPlantingId, plantingTasks]);
+  }, [resolvedPlantingId, plantingTasks, groupedPlantingTasks]);
 
   const growthTimelineSteps = useMemo<GrowthTimelineStep[]>(() => {
     if (!planting) return [];
@@ -691,6 +704,7 @@ export default function PlantingDetailsScreen() {
     }
     try {
       await updatePlanting.mutateAsync({ status: selectedStatus });
+      await Promise.allSettled([refetch(), refetchPlantingTasks()]);
       setStatusModalVisible(false);
       setSelectedStatus(null);
       setStatusErrorMessage(null);
@@ -727,7 +741,7 @@ export default function PlantingDetailsScreen() {
     }
   };
 
-  const handleRescheduleTask = async (taskId: string, dueAt: string) => {
+  const handleCancelTask = async (taskId: string) => {
     if (isOffline) {
       Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
       return;
@@ -735,26 +749,9 @@ export default function PlantingDetailsScreen() {
     try {
       await updateActionTask.mutateAsync({
         id: taskId,
-        payload: { dueAt },
+        payload: { status: "canceled" },
       });
-      setSnackbarMessage("Termin zadania został zmieniony.");
-      await refetchPlantingTasks();
-      await refetch();
-    } catch (err) {
-      Alert.alert("Błąd", String(getResponseError(err)));
-    }
-  };
-
-  const handleDeleteTask = async () => {
-    if (!taskToCloseId) return;
-    if (isOffline) {
-      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
-      return;
-    }
-    try {
-      await deleteActionTask.mutateAsync(taskToCloseId);
-      setTaskToCloseId(null);
-      setSnackbarMessage("Zadanie usunięte");
+      setSnackbarMessage("Zadanie anulowane.");
       await refetchPlantingTasks();
       await refetch();
     } catch (err) {
@@ -971,6 +968,24 @@ export default function PlantingDetailsScreen() {
     </Pressable>
   );
 
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await Promise.allSettled([
+        refetch(),
+        refetchPlantingTasks(),
+        diseaseActiveQuery.refetch(),
+        diseaseResolvedQuery.refetch(),
+        pestActiveQuery.refetch(),
+        pestResolvedQuery.refetch(),
+        refetchVegetable(),
+      ]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <Screen
@@ -1026,7 +1041,12 @@ export default function PlantingDetailsScreen() {
       style={{ backgroundColor: palette.background }}
       safeAreaEdges={["left", "right"]}
     >
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
+      >
         <View style={styles.heroStack}>
           <View style={styles.heroMediaCard}>
             {vegetable?.imageUrl ? (
@@ -1367,15 +1387,15 @@ export default function PlantingDetailsScreen() {
             <SegmentedButtons
               value={tasksFilter}
               onValueChange={(value) =>
-                setTasksFilter(value as "overdue" | "today")
+                setTasksFilter(value as "active" | "overdue")
               }
               buttons={[
                 {
-                  value: "overdue",
-                  label: `Zaległe (${groupedPlantingTasks.overdue.length})`,
+                  value: "active",
+                  label: `Aktywne (${groupedPlantingTasks.active.length})`,
                   style: [
                     styles.segmentedButtonItem,
-                    tasksFilter === "overdue"
+                    tasksFilter === "active"
                       ? styles.segmentedButtonItemActive
                       : null,
                   ],
@@ -1383,11 +1403,11 @@ export default function PlantingDetailsScreen() {
                   uncheckedColor: palette.secondary,
                 },
                 {
-                  value: "today",
-                  label: `Dziś (${groupedPlantingTasks.today.length})`,
+                  value: "overdue",
+                  label: `Zaległe (${groupedPlantingTasks.overdue.length})`,
                   style: [
                     styles.segmentedButtonItem,
-                    tasksFilter === "today"
+                    tasksFilter === "overdue"
                       ? styles.segmentedButtonItemActive
                       : null,
                   ],
@@ -1401,12 +1421,18 @@ export default function PlantingDetailsScreen() {
 
           {groupedPlantingTasks.visibleCount > 0 &&
           filteredPlantingTasks.length === 0 ? (
-            <Text style={styles.emptyText}>Brak zaległych zadań.</Text>
+            <Text style={styles.emptyText}>
+              {tasksFilter === "overdue"
+                ? "Brak zaległych zadań."
+                : "Brak aktywnych zadań."}
+            </Text>
           ) : null}
 
           {filteredPlantingTasks.map((task) => {
             const isHighlighted = highlightedActionTaskId === task.id;
-            const isOverdueTask = tasksFilter === "overdue";
+            const taskDueDateKey = isoToDateOnly(task.dueAt);
+            const isOverdueTask =
+              Boolean(taskDueDateKey) && taskDueDateKey < todayKey;
             const isTaskCompleting = taskIdsCompleting.includes(task.id);
 
             return (
@@ -1420,19 +1446,15 @@ export default function PlantingDetailsScreen() {
                 <View style={styles.taskMain}>
                   <View style={styles.taskTopRow}>
                     <Text style={styles.taskTitle}>{task.title}</Text>
-                    <IconButton
-                      icon="close"
-                      size={18}
-                      onPress={() => setTaskToCloseId(task.id)}
-                      disabled={deleteActionTask.isPending}
-                      style={styles.taskCloseButton}
-                    />
+                    {task.description ? (
+                      <IconButton
+                        icon="information-outline"
+                        size={18}
+                        onPress={() => setTaskInfoTask(task)}
+                        style={styles.taskInfoButton}
+                      />
+                    ) : null}
                   </View>
-                  {task.description ? (
-                    <Text style={styles.taskDescription}>
-                      {task.description}
-                    </Text>
-                  ) : null}
                   <Text style={styles.taskMeta}>
                     Termin: {formatDate(task.dueAt)}
                   </Text>
@@ -1448,7 +1470,7 @@ export default function PlantingDetailsScreen() {
                   <Button
                     mode="outlined"
                     compact
-                    onPress={() => setRescheduleTaskId(task.id)}
+                    onPress={() => handleCancelTask(task.id)}
                     disabled={
                       isOverdueTask ||
                       updateActionTask.isPending ||
@@ -1456,7 +1478,7 @@ export default function PlantingDetailsScreen() {
                     }
                     style={styles.equalTaskButton}
                   >
-                    Przełóż
+                    Anuluj
                   </Button>
                   <Button
                     mode="contained"
@@ -1792,6 +1814,22 @@ export default function PlantingDetailsScreen() {
 
       <Portal>
         <Modal
+          visible={!!taskInfoTask}
+          onDismiss={() => setTaskInfoTask(null)}
+          contentContainerStyle={styles.taskInfoModal}
+        >
+          <Text style={styles.modalTitle}>Szczegóły zadania</Text>
+          <Text style={styles.taskInfoModalText}>
+            {taskInfoTask?.description ?? "Brak opisu zadania."}
+          </Text>
+          <Button mode="contained" onPress={() => setTaskInfoTask(null)}>
+            Zamknij
+          </Button>
+        </Modal>
+      </Portal>
+
+      <Portal>
+        <Modal
           visible={statusModalVisible}
           onDismiss={() => {
             setStatusModalVisible(false);
@@ -1886,34 +1924,6 @@ export default function PlantingDetailsScreen() {
               }
             >
               Zapisz
-            </Button>
-          </View>
-        </Modal>
-      </Portal>
-
-      <Portal>
-        <Modal
-          visible={!!taskToCloseId}
-          onDismiss={() => setTaskToCloseId(null)}
-          contentContainerStyle={styles.modal}
-        >
-          <Text style={styles.modalTitle}>Zamknąć zadanie?</Text>
-          <Text style={styles.statusModalHint}>
-            Zadanie zostanie usunięte. Tej operacji nie można cofnąć.
-          </Text>
-
-          <View style={styles.modalActionsBetween}>
-            <Button mode="outlined" onPress={() => setTaskToCloseId(null)}>
-              Anuluj
-            </Button>
-            <Button
-              mode="contained"
-              onPress={handleDeleteTask}
-              loading={deleteActionTask.isPending}
-              disabled={deleteActionTask.isPending || isOffline}
-              buttonColor={theme.colors.error}
-            >
-              Usuń
             </Button>
           </View>
         </Modal>
@@ -2325,23 +2335,6 @@ export default function PlantingDetailsScreen() {
           }
         />
       ) : null}
-
-      <DatePickerModal
-        locale="pl"
-        mode="single"
-        visible={!!rescheduleTaskId}
-        date={new Date()}
-        onDismiss={() => setRescheduleTaskId(null)}
-        onConfirm={({ date }) => {
-          if (!rescheduleTaskId || !date) {
-            setRescheduleTaskId(null);
-            return;
-          }
-
-          handleRescheduleTask(rescheduleTaskId, date.toISOString());
-          setRescheduleTaskId(null);
-        }}
-      />
 
       <Snackbar
         visible={!!snackbarMessage}
@@ -2949,7 +2942,7 @@ const makeStyles = (theme: MD3Theme) =>
       justifyContent: "space-between",
       gap: 8,
     },
-    taskCloseButton: {
+    taskInfoButton: {
       margin: -8,
     },
     taskTitle: {
@@ -2957,10 +2950,6 @@ const makeStyles = (theme: MD3Theme) =>
       fontWeight: "600",
       color: buildPalette(theme.dark).heading,
       flex: 1,
-    },
-    taskDescription: {
-      fontSize: 13,
-      color: buildPalette(theme.dark).secondary,
     },
     taskMeta: {
       fontSize: 12,
@@ -2973,6 +2962,20 @@ const makeStyles = (theme: MD3Theme) =>
     },
     equalTaskButton: {
       flex: 1,
+    },
+    taskInfoModal: {
+      backgroundColor: buildPalette(theme.dark).cardBg,
+      marginHorizontal: 16,
+      borderRadius: 20,
+      padding: 18,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).cardBorder,
+    },
+    taskInfoModalText: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: buildPalette(theme.dark).secondary,
     },
     growthTimelineList: {
       gap: 0,

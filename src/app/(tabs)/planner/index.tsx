@@ -22,12 +22,15 @@ import {
   formatTaskHorizon,
   formatTaskScope,
   formatTaskTargetType,
+  getTaskAffectedVegetablesLabel,
+  getTaskContextLabel,
   getTaskMeta,
   getTaskSourceTypeLabel,
   getTaskTechnicalDetails,
   isTaskActive,
   resolveTaskPresentation,
   resolveTaskSourceType,
+  resolveTaskTargetType,
 } from "@/src/features/tasks/model";
 import { asNonEmptyString } from "@/src/features/warnings/model";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
@@ -310,6 +313,24 @@ export default function PlannerScreen() {
 
   const isOffline = useIsOffline();
 
+  const navigateToTaskContext = (task: MeTaskItem) => {
+    const targetType = resolveTaskTargetType(task);
+    const plantingId = getTaskMeta(task, "plantingId", "planting_id");
+    const bedId = getTaskMeta(task, "bedId", "bed_id");
+
+    if (targetType === "planting" && plantingId) {
+      router.push(`/plantings/${plantingId}`);
+      return;
+    }
+
+    if (targetType === "bed" && bedId) {
+      router.push(`/(tabs)/beds/${bedId}`);
+      return;
+    }
+
+    router.push("/(tabs)/planner/tasks");
+  };
+
   const handleDone = (taskId: string) => {
     if (isOffline) {
       Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
@@ -411,11 +432,17 @@ export default function PlannerScreen() {
                           Termin: {formatDueDateText(task)}
                         </Text>
                         <Text style={styles.taskMeta}>
-                          {presentation.locationLabel}
-                          {presentation.cropLabel
-                            ? ` • ${presentation.cropLabel}`
-                            : ""}
+                          {getTaskContextLabel(task, presentation)}
                         </Text>
+                        {presentation.targetType === "bed" ? (
+                          <Text style={styles.taskMeta}>
+                            {getTaskAffectedVegetablesLabel(task)}
+                          </Text>
+                        ) : presentation.cropLabel ? (
+                          <Text style={styles.taskMeta}>
+                            {presentation.cropLabel}
+                          </Text>
+                        ) : null}
                         {sourceLabel ? (
                           <StatusBadge label={sourceLabel} tone="neutral" />
                         ) : null}
@@ -470,11 +497,17 @@ export default function PlannerScreen() {
                           Termin: {formatDueDateText(task)}
                         </Text>
                         <Text style={styles.taskMeta}>
-                          {presentation.locationLabel}
-                          {presentation.cropLabel
-                            ? ` • ${presentation.cropLabel}`
-                            : ""}
+                          {getTaskContextLabel(task, presentation)}
                         </Text>
+                        {presentation.targetType === "bed" ? (
+                          <Text style={styles.taskMeta}>
+                            {getTaskAffectedVegetablesLabel(task)}
+                          </Text>
+                        ) : presentation.cropLabel ? (
+                          <Text style={styles.taskMeta}>
+                            {presentation.cropLabel}
+                          </Text>
+                        ) : null}
                         {sourceLabel ? (
                           <StatusBadge label={sourceLabel} tone="neutral" />
                         ) : null}
@@ -549,11 +582,17 @@ export default function PlannerScreen() {
                         {formatDueDateText(plannerTask, task.dueAt ?? day.date)}
                       </Text>
                       <Text style={styles.taskMeta}>
-                        {presentation.locationLabel}
-                        {presentation.cropLabel
-                          ? ` • ${presentation.cropLabel}`
-                          : ""}
+                        {getTaskContextLabel(plannerTask, presentation)}
                       </Text>
+                      {presentation.targetType === "bed" ? (
+                        <Text style={styles.taskMeta}>
+                          {getTaskAffectedVegetablesLabel(plannerTask)}
+                        </Text>
+                      ) : presentation.cropLabel ? (
+                        <Text style={styles.taskMeta}>
+                          {presentation.cropLabel}
+                        </Text>
+                      ) : null}
                       {sourceLabel ? (
                         <StatusBadge label={sourceLabel} tone="neutral" />
                       ) : null}
@@ -597,9 +636,17 @@ export default function PlannerScreen() {
                         {presentation.targetType === "user" ? (
                           <Button
                             mode="outlined"
-                            onPress={() => router.push("/(tabs)/home/weather")}
+                            onPress={() => navigateToTaskContext(plannerTask)}
                           >
                             Lokalizacja
+                          </Button>
+                        ) : null}
+                        {presentation.targetType === "space" ? (
+                          <Button
+                            mode="outlined"
+                            onPress={() => navigateToTaskContext(plannerTask)}
+                          >
+                            Przestrzeń
                           </Button>
                         ) : null}
                         <Button
@@ -691,12 +738,12 @@ export default function PlannerScreen() {
                   <TaskItem
                     key={`history-task-${task.id}`}
                     title={task.title}
-                    bed={
-                      task.bedId ? `Grządka ${task.bedId.slice(0, 6)}` : null
-                    }
+                    bed={getTaskContextLabel(asPlannerTaskItem(task))}
                     crop={
-                      task.plantingId
-                        ? `Uprawa ${task.plantingId.slice(0, 6)}`
+                      resolveTaskTargetType(asPlannerTaskItem(task)) === "bed"
+                        ? getTaskAffectedVegetablesLabel(
+                            asPlannerTaskItem(task),
+                          )
                         : null
                     }
                     status={
@@ -707,15 +754,9 @@ export default function PlannerScreen() {
                         ? "close-circle-outline"
                         : "check-circle-outline"
                     }
-                    onPress={() => {
-                      if (task.plantingId) {
-                        router.push(`/plantings/${task.plantingId}`);
-                        return;
-                      }
-                      if (task.bedId) {
-                        router.push(`/(tabs)/beds/${task.bedId}`);
-                      }
-                    }}
+                    onPress={() =>
+                      navigateToTaskContext(asPlannerTaskItem(task))
+                    }
                   />
                 ))}
               </View>

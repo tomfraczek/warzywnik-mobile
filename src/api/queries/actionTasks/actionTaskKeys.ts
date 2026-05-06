@@ -11,7 +11,8 @@ export const actionTaskKeys = {
     bedId: string,
     status?: TaskListStatusFilter,
     range?: ActionTaskRangeParams,
-  ) => ["action-tasks", "bed", bedId, { status, ...range }] as const,
+    scope?: "own" | "includingChildren",
+  ) => ["action-tasks", "bed", bedId, { status, ...range, scope }] as const,
   planting: (
     plantingId: string,
     status?: TaskListStatusFilter,

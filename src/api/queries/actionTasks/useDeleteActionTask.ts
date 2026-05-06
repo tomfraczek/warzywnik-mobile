@@ -12,21 +12,48 @@ export const useDeleteActionTask = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => deleteActionTask(id),
-    onSuccess: () => {
+    mutationFn: (
+      params:
+        | string
+        | { id: string; bedId?: string | null; plantingId?: string | null },
+    ) => deleteActionTask(typeof params === "string" ? params : params.id),
+    onSuccess: (_, params) => {
+      const context = typeof params === "string" ? null : params;
+
       queryClient.invalidateQueries({ queryKey: actionTaskKeys.all });
-      queryClient.invalidateQueries({ queryKey: ["bed-action-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["calendar"] });
       queryClient.invalidateQueries({ queryKey: ["me", "tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["beds"], exact: false });
+
+      if (context?.bedId) {
+        queryClient.invalidateQueries({
+          queryKey: actionTaskKeys.bed(
+            context.bedId,
+            undefined,
+            undefined,
+            "own",
+          ),
+          exact: false,
+        });
+        queryClient.invalidateQueries({
+          queryKey: bedKeys.detail(context.bedId),
+        });
+      }
+
+      if (context?.plantingId) {
+        queryClient.invalidateQueries({
+          queryKey: actionTaskKeys.planting(context.plantingId),
+          exact: false,
+        });
+        queryClient.invalidateQueries({
+          queryKey: plantingKeys.detail(context.plantingId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: plantingKeys.timeline(context.plantingId),
+        });
+      }
+
       queryClient.invalidateQueries({ queryKey: bedKeys.all });
-      queryClient.invalidateQueries({ queryKey: ["plantings"], exact: false });
-      queryClient.invalidateQueries({ queryKey: plantingKeys.all });
       queryClient.invalidateQueries({ queryKey: ["harvest-prompts"] });
-      queryClient.invalidateQueries({
-        queryKey: ["plantings", "timeline"],
-        exact: false,
-      });
     },
   });
 };

@@ -80,7 +80,10 @@ const ENV_ICONS: Record<CultivationEnvironment, string> = {
 
 const isoToDateOnly = (iso?: string | null) => {
   if (!iso) return "";
-  return iso.split("T")[0] ?? "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 };
 
 // ─── shimmer ─────────────────────────────────────────────────────────────────
@@ -156,7 +159,12 @@ function BedCard({
 }) {
   const env = bed.cultivationEnvironment;
   const todayKey = getTodayKey();
-  const { data: pendingTasksData } = useGetBedActionTasks(bed.id, "pending");
+  const { data: pendingTasksData } = useGetBedActionTasks(
+    bed.id,
+    "pending",
+    undefined,
+    "own",
+  );
   const relevantPendingTasks = (pendingTasksData?.items ?? []).filter(
     (task) => {
       if (task.suppressedAt) return false;

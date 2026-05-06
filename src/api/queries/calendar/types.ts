@@ -7,6 +7,17 @@ export type CalendarTaskItem = {
   createdAt?: string;
   bedId?: string | null;
   plantingId?: string | null;
+  targetType?:
+    | "user"
+    | "bed"
+    | "planting"
+    | "space"
+    | "USER"
+    | "BED"
+    | "PLANTING"
+    | "SPACE";
+  bedName?: string | null;
+  vegetableName?: string | null;
   source?: string;
   sourceType?: "MANUAL" | "AUTOMATION" | "SUGGESTION" | string;
   sourceKey?: string | null;
@@ -21,6 +32,20 @@ export type CalendarTaskItem = {
     type?: string;
     description?: string | null;
     defaultDueOffsetDays?: number | null;
+  } | null;
+  meta?: {
+    aggregationScope?: "bed" | "space" | "user" | "none";
+    affectedPlantingIds?: string[];
+    affectedVegetables?: string[];
+    originPlantingTaskCount?: number;
+    [key: string]: unknown;
+  } | null;
+  metadata?: {
+    aggregationScope?: "bed" | "space" | "user" | "none";
+    affectedPlantingIds?: string[];
+    affectedVegetables?: string[];
+    originPlantingTaskCount?: number;
+    [key: string]: unknown;
   } | null;
 };
 

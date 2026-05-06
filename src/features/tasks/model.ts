@@ -25,7 +25,7 @@ type PlantingTaskLookup = {
   vegetableName: string | null;
 };
 
-export type TaskTargetType = "user" | "bed" | "planting";
+export type TaskTargetType = "user" | "bed" | "planting" | "space";
 
 export type TaskPresentation = {
   targetType: TaskTargetType;
@@ -47,6 +47,8 @@ export type TaskTechnicalDetails = {
   dayPart: WarningDayPart | null;
 };
 
+type AggregationScope = "bed" | "space" | "user" | "none";
+
 const asRecord = (value: unknown): TaskRecord | null => {
   return typeof value === "object" && value !== null
     ? (value as TaskRecord)
@@ -56,6 +58,7 @@ const asRecord = (value: unknown): TaskRecord | null => {
 export const getTaskMeta = (task: TaskItem, ...keys: string[]) => {
   const containers = [
     task,
+    asRecord(task.metadata),
     asRecord(task.details),
     asRecord(task.meta),
     asRecord(task.context),
@@ -73,11 +76,38 @@ export const getTaskMeta = (task: TaskItem, ...keys: string[]) => {
   return null;
 };
 
+const getTaskMetaStringArray = (task: TaskItem, ...keys: string[]) => {
+  const containers = [
+    task,
+    asRecord(task.metadata),
+    asRecord(task.details),
+    asRecord(task.meta),
+    asRecord(task.context),
+    asRecord(task.payload),
+  ].filter((item): item is TaskRecord => Boolean(item));
+
+  for (const container of containers) {
+    for (const key of keys) {
+      const value = container[key];
+      if (!Array.isArray(value)) continue;
+      const normalized = value
+        .map((item) => asNonEmptyString(item))
+        .filter((item): item is string => Boolean(item));
+      if (normalized.length > 0) {
+        return normalized;
+      }
+    }
+  }
+
+  return [] as string[];
+};
+
 const normalizeTargetType = (raw: string | null): TaskTargetType | null => {
   const normalized = raw?.trim().toUpperCase();
   if (normalized === "USER") return "user";
   if (normalized === "BED") return "bed";
   if (normalized === "PLANTING") return "planting";
+  if (normalized === "SPACE") return "space";
   return null;
 };
 
@@ -142,6 +172,80 @@ export const resolveTaskTargetType = (task: TaskItem): TaskTargetType => {
   if (bedId) return "bed";
 
   return "user";
+};
+
+export const getTaskAggregationScope = (task: TaskItem): AggregationScope => {
+  const raw = getTaskMeta(task, "aggregationScope", "aggregation_scope");
+  const normalized = raw?.trim().toLowerCase();
+  if (normalized === "bed") return "bed";
+  if (normalized === "space") return "space";
+  if (normalized === "user") return "user";
+  return "none";
+};
+
+export const getTaskAffectedPlantingIds = (task: TaskItem): string[] => {
+  return getTaskMetaStringArray(
+    task,
+    "affectedPlantingIds",
+    "affected_planting_ids",
+  );
+};
+
+export const getTaskAffectedVegetables = (task: TaskItem): string[] => {
+  return getTaskMetaStringArray(
+    task,
+    "affectedVegetables",
+    "affected_vegetables",
+  );
+};
+
+export const getTaskAffectedVegetablesLabel = (
+  task: TaskItem,
+  maxExplicitVegetables = 3,
+) => {
+  const vegetables = getTaskAffectedVegetables(task);
+  if (vegetables.length === 0) return null;
+
+  if (vegetables.length > maxExplicitVegetables) {
+    return `Dotyczy ${vegetables.length} upraw na grządce`;
+  }
+
+  return `Dotyczy: ${vegetables.join(", ")}`;
+};
+
+export const getTaskContextLabel = (
+  task: TaskItem,
+  presentation?: Pick<
+    TaskPresentation,
+    "targetType" | "bedName" | "vegetableName" | "locationLabel"
+  >,
+) => {
+  const targetType = presentation?.targetType ?? resolveTaskTargetType(task);
+
+  if (targetType === "planting") {
+    return (
+      presentation?.vegetableName ??
+      getTaskMeta(task, "vegetableName", "vegetable_name") ??
+      "Uprawa"
+    );
+  }
+
+  if (targetType === "bed") {
+    return (
+      presentation?.bedName ??
+      getTaskMeta(task, "bedName", "bed_name") ??
+      "Grządka"
+    );
+  }
+
+  if (targetType === "space") {
+    return (
+      getTaskMeta(task, "spaceName", "space_name", "locationLabel") ??
+      "Przestrzeń"
+    );
+  }
+
+  return presentation?.locationLabel ?? "Cały ogród";
 };
 
 export const isTaskPending = (task: TaskItem) => {
@@ -229,6 +333,7 @@ export const getTaskTechnicalDetails = (
 export const formatTaskTargetType = (targetType: TaskTargetType) => {
   if (targetType === "user") return "Użytkownik";
   if (targetType === "bed") return "Grządka";
+  if (targetType === "space") return "Przestrzeń";
   return "Uprawa";
 };
 
@@ -237,6 +342,7 @@ export const formatTaskScope = (scope: string | null) => {
   if (normalized === "USER") return "Użytkownik";
   if (normalized === "BED") return "Grządka";
   if (normalized === "PLANTING") return "Uprawa";
+  if (normalized === "SPACE") return "Przestrzeń";
   return "Brak";
 };
 
@@ -302,6 +408,8 @@ export const resolveTaskPresentation = (
   }
 
   if (targetType === "bed") {
+    const affectedVegetablesLabel = getTaskAffectedVegetablesLabel(task);
+
     return {
       targetType,
       bedId,
@@ -312,7 +420,7 @@ export const resolveTaskPresentation = (
       dayPart,
       dayLabel,
       locationLabel: bedName ?? "Grządka",
-      cropLabel: null,
+      cropLabel: affectedVegetablesLabel,
     };
   }
 
@@ -385,16 +493,24 @@ export const getTasksWithNoDueDate = (tasks: TaskItem[]): TaskItem[] =>
 
 /** Returns the warning code from task.meta, or null. */
 export const getTaskWarningCode = (task: TaskItem): string | null =>
-  (task.meta as TaskMetaDto | null)?.warningCode ?? null;
+  (task.meta as TaskMetaDto | null)?.warningCode ??
+  (task.metadata as TaskMetaDto | null)?.warningCode ??
+  null;
 
 /** Returns the affectsAllBeds flag from task.meta. */
 export const getTaskAffectsAllBeds = (task: TaskItem): boolean =>
-  (task.meta as TaskMetaDto | null)?.affectsAllBeds ?? false;
+  (task.meta as TaskMetaDto | null)?.affectsAllBeds ??
+  (task.metadata as TaskMetaDto | null)?.affectsAllBeds ??
+  false;
 
 /** Returns the affectedBedsCount from task.meta, or null. */
 export const getTaskAffectedBedsCount = (task: TaskItem): number | null =>
-  (task.meta as TaskMetaDto | null)?.affectedBedsCount ?? null;
+  (task.meta as TaskMetaDto | null)?.affectedBedsCount ??
+  (task.metadata as TaskMetaDto | null)?.affectedBedsCount ??
+  null;
 
 /** Returns the locationLabel from task.meta, or null. */
 export const getTaskLocationLabel = (task: TaskItem): string | null =>
-  (task.meta as TaskMetaDto | null)?.locationLabel ?? null;
+  (task.meta as TaskMetaDto | null)?.locationLabel ??
+  (task.metadata as TaskMetaDto | null)?.locationLabel ??
+  null;

@@ -7,7 +7,9 @@ import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import {
   getTaskAffectedBedsCount,
+  getTaskAffectedVegetablesLabel,
   getTaskAffectsAllBeds,
+  getTaskContextLabel,
   getTaskLocationLabel,
   getTaskMeta,
   getTaskSourceTypeLabel,
@@ -19,6 +21,7 @@ import {
   isTaskActive,
   isWeatherWarningTask,
   resolveTaskSourceType,
+  resolveTaskTargetType,
 } from "@/src/features/tasks/model";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { radius, spacing } from "@/src/theme/ui";
@@ -55,13 +58,18 @@ function WeatherTaskCard({ task, onDone, isDoneLoading }: TaskCardProps) {
   const locationLabel = getTaskLocationLabel(task);
   const dueAt = getTaskMeta(task, "dueAt", "due_at");
   const sourceTypeLabel = getTaskSourceTypeLabel(resolveTaskSourceType(task));
+  const targetType = resolveTaskTargetType(task);
+  const contextLabel = getTaskContextLabel(task);
+  const affectedVegetablesLabel = getTaskAffectedVegetablesLabel(task);
 
   const targetLabel =
-    task.targetType === "PLANTING"
+    targetType === "planting"
       ? "Uprawa"
-      : task.targetType === "BED"
+      : targetType === "bed"
         ? "Grządka"
-        : "Wszystkie grządki";
+        : targetType === "space"
+          ? "Przestrzeń"
+          : "Wszystkie grządki";
 
   const scopeDetail = (() => {
     if (affectsAllBeds) return locationLabel ?? "Cały ogród";
@@ -101,6 +109,14 @@ function WeatherTaskCard({ task, onDone, isDoneLoading }: TaskCardProps) {
           {scopeDetail ? " (" + scopeDetail + ")" : ""}
         </Text>
       </View>
+
+      {targetType === "bed" ? (
+        <Text style={styles.meta}>{contextLabel}</Text>
+      ) : null}
+
+      {targetType === "bed" && affectedVegetablesLabel ? (
+        <Text style={styles.meta}>{affectedVegetablesLabel}</Text>
+      ) : null}
 
       {warningCode ? (
         <StatusBadge label={warningCode.replace(/_/g, " ")} tone="info" />

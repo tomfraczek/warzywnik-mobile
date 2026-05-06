@@ -72,6 +72,8 @@ export default function BedHistoryScreen() {
   const { data, isLoading, error } = useGetBedActionTasks(
     resolvedBedId ?? null,
     "all",
+    undefined,
+    "own",
   );
   const allHistoryTasks = useMemo(
     () =>
@@ -199,10 +201,12 @@ export default function BedHistoryScreen() {
                   {getActionTaskSourceLabel(resolveActionTaskSourceType(task))}
                 </Text>
               </View>
-              <StatusBadge
-                label={getTaskStatusLabel(task.status)}
-                tone={getTaskStatusTone(task.status)}
-              />
+              <View style={styles.historyStatusWrap}>
+                <StatusBadge
+                  label={getTaskStatusLabel(task.status)}
+                  tone={getTaskStatusTone(task.status)}
+                />
+              </View>
             </View>
           ))}
         </View>
@@ -281,10 +285,10 @@ const makeStyles = (theme: MD3Theme) => {
       borderTopWidth: 1,
       borderColor: palette.cardBorder,
       paddingVertical: 12,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      gap: 12,
+      gap: 10,
+    },
+    historyStatusWrap: {
+      alignSelf: "flex-start",
     },
     taskMain: {
       gap: 4,
@@ -292,6 +296,7 @@ const makeStyles = (theme: MD3Theme) => {
     },
     taskTitle: {
       fontSize: 15,
+      lineHeight: 22,
       fontWeight: "600",
       color: palette.heading,
     },

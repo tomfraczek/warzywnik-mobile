@@ -16,12 +16,15 @@ import {
   formatTaskHorizon,
   formatTaskScope,
   formatTaskTargetType,
+  getTaskAffectedVegetablesLabel,
+  getTaskContextLabel,
   getTaskMeta,
   getTaskSourceTypeLabel,
   getTaskTechnicalDetails,
   isTaskActive,
   resolveTaskPresentation,
   resolveTaskSourceType,
+  resolveTaskTargetType,
 } from "@/src/features/tasks/model";
 import { asNonEmptyString } from "@/src/features/warnings/model";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
@@ -124,6 +127,24 @@ export default function PlannerCalendarScreen() {
   }, [bedsById, plantingsQuery.data?.pages]);
 
   const isOffline = useIsOffline();
+
+  const navigateToTaskContext = (task: MeTaskItem) => {
+    const targetType = resolveTaskTargetType(task);
+    const plantingId = getTaskMeta(task, "plantingId", "planting_id");
+    const bedId = getTaskMeta(task, "bedId", "bed_id");
+
+    if (targetType === "planting" && plantingId) {
+      router.push(`/plantings/${plantingId}`);
+      return;
+    }
+
+    if (targetType === "bed" && bedId) {
+      router.push(`/(tabs)/beds/${bedId}`);
+      return;
+    }
+
+    router.push("/(tabs)/planner/tasks");
+  };
 
   const handleDone = (taskId: string) => {
     if (isOffline) {
@@ -255,11 +276,17 @@ export default function PlannerCalendarScreen() {
                           <Text style={styles.itemTitle}>{task.title}</Text>
                           <Text style={styles.itemMeta}>Termin: {dueAt}</Text>
                           <Text style={styles.itemMeta}>
-                            {presentation.locationLabel}
-                            {presentation.cropLabel
-                              ? ` • ${presentation.cropLabel}`
-                              : ""}
+                            {getTaskContextLabel(plannerTask, presentation)}
                           </Text>
+                          {presentation.targetType === "bed" ? (
+                            <Text style={styles.itemMeta}>
+                              {getTaskAffectedVegetablesLabel(plannerTask)}
+                            </Text>
+                          ) : presentation.cropLabel ? (
+                            <Text style={styles.itemMeta}>
+                              {presentation.cropLabel}
+                            </Text>
+                          ) : null}
                           {sourceLabel ? (
                             <StatusBadge label={sourceLabel} tone="neutral" />
                           ) : null}
@@ -306,10 +333,20 @@ export default function PlannerCalendarScreen() {
                               <Button
                                 mode="outlined"
                                 onPress={() =>
-                                  router.push("/(tabs)/home/weather")
+                                  navigateToTaskContext(plannerTask)
                                 }
                               >
                                 Lokalizacja
+                              </Button>
+                            ) : null}
+                            {presentation.targetType === "space" ? (
+                              <Button
+                                mode="outlined"
+                                onPress={() =>
+                                  navigateToTaskContext(plannerTask)
+                                }
+                              >
+                                Przestrzeń
                               </Button>
                             ) : null}
                             <Button

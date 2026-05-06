@@ -6,6 +6,7 @@ import {
 } from "@/src/api/queries/actionTasks/types";
 import { useDeleteActionTask } from "@/src/api/queries/actionTasks/useDeleteActionTask";
 import { useGetBedActionTasks } from "@/src/api/queries/actionTasks/useGetBedActionTasks";
+import { useGetPlantingActionTasks } from "@/src/api/queries/actionTasks/useGetPlantingActionTasks";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
 import { bedKeys } from "@/src/api/queries/beds/bedKeys";
 import {
@@ -36,7 +37,6 @@ import {
   isPlantingActiveLifecycleStatus,
 } from "@/src/features/plantings/status";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
-import { getTodayKey } from "@/src/utils/date";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -53,6 +53,7 @@ import {
 import {
   Button,
   Icon,
+  IconButton,
   MD3Theme,
   Modal,
   Portal,
@@ -122,11 +123,6 @@ const formatDate = (value?: string | null) => {
   return value.split("T")[0];
 };
 
-const dueDateKey = (value?: string | null) => {
-  if (!value) return "";
-  return value.split("T")[0] ?? "";
-};
-
 const sortTasksByDueAt = (tasks: ActionTask[]) =>
   [...tasks].sort((a, b) => {
     const aDue = a.dueAt ?? "9999-12-31";
@@ -156,6 +152,53 @@ const getTaskStatusTone = (status: ActionTask["status"]) => {
   return "warning" as const;
 };
 
+const resolveActionTaskTargetType = (task: ActionTask) => {
+  const normalized = task.targetType?.trim().toLowerCase();
+  if (normalized === "planting") return "planting" as const;
+  if (normalized === "bed") return "bed" as const;
+  if (normalized === "space") return "space" as const;
+  if (normalized === "user") return "user" as const;
+  if (task.plantingId) return "planting" as const;
+  if (task.bedId) return "bed" as const;
+  return "user" as const;
+};
+
+const getActionTaskAffectedPlantingIds = (task: ActionTask) => {
+  const candidate =
+    task.metadata?.affectedPlantingIds ?? task.meta?.affectedPlantingIds;
+  if (!Array.isArray(candidate)) return [] as string[];
+  return candidate.filter(
+    (id): id is string => typeof id === "string" && id.trim().length > 0,
+  );
+};
+
+const getActionTaskAffectedVegetablesLabel = (
+  task: ActionTask,
+  maxExplicitVegetables = 3,
+) => {
+  const candidate =
+    task.metadata?.affectedVegetables ?? task.meta?.affectedVegetables;
+  if (!Array.isArray(candidate)) return null;
+
+  const vegetables = candidate.filter(
+    (name): name is string =>
+      typeof name === "string" && name.trim().length > 0,
+  );
+
+  if (vegetables.length === 0) return null;
+  if (vegetables.length > maxExplicitVegetables) {
+    return `Dotyczy ${vegetables.length} upraw na grządce`;
+  }
+
+  return `Dotyczy: ${vegetables.join(", ")}`;
+};
+
+const getActionTaskAggregationScope = (task: ActionTask) => {
+  const scope =
+    task.metadata?.aggregationScope ?? task.meta?.aggregationScope ?? "none";
+  return scope;
+};
+
 type PlantingRowProps = {
   planting: Planting;
   onPress: () => void;
@@ -174,11 +217,19 @@ const PlantingRow = memo(function PlantingRow({
     isLoading: isVegetableLoading,
     error: vegetableError,
   } = useGetVegetable(planting.vegetableId ?? null);
+  const { data: plantingTasksResponse } = useGetPlantingActionTasks(
+    planting.id,
+    "pending",
+  );
 
   const vegetableName = isVegetableLoading
     ? "Ładowanie..."
     : (vegetable?.name ?? (vegetableError ? "Brak nazwy" : "Brak nazwy"));
   const plantingStatusTone = getPlantingStatusTone(planting.status, theme.dark);
+  const hasOwnPendingTasks = (plantingTasksResponse?.items ?? []).some(
+    (task) => task.status === "pending" && !task.suppressedAt,
+  );
+  const showAttention = hasAttention || hasOwnPendingTasks;
 
   return (
     <Pressable style={styles.plantingRow} onPress={onPress}>
@@ -201,7 +252,7 @@ const PlantingRow = memo(function PlantingRow({
       <View style={styles.plantingMain}>
         <View style={styles.plantingTitleRow}>
           <Text style={styles.plantingTitle}>{vegetableName}</Text>
-          {hasAttention ? (
+          {showAttention ? (
             <Icon source="alert" size={15} color="#B6473D" />
           ) : null}
         </View>
@@ -243,7 +294,6 @@ export default function BedDetailsScreen() {
   const highlightedActionTaskId = Array.isArray(actionTaskId)
     ? actionTaskId[0]
     : actionTaskId;
-  const todayKey = getTodayKey();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isBedDeleted, setIsBedDeleted] = useState(false);
@@ -268,13 +318,25 @@ export default function BedDetailsScreen() {
     { enabled: Boolean(resolvedBedId) && !isBedDeleted },
   );
   const {
-    data: bedTasksResponse,
-    refetch: refetchBedTasks,
+    data: pendingBedTasksResponse,
+    refetch: refetchPendingBedTasks,
     isLoading: isBedTasksLoading,
     error: bedTasksError,
   } = useGetBedActionTasks(
     !isBedDeleted ? (resolvedBedId ?? null) : null,
+    "pending",
+    undefined,
+    "own",
+  );
+  const {
+    data: historyBedTasksResponse,
+    refetch: refetchHistoryBedTasks,
+    isLoading: isBedHistoryTasksLoading,
+  } = useGetBedActionTasks(
+    !isBedDeleted ? (resolvedBedId ?? null) : null,
     "all",
+    undefined,
+    "own",
   );
   const deleteBed = useDeleteBed();
   const updateBed = useUpdateBed(resolvedBedId ?? "");
@@ -291,6 +353,7 @@ export default function BedDetailsScreen() {
   const [lastPromptSignature, setLastPromptSignature] = useState("");
   const [postHarvestModalVisible, setPostHarvestModalVisible] = useState(false);
   const [actionsVisible, setActionsVisible] = useState(false);
+  const [taskInfoTask, setTaskInfoTask] = useState<ActionTask | null>(null);
 
   const [postHarvestActions, setPostHarvestActions] = useState<
     PostHarvestProposal[]
@@ -301,31 +364,35 @@ export default function BedDetailsScreen() {
     () => harvestPromptsResponse?.items ?? [],
     [harvestPromptsResponse?.items],
   );
-  const bedTasks = useMemo(
-    () => bedTasksResponse?.items ?? [],
-    [bedTasksResponse?.items],
+  const pendingBedTasks = useMemo(
+    () => pendingBedTasksResponse?.items ?? [],
+    [pendingBedTasksResponse?.items],
+  );
+  const historyBedTasks = useMemo(
+    () => historyBedTasksResponse?.items ?? [],
+    [historyBedTasksResponse?.items],
   );
   const pendingTasks = useMemo(
     () =>
       sortTasksByDueAt(
-        bedTasks.filter(
-          (task) =>
-            task.status === "pending" &&
-            !task.suppressedAt &&
-            Boolean(dueDateKey(task.dueAt)) &&
-            dueDateKey(task.dueAt) <= todayKey,
-        ),
+        pendingBedTasks.filter((task) => {
+          if (task.status !== "pending" || task.suppressedAt) return false;
+          return resolveActionTaskTargetType(task) === "bed";
+        }),
       ),
-    [bedTasks, todayKey],
+    [pendingBedTasks],
   );
   const historyTasks = useMemo(
     () =>
       sortTaskHistoryDesc(
-        bedTasks.filter(
-          (task) => task.status === "done" || task.status === "canceled",
-        ),
+        historyBedTasks.filter((task) => {
+          const isDoneOrCanceled =
+            task.status === "done" || task.status === "canceled";
+          if (!isDoneOrCanceled) return false;
+          return resolveActionTaskTargetType(task) === "bed";
+        }),
       ),
-    [bedTasks],
+    [historyBedTasks],
   );
   const historyPreviewTasks = useMemo(
     () => historyTasks.slice(0, 4),
@@ -376,6 +443,9 @@ export default function BedDetailsScreen() {
       if (task.plantingId) {
         ids.add(task.plantingId);
       }
+      getActionTaskAffectedPlantingIds(task).forEach((plantingId) => {
+        ids.add(plantingId);
+      });
     });
     return ids;
   }, [harvestPrompts, pendingTasks]);
@@ -434,7 +504,8 @@ export default function BedDetailsScreen() {
       setPostHarvestActions([]);
       setSnackbarMessage("Dodano zadania po zbiorach");
       await refetchHarvestPrompts();
-      await refetchBedTasks();
+      await refetchPendingBedTasks();
+      await refetchHistoryBedTasks();
       await refetchPlantings();
     } catch {
       Alert.alert("Błąd", "Nie udało się dodać zadań po zbiorach");
@@ -452,7 +523,8 @@ export default function BedDetailsScreen() {
         payload: { status: "done" },
       });
       setSnackbarMessage("Zadanie wykonane");
-      await refetchBedTasks();
+      await refetchPendingBedTasks();
+      await refetchHistoryBedTasks();
       await refetchPlantings();
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
@@ -465,9 +537,13 @@ export default function BedDetailsScreen() {
       return;
     }
     try {
-      await deleteActionTask.mutateAsync(taskId);
+      await deleteActionTask.mutateAsync({
+        id: taskId,
+        bedId: resolvedBedId ?? null,
+      });
       setSnackbarMessage("Zadanie usunięte");
-      await refetchBedTasks();
+      await refetchPendingBedTasks();
+      await refetchHistoryBedTasks();
       await refetchPlantings();
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
@@ -929,7 +1005,7 @@ export default function BedDetailsScreen() {
               <Text style={styles.errorText}>
                 {String(getResponseError(bedTasksError))}
               </Text>
-              <Button mode="outlined" onPress={() => refetchBedTasks()}>
+              <Button mode="outlined" onPress={() => refetchPendingBedTasks()}>
                 Spróbuj ponownie
               </Button>
             </View>
@@ -941,6 +1017,10 @@ export default function BedDetailsScreen() {
 
           {pendingTasks.map((task) => {
             const isHighlighted = highlightedActionTaskId === task.id;
+            const taskTargetType = resolveActionTaskTargetType(task);
+            const aggregationScope = getActionTaskAggregationScope(task);
+            const affectedVegetablesLabel =
+              getActionTaskAffectedVegetablesLabel(task);
             return (
               <View
                 key={task.id}
@@ -950,15 +1030,32 @@ export default function BedDetailsScreen() {
                 ]}
               >
                 <View style={styles.taskMain}>
-                  <Text style={styles.taskTitle}>{task.title}</Text>
-                  {task.description ? (
-                    <Text style={styles.taskDescription}>
-                      {task.description}
-                    </Text>
-                  ) : null}
+                  <View style={styles.taskTopRow}>
+                    <Text style={styles.taskTitle}>{task.title}</Text>
+                    {task.description ? (
+                      <IconButton
+                        icon="information-outline"
+                        size={18}
+                        onPress={() => setTaskInfoTask(task)}
+                        style={styles.taskInfoButton}
+                      />
+                    ) : null}
+                  </View>
                   <Text style={styles.taskMeta}>
                     Termin: {formatDate(task.dueAt)}
                   </Text>
+                  {taskTargetType === "bed" ? (
+                    <Text style={styles.taskMeta}>
+                      {task.bedName ?? bed.name}
+                    </Text>
+                  ) : null}
+                  {taskTargetType === "bed" &&
+                  aggregationScope === "bed" &&
+                  affectedVegetablesLabel ? (
+                    <Text style={styles.taskMeta}>
+                      {affectedVegetablesLabel}
+                    </Text>
+                  ) : null}
                   <StatusBadge
                     label={getActionTaskSourceLabel(
                       resolveActionTaskSourceType(task),
@@ -1003,20 +1100,20 @@ export default function BedDetailsScreen() {
             ) : null}
           </View>
 
-          {isBedTasksLoading ? <ActivityIndicator /> : null}
+          {isBedHistoryTasksLoading ? <ActivityIndicator /> : null}
 
           {bedTasksError ? (
             <View style={styles.inlineErrorBox}>
               <Text style={styles.errorText}>
                 {String(getResponseError(bedTasksError))}
               </Text>
-              <Button mode="outlined" onPress={() => refetchBedTasks()}>
+              <Button mode="outlined" onPress={() => refetchHistoryBedTasks()}>
                 Spróbuj ponownie
               </Button>
             </View>
           ) : null}
 
-          {!isBedTasksLoading &&
+          {!isBedHistoryTasksLoading &&
           !bedTasksError &&
           historyPreviewTasks.length === 0 ? (
             <Text style={styles.valueText}>Brak historii zabiegów.</Text>
@@ -1024,11 +1121,18 @@ export default function BedDetailsScreen() {
 
           {historyPreviewTasks.map((task) => (
             <View key={`history-${task.id}`} style={styles.historyRow}>
-              <View style={styles.taskMain}>
-                <Text style={styles.taskTitle}>{task.title}</Text>
-                {task.description ? (
-                  <Text style={styles.taskDescription}>{task.description}</Text>
-                ) : null}
+              <View style={[styles.taskMain, styles.historyTaskMain]}>
+                <View style={styles.taskTopRow}>
+                  <Text style={styles.taskTitle}>{task.title}</Text>
+                  {task.description ? (
+                    <IconButton
+                      icon="information-outline"
+                      size={18}
+                      onPress={() => setTaskInfoTask(task)}
+                      style={styles.taskInfoButton}
+                    />
+                  ) : null}
+                </View>
                 <Text style={styles.taskMeta}>
                   Data: {formatDate(getTaskRecordDate(task))}
                 </Text>
@@ -1088,6 +1192,20 @@ export default function BedDetailsScreen() {
         />
 
         <Portal>
+          <Modal
+            visible={!!taskInfoTask}
+            onDismiss={() => setTaskInfoTask(null)}
+            contentContainerStyle={styles.taskInfoModal}
+          >
+            <Text style={styles.modalTitle}>Szczegóły zadania</Text>
+            <Text style={styles.taskInfoModalText}>
+              {taskInfoTask?.description ?? "Brak opisu zadania."}
+            </Text>
+            <Button mode="contained" onPress={() => setTaskInfoTask(null)}>
+              Zamknij
+            </Button>
+          </Modal>
+
           <Modal
             visible={actionsVisible}
             onDismiss={() => {
@@ -1505,14 +1623,20 @@ const makeStyles = (theme: MD3Theme) => {
     taskMain: {
       gap: 4,
     },
+    taskTopRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 8,
+    },
     taskTitle: {
       fontSize: 15,
       fontWeight: "600",
       color: palette.heading,
+      flex: 1,
     },
-    taskDescription: {
-      fontSize: 13,
-      color: palette.secondary,
+    taskInfoButton: {
+      margin: -8,
     },
     taskMeta: {
       fontSize: 12,
@@ -1569,6 +1693,10 @@ const makeStyles = (theme: MD3Theme) => {
       alignItems: "flex-start",
       gap: 12,
     },
+    historyTaskMain: {
+      flex: 1,
+      minWidth: 0,
+    },
     modal: {
       backgroundColor: palette.cardBg,
       marginHorizontal: 16,
@@ -1584,6 +1712,20 @@ const makeStyles = (theme: MD3Theme) => {
       color: palette.heading,
     },
     modalText: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: palette.secondary,
+    },
+    taskInfoModal: {
+      backgroundColor: palette.cardBg,
+      marginHorizontal: 16,
+      borderRadius: 20,
+      padding: 18,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+    },
+    taskInfoModalText: {
       fontSize: 14,
       lineHeight: 20,
       color: palette.secondary,

@@ -23,9 +23,19 @@ export type ActionTask = {
     | "WEATHER_WARNING"
     | "AUTOMATION"
     | "SUGGESTION";
-  targetType?: "user" | "bed" | "planting";
+  targetType?:
+    | "user"
+    | "bed"
+    | "planting"
+    | "space"
+    | "USER"
+    | "BED"
+    | "PLANTING"
+    | "SPACE";
   bedId?: string | null;
   plantingId?: string | null;
+  bedName?: string | null;
+  vegetableName?: string | null;
   actionTemplateId?: string | null;
   actionTemplate?: {
     id: string;
@@ -40,6 +50,20 @@ export type ActionTask = {
   createdAt?: string;
   updatedAt?: string;
   isManuallyRescheduled?: boolean;
+  meta?: {
+    aggregationScope?: "bed" | "space" | "user" | "none";
+    affectedPlantingIds?: string[];
+    affectedVegetables?: string[];
+    originPlantingTaskCount?: number;
+    [key: string]: unknown;
+  } | null;
+  metadata?: {
+    aggregationScope?: "bed" | "space" | "user" | "none";
+    affectedPlantingIds?: string[];
+    affectedVegetables?: string[];
+    originPlantingTaskCount?: number;
+    [key: string]: unknown;
+  } | null;
 };
 
 export type ActionTaskListResponse = {
@@ -103,7 +127,7 @@ export const mapEntityStatusToTaskListFilter = (
 ): TaskListStatusFilter => {
   if (status === "pending") return "pending";
   if (status === "done") return "done";
-  return "all";
+  return "canceled";
 };
 
 export const normalizeTaskListStatusFilter = (

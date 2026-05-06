@@ -27,20 +27,41 @@ export const useUpdateActionTask = () => {
       id: string;
       payload: UpdateActionTaskDto;
     }) => updateActionTask({ id, payload }),
-    onSuccess: () => {
+    onSuccess: (updatedTask) => {
       queryClient.invalidateQueries({ queryKey: actionTaskKeys.all });
-      queryClient.invalidateQueries({ queryKey: ["bed-action-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["calendar"] });
       queryClient.invalidateQueries({ queryKey: ["me", "tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["beds"], exact: false });
+
+      if (updatedTask.bedId) {
+        queryClient.invalidateQueries({
+          queryKey: actionTaskKeys.bed(
+            updatedTask.bedId,
+            undefined,
+            undefined,
+            "own",
+          ),
+          exact: false,
+        });
+        queryClient.invalidateQueries({
+          queryKey: bedKeys.detail(updatedTask.bedId),
+        });
+      }
+
+      if (updatedTask.plantingId) {
+        queryClient.invalidateQueries({
+          queryKey: actionTaskKeys.planting(updatedTask.plantingId),
+          exact: false,
+        });
+        queryClient.invalidateQueries({
+          queryKey: plantingKeys.detail(updatedTask.plantingId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: plantingKeys.timeline(updatedTask.plantingId),
+        });
+      }
+
       queryClient.invalidateQueries({ queryKey: bedKeys.all });
-      queryClient.invalidateQueries({ queryKey: ["plantings"], exact: false });
-      queryClient.invalidateQueries({ queryKey: plantingKeys.all });
       queryClient.invalidateQueries({ queryKey: ["harvest-prompts"] });
-      queryClient.invalidateQueries({
-        queryKey: ["plantings", "timeline"],
-        exact: false,
-      });
     },
   });
 };
