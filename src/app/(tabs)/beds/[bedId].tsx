@@ -37,6 +37,7 @@ import {
   isPlantingActiveLifecycleStatus,
 } from "@/src/features/plantings/status";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
+import { getTodayKey } from "@/src/utils/date";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -57,6 +58,7 @@ import {
   MD3Theme,
   Modal,
   Portal,
+  SegmentedButtons,
   Snackbar,
   Switch,
   useTheme,
@@ -121,6 +123,12 @@ const getSoilSlugLabel = (bed: Bed) => {
 const formatDate = (value?: string | null) => {
   if (!value) return "Brak";
   return value.split("T")[0];
+};
+
+const getDueDateKey = (value?: string | null) => {
+  if (!value) return null;
+  const dateOnly = value.split("T")[0];
+  return dateOnly && /^\d{4}-\d{2}-\d{2}$/.test(dateOnly) ? dateOnly : null;
 };
 
 const sortTasksByDueAt = (tasks: ActionTask[]) =>
@@ -296,6 +304,7 @@ export default function BedDetailsScreen() {
     : actionTaskId;
   const router = useRouter();
   const queryClient = useQueryClient();
+  const todayKey = getTodayKey();
   const [isBedDeleted, setIsBedDeleted] = useState(false);
   const { data, isLoading, error, refetch } = useGetBed(
     !isBedDeleted ? (resolvedBedId ?? null) : null,
@@ -349,6 +358,12 @@ export default function BedDetailsScreen() {
     [plantingPages?.pages],
   );
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [plantingsFilter, setPlantingsFilter] = useState<"active" | "ended">(
+    "active",
+  );
+  const [tasksFilter, setTasksFilter] = useState<"active" | "overdue">(
+    "active",
+  );
   const [promptQueue, setPromptQueue] = useState<HarvestPromptItem[]>([]);
   const [lastPromptSignature, setLastPromptSignature] = useState("");
   const [postHarvestModalVisible, setPostHarvestModalVisible] = useState(false);
@@ -431,6 +446,40 @@ export default function BedDetailsScreen() {
         isPlantingActiveLifecycleStatus(planting.status),
       ),
     [plantings],
+  );
+  const endedPlantings = useMemo(
+    () =>
+      plantings.filter(
+        (planting) => !isPlantingActiveLifecycleStatus(planting.status),
+      ),
+    [plantings],
+  );
+  const filteredPlantings = useMemo(
+    () => (plantingsFilter === "active" ? activePlantings : endedPlantings),
+    [activePlantings, endedPlantings, plantingsFilter],
+  );
+
+  const overdueTasks = useMemo(
+    () =>
+      pendingTasks.filter((task) => {
+        const dueDateKey = getDueDateKey(task.dueAt);
+        if (!dueDateKey) return false;
+        return dueDateKey < todayKey;
+      }),
+    [pendingTasks, todayKey],
+  );
+  const activeTasks = useMemo(
+    () =>
+      pendingTasks.filter((task) => {
+        const dueDateKey = getDueDateKey(task.dueAt);
+        if (!dueDateKey) return true;
+        return dueDateKey >= todayKey;
+      }),
+    [pendingTasks, todayKey],
+  );
+  const filteredTasks = useMemo(
+    () => (tasksFilter === "active" ? activeTasks : overdueTasks),
+    [activeTasks, overdueTasks, tasksFilter],
   );
 
   const hasAttentionItems =
@@ -921,11 +970,45 @@ export default function BedDetailsScreen() {
             </Pressable>
           </View>
 
-          {isPlantingsLoading && activePlantings.length === 0 ? (
+          <SegmentedButtons
+            value={plantingsFilter}
+            onValueChange={(value) =>
+              setPlantingsFilter(value as "active" | "ended")
+            }
+            buttons={[
+              {
+                value: "ended",
+                label: `Zakończone (${endedPlantings.length})`,
+                style: [
+                  styles.segmentedButtonItem,
+                  plantingsFilter === "ended"
+                    ? styles.segmentedButtonItemActive
+                    : null,
+                ],
+                checkedColor: palette.accent,
+                uncheckedColor: palette.secondary,
+              },
+              {
+                value: "active",
+                label: `Aktywne (${activePlantings.length})`,
+                style: [
+                  styles.segmentedButtonItem,
+                  plantingsFilter === "active"
+                    ? styles.segmentedButtonItemActive
+                    : null,
+                ],
+                checkedColor: palette.accent,
+                uncheckedColor: palette.secondary,
+              },
+            ]}
+            style={styles.segmentedButtons}
+          />
+
+          {isPlantingsLoading && filteredPlantings.length === 0 ? (
             <ActivityIndicator style={styles.inlineLoader} />
           ) : null}
 
-          {plantingsError && activePlantings.length === 0 ? (
+          {plantingsError && filteredPlantings.length === 0 ? (
             <View style={styles.inlineErrorBox}>
               <Text style={styles.errorText}>
                 {String(getResponseError(plantingsError))}
@@ -940,12 +1023,16 @@ export default function BedDetailsScreen() {
           ) : null}
 
           {!isPlantingsLoading &&
-          activePlantings.length === 0 &&
-          !plantingsError ? (
-            <Text style={styles.valueText}>Brak upraw w tej grządce.</Text>
+          !plantingsError &&
+          filteredPlantings.length === 0 ? (
+            <Text style={styles.valueText}>
+              {plantingsFilter === "active"
+                ? "Brak aktywnych upraw w tej grządce."
+                : "Brak zakończonych upraw w tej grządce."}
+            </Text>
           ) : null}
 
-          {activePlantings.map((planting: Planting) => (
+          {filteredPlantings.map((planting: Planting) => (
             <PlantingRow
               key={planting.id}
               planting={planting}
@@ -998,6 +1085,41 @@ export default function BedDetailsScreen() {
               <Icon source="alert" size={18} color={palette.warning} />
             ) : null}
           </View>
+
+          <SegmentedButtons
+            value={tasksFilter}
+            onValueChange={(value) =>
+              setTasksFilter(value as "active" | "overdue")
+            }
+            buttons={[
+              {
+                value: "overdue",
+                label: `Zaległe (${overdueTasks.length})`,
+                style: [
+                  styles.segmentedButtonItem,
+                  tasksFilter === "overdue"
+                    ? styles.segmentedButtonItemActive
+                    : null,
+                ],
+                checkedColor: palette.accent,
+                uncheckedColor: palette.secondary,
+              },
+              {
+                value: "active",
+                label: `Aktywne (${activeTasks.length})`,
+                style: [
+                  styles.segmentedButtonItem,
+                  tasksFilter === "active"
+                    ? styles.segmentedButtonItemActive
+                    : null,
+                ],
+                checkedColor: palette.accent,
+                uncheckedColor: palette.secondary,
+              },
+            ]}
+            style={styles.segmentedButtons}
+          />
+
           {isBedTasksLoading ? <ActivityIndicator /> : null}
 
           {bedTasksError ? (
@@ -1011,11 +1133,17 @@ export default function BedDetailsScreen() {
             </View>
           ) : null}
 
-          {!isBedTasksLoading && !bedTasksError && pendingTasks.length === 0 ? (
-            <Text style={styles.valueText}>Brak zadań do wykonania.</Text>
+          {!isBedTasksLoading &&
+          !bedTasksError &&
+          filteredTasks.length === 0 ? (
+            <Text style={styles.valueText}>
+              {tasksFilter === "active"
+                ? "Brak aktywnych zadań."
+                : "Brak zaległych zadań."}
+            </Text>
           ) : null}
 
-          {pendingTasks.map((task) => {
+          {filteredTasks.map((task) => {
             const isHighlighted = highlightedActionTaskId === task.id;
             const taskTargetType = resolveActionTaskTargetType(task);
             const aggregationScope = getActionTaskAggregationScope(task);
@@ -1651,38 +1779,17 @@ const makeStyles = (theme: MD3Theme) => {
     taskActionButton: {
       flex: 1,
     },
-    filterLabel: {
-      fontSize: 12,
-      color: palette.meta,
-      marginBottom: 6,
-      marginTop: 4,
+    segmentedButtons: {
+      alignSelf: "flex-start",
+      marginBottom: 8,
     },
-    filterChipsWrap: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 8,
-      marginBottom: 10,
-    },
-    filterChip: {
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-      borderRadius: 999,
-      borderWidth: 1,
+    segmentedButtonItem: {
       borderColor: palette.cardBorder,
-      backgroundColor: palette.innerBg,
+      backgroundColor: palette.cardBg,
     },
-    filterChipActive: {
+    segmentedButtonItemActive: {
       borderColor: palette.accentBorder,
       backgroundColor: palette.accentBg,
-    },
-    filterChipText: {
-      fontSize: 12,
-      color: palette.secondary,
-      fontWeight: "500",
-    },
-    filterChipTextActive: {
-      color: palette.accent,
-      fontWeight: "600",
     },
     historyRow: {
       borderTopWidth: 1,

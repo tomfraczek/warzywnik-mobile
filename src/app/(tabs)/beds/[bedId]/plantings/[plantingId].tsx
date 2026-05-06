@@ -1391,11 +1391,11 @@ export default function PlantingDetailsScreen() {
               }
               buttons={[
                 {
-                  value: "active",
-                  label: `Aktywne (${groupedPlantingTasks.active.length})`,
+                  value: "overdue",
+                  label: `Zaległe (${groupedPlantingTasks.overdue.length})`,
                   style: [
                     styles.segmentedButtonItem,
-                    tasksFilter === "active"
+                    tasksFilter === "overdue"
                       ? styles.segmentedButtonItemActive
                       : null,
                   ],
@@ -1403,11 +1403,11 @@ export default function PlantingDetailsScreen() {
                   uncheckedColor: palette.secondary,
                 },
                 {
-                  value: "overdue",
-                  label: `Zaległe (${groupedPlantingTasks.overdue.length})`,
+                  value: "active",
+                  label: `Aktywne (${groupedPlantingTasks.active.length})`,
                   style: [
                     styles.segmentedButtonItem,
-                    tasksFilter === "overdue"
+                    tasksFilter === "active"
                       ? styles.segmentedButtonItemActive
                       : null,
                   ],
