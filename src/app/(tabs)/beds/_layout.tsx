@@ -35,6 +35,11 @@ export default function BedsLayout() {
         name="[bedId]/plantings/[plantingId]/harvest-results"
         options={{ title: "Wyniki zbiorów" }}
       />
+      <Stack.Screen name="[bedId]/notes" options={{ title: "Notatki" }} />
+      <Stack.Screen
+        name="[bedId]/plantings/[plantingId]/notes"
+        options={{ title: "Notatki" }}
+      />
       <Stack.Screen name="soils" options={{ title: "Wybierz glebę" }} />
       <Stack.Screen name="vegetables" options={{ title: "Wybierz warzywo" }} />
       <Stack.Screen name="garden" options={{ title: "Ogród" }} />

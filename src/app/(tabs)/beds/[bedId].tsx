@@ -21,10 +21,11 @@ import { useGetBed } from "@/src/api/queries/beds/useGetBed";
 import { useGetBedHarvestPrompts } from "@/src/api/queries/beds/useGetBedHarvestPrompts";
 import { useUpdateBed } from "@/src/api/queries/beds/useUpdateBed";
 import { Planting } from "@/src/api/queries/plantings/types";
-import { usePostBedQuickAction } from "@/src/api/queries/quickActions/usePostBedQuickAction";
-import { MoistureLevel } from "@/src/api/queries/quickActions/types";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { usePostHarvestConfirmation } from "@/src/api/queries/plantings/usePostHarvestConfirmation";
+import { MoistureLevel } from "@/src/api/queries/quickActions/types";
+import { useGetBedQuickActionNotes } from "@/src/api/queries/quickActions/useGetBedQuickActionNotes";
+import { usePostBedQuickAction } from "@/src/api/queries/quickActions/usePostBedQuickAction";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { BedSeasonHistorySection } from "@/src/app/(tabs)/beds/_components/BedSeasonHistorySection";
 import { HarvestConfirmationModal } from "@/src/app/(tabs)/beds/_components/HarvestConfirmationModal";
@@ -128,6 +129,19 @@ const getSoilSlugLabel = (bed: Bed) => {
 const formatDate = (value?: string | null) => {
   if (!value) return "Brak";
   return value.split("T")[0];
+};
+
+const formatNoteDateTime = (value?: string | null) => {
+  if (!value) return "Brak daty";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Brak daty";
+  return new Intl.DateTimeFormat("pl-PL", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 };
 
 const getDueDateKey = (value?: string | null) => {
@@ -356,6 +370,9 @@ export default function BedDetailsScreen() {
   const updateBed = useUpdateBed(resolvedBedId ?? "");
   const updateActionTask = useUpdateActionTask();
   const deleteActionTask = useDeleteActionTask();
+  const bedQuickNotesQuery = useGetBedQuickActionNotes(
+    !isBedDeleted ? (resolvedBedId ?? null) : null,
+  );
   const postBedQuickAction = usePostBedQuickAction(
     !isBedDeleted ? (resolvedBedId ?? null) : null,
   );
@@ -377,8 +394,7 @@ export default function BedDetailsScreen() {
   const [postHarvestModalVisible, setPostHarvestModalVisible] = useState(false);
   const [actionsVisible, setActionsVisible] = useState(false);
   const [taskInfoTask, setTaskInfoTask] = useState<ActionTask | null>(null);
-  const [quickActionModalVisible, setQuickActionModalVisible] =
-    useState(false);
+  const [quickActionModalVisible, setQuickActionModalVisible] = useState(false);
   const [quickActionStep, setQuickActionStep] = useState<
     "menu" | "moisture" | "note"
   >("menu");
@@ -426,6 +442,14 @@ export default function BedDetailsScreen() {
   const historyPreviewTasks = useMemo(
     () => historyTasks.slice(0, 4),
     [historyTasks],
+  );
+  const bedQuickNotes = useMemo(
+    () => bedQuickNotesQuery.data?.items ?? [],
+    [bedQuickNotesQuery.data?.items],
+  );
+  const bedQuickNotesPreview = useMemo(
+    () => bedQuickNotes.slice(-5),
+    [bedQuickNotes],
   );
   const harvestPromptSignature = useMemo(
     () =>
@@ -892,6 +916,7 @@ export default function BedDetailsScreen() {
           color={palette.accent}
           disabled={isOffline || postBedQuickAction.isPending}
           loading={postBedQuickAction.isPending}
+          style={styles.quickActionButton}
         />
 
         <View style={styles.section}>
@@ -1283,6 +1308,56 @@ export default function BedDetailsScreen() {
               </View>
             );
           })}
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Notatki</Text>
+            {bedQuickNotes.length > 0 ? (
+              <Pressable
+                style={styles.linkButton}
+                onPress={() => router.push(`/(tabs)/beds/${bed.id}/notes`)}
+              >
+                <Text style={styles.linkButtonText}>Zobacz wszystkie</Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {bedQuickNotesQuery.isLoading ? <ActivityIndicator /> : null}
+
+          {bedQuickNotesQuery.error ? (
+            <View style={styles.inlineErrorBox}>
+              <Text style={styles.errorText}>
+                {String(getResponseError(bedQuickNotesQuery.error))}
+              </Text>
+              <Button
+                mode="outlined"
+                onPress={() => bedQuickNotesQuery.refetch()}
+              >
+                Spróbuj ponownie
+              </Button>
+            </View>
+          ) : null}
+
+          {!bedQuickNotesQuery.isLoading &&
+          !bedQuickNotesQuery.error &&
+          bedQuickNotesPreview.length === 0 ? (
+            <Text style={styles.valueText}>Brak notatek.</Text>
+          ) : null}
+
+          {bedQuickNotesPreview.map((note) => (
+            <View key={note.id} style={styles.noteTimelineRow}>
+              <View style={styles.noteTimelineDot} />
+              <View style={styles.noteTimelineContent}>
+                <Text style={styles.noteTimelineDate}>
+                  {formatNoteDateTime(note.occurredAt ?? note.createdAt)}
+                </Text>
+                <Text style={styles.noteTimelineText} numberOfLines={2}>
+                  {note.note}
+                </Text>
+              </View>
+            </View>
+          ))}
         </View>
 
         <View style={styles.section}>
@@ -1729,6 +1804,9 @@ const makeStyles = (theme: MD3Theme) => {
       fontWeight: "500",
       color: palette.secondary,
     },
+    quickActionButton: {
+      marginBottom: 14,
+    },
     section: {
       backgroundColor: palette.cardBg,
       borderColor: palette.cardBorder,
@@ -2022,6 +2100,36 @@ const makeStyles = (theme: MD3Theme) => {
     historyTaskMain: {
       flex: 1,
       minWidth: 0,
+    },
+    noteTimelineRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+      borderTopWidth: 1,
+      borderTopColor: palette.cardBorder,
+      paddingVertical: 12,
+    },
+    noteTimelineDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 999,
+      backgroundColor: palette.accent,
+      marginTop: 6,
+    },
+    noteTimelineContent: {
+      flex: 1,
+      gap: 4,
+      minWidth: 0,
+    },
+    noteTimelineDate: {
+      fontSize: 12,
+      color: palette.meta,
+      fontWeight: "500",
+    },
+    noteTimelineText: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: palette.heading,
     },
     modal: {
       backgroundColor: palette.cardBg,

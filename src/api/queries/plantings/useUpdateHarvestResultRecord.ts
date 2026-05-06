@@ -31,6 +31,7 @@ export const useUpdateHarvestResultRecord = (id: string, bedId?: string) => {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: plantingKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: plantingKeys.timeline(id) });
       queryClient.invalidateQueries({
         queryKey: plantingKeys.seasonComparison(id),
       });

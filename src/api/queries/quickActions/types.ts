@@ -4,11 +4,9 @@ export type BedQuickActionKind =
   | "MOISTURE_CHECK"
   | "NOTE";
 
-export type PlantingQuickActionKind = "HARVEST" | "NOTE";
+export type PlantingQuickActionKind = "NOTE";
 
 export type MoistureLevel = "dry" | "ok" | "wet";
-
-export type HarvestUnit = "g" | "kg" | "pcs" | "bunch";
 
 export type PostBedQuickActionDto = {
   actionKind: BedQuickActionKind;
@@ -21,6 +19,16 @@ export type PostPlantingQuickActionDto = {
   actionKind: PlantingQuickActionKind;
   occurredAt?: string;
   note?: string;
-  amount?: number;
-  unit?: HarvestUnit;
+};
+
+export type QuickActionNote = {
+  id: string;
+  note: string;
+  occurredAt: string | null;
+  createdAt?: string | null;
+  scope?: "bed" | "planting" | null;
+};
+
+export type QuickActionNotesResponse = {
+  items: QuickActionNote[];
 };

@@ -32,12 +32,12 @@ import {
   PlantingStatus,
   Warning,
 } from "@/src/api/queries/plantings/types";
-import { usePostPlantingQuickAction } from "@/src/api/queries/quickActions/usePostPlantingQuickAction";
-import { HarvestUnit } from "@/src/api/queries/quickActions/types";
 import { useDeletePlanting } from "@/src/api/queries/plantings/useDeletePlanting";
 import { useGetPlanting } from "@/src/api/queries/plantings/useGetPlanting";
 import { useGetPlantingAvailableStatuses } from "@/src/api/queries/plantings/useGetPlantingAvailableStatuses";
 import { useUpdatePlanting } from "@/src/api/queries/plantings/useUpdatePlanting";
+import { useGetPlantingQuickActionNotes } from "@/src/api/queries/quickActions/useGetPlantingQuickActionNotes";
+import { usePostPlantingQuickAction } from "@/src/api/queries/quickActions/usePostPlantingQuickAction";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { Screen } from "@/src/components/Screen";
 import CustomHeader from "@/src/components/navigation/CustomHeader";
@@ -93,6 +93,19 @@ const formatDate = (value?: string | null) => {
     day: "2-digit",
     month: "long",
     year: "numeric",
+  }).format(date);
+};
+
+const formatNoteDateTime = (value?: string | null) => {
+  if (!value) return "Brak daty";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Brak daty";
+  return new Intl.DateTimeFormat("pl-PL", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(date);
 };
 
@@ -273,16 +286,11 @@ export default function PlantingDetailsScreen() {
   const [statusErrorMessage, setStatusErrorMessage] = useState<string | null>(
     null,
   );
-  const [quickActionModalVisible, setQuickActionModalVisible] =
-    useState(false);
-  const [quickActionStep, setQuickActionStep] = useState<
-    "menu" | "harvest" | "note"
-  >("menu");
+  const [quickActionModalVisible, setQuickActionModalVisible] = useState(false);
+  const [quickActionStep, setQuickActionStep] = useState<"menu" | "note">(
+    "menu",
+  );
   const [quickActionNote, setQuickActionNote] = useState("");
-  const [quickActionHarvestAmount, setQuickActionHarvestAmount] = useState("");
-  const [quickActionHarvestUnit, setQuickActionHarvestUnit] =
-    useState<HarvestUnit>("kg");
-  const [quickActionHarvestNote, setQuickActionHarvestNote] = useState("");
 
   const diseaseActiveQuery = useGetPlantingDiseaseOccurrences(
     resolvedPlantingId ?? null,
@@ -307,6 +315,9 @@ export default function PlantingDetailsScreen() {
   const updateDiseaseOccurrence = useUpdateDiseaseOccurrence();
   const deleteDiseaseOccurrence = useDeleteDiseaseOccurrence();
   const postPlantingQuickAction = usePostPlantingQuickAction(
+    resolvedPlantingId ?? null,
+  );
+  const plantingQuickNotesQuery = useGetPlantingQuickActionNotes(
     resolvedPlantingId ?? null,
   );
 
@@ -482,6 +493,14 @@ export default function PlantingDetailsScreen() {
       visibleCount: plantingTasks.length,
     };
   }, [plantingTasks, todayKey]);
+  const plantingQuickNotes = useMemo(
+    () => plantingQuickNotesQuery.data?.items ?? [],
+    [plantingQuickNotesQuery.data?.items],
+  );
+  const plantingQuickNotesPreview = useMemo(
+    () => plantingQuickNotes.slice(-5),
+    [plantingQuickNotes],
+  );
   const filteredPlantingTasks = useMemo(() => {
     if (tasksFilter === "overdue") return groupedPlantingTasks.overdue;
     return groupedPlantingTasks.active;
@@ -708,9 +727,6 @@ export default function PlantingDetailsScreen() {
   const openQuickActionModal = () => {
     setQuickActionStep("menu");
     setQuickActionNote("");
-    setQuickActionHarvestAmount("");
-    setQuickActionHarvestUnit("kg");
-    setQuickActionHarvestNote("");
     setQuickActionModalVisible(true);
   };
 
@@ -740,39 +756,6 @@ export default function PlantingDetailsScreen() {
       await Promise.allSettled([refetch(), refetchPlantingTasks()]);
       closeQuickActionModal();
       setSnackbarMessage("Dodano notatkę");
-    } catch (err) {
-      setSnackbarMessage(String(getResponseError(err)));
-    }
-  };
-
-  const handleSavePlantingHarvestQuickAction = async () => {
-    if (isOffline) {
-      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
-      return;
-    }
-
-    const trimmedAmount = quickActionHarvestAmount.trim();
-    let parsedAmount: number | undefined;
-
-    if (trimmedAmount.length > 0) {
-      const normalizedAmount = Number(trimmedAmount.replace(",", "."));
-      if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
-        setSnackbarMessage("Podaj poprawną ilość.");
-        return;
-      }
-      parsedAmount = normalizedAmount;
-    }
-
-    try {
-      await postPlantingQuickAction.mutateAsync({
-        actionKind: "HARVEST",
-        amount: parsedAmount,
-        unit: parsedAmount != null ? quickActionHarvestUnit : undefined,
-        note: quickActionHarvestNote.trim() || undefined,
-      });
-      await Promise.allSettled([refetch(), refetchPlantingTasks()]);
-      closeQuickActionModal();
-      setSnackbarMessage("Zapisano zbiór");
     } catch (err) {
       setSnackbarMessage(String(getResponseError(err)));
     }
@@ -1595,6 +1578,60 @@ export default function PlantingDetailsScreen() {
           })}
         </Surface>
 
+        <Surface style={styles.section} elevation={0}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Notatki</Text>
+            {plantingQuickNotes.length > 0 ? (
+              <Pressable
+                hitSlop={8}
+                onPress={() =>
+                  router.push(
+                    `/(tabs)/beds/${resolvedBedId}/plantings/${planting.id}/notes`,
+                  )
+                }
+              >
+                <Text style={styles.sectionLink}>Zobacz wszystkie</Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {plantingQuickNotesQuery.isLoading ? <ActivityIndicator /> : null}
+
+          {plantingQuickNotesQuery.error ? (
+            <View>
+              <Text style={styles.errorText}>
+                {String(getResponseError(plantingQuickNotesQuery.error))}
+              </Text>
+              <Button
+                mode="outlined"
+                onPress={() => plantingQuickNotesQuery.refetch()}
+              >
+                Spróbuj ponownie
+              </Button>
+            </View>
+          ) : null}
+
+          {!plantingQuickNotesQuery.isLoading &&
+          !plantingQuickNotesQuery.error &&
+          plantingQuickNotesPreview.length === 0 ? (
+            <Text style={styles.emptyText}>Brak notatek.</Text>
+          ) : null}
+
+          {plantingQuickNotesPreview.map((note) => (
+            <View key={note.id} style={styles.timelineRow}>
+              <View style={styles.timelineDot} />
+              <View style={styles.timelineContent}>
+                <Text style={styles.timelineLabel}>
+                  {formatNoteDateTime(note.occurredAt ?? note.createdAt)}
+                </Text>
+                <Text style={styles.timelineValue} numberOfLines={2}>
+                  {note.note}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </Surface>
+
         {resolvedPlantingId ? (
           <PlantingSeasonSection plantingId={resolvedPlantingId} />
         ) : null}
@@ -2037,7 +2074,11 @@ export default function PlantingDetailsScreen() {
             <Text style={styles.modalTitle}>Dodaj akcję</Text>
             <Button
               mode="contained"
-              onPress={() => setQuickActionStep("harvest")}
+              onPress={() => {
+                closeQuickActionModal();
+                setEditingHarvestRecord(null);
+                setHarvestFormVisible(true);
+              }}
               disabled={postPlantingQuickAction.isPending || isOffline}
             >
               Zebrano plony
@@ -2056,64 +2097,6 @@ export default function PlantingDetailsScreen() {
             >
               Zamknij
             </Button>
-          </View>
-        ) : null}
-
-        {quickActionStep === "harvest" ? (
-          <View style={styles.modalActionsColumn}>
-            <Text style={styles.modalTitle}>Zebrano plony</Text>
-            <TextInput
-              mode="outlined"
-              label="Ilość (opcjonalnie)"
-              value={quickActionHarvestAmount}
-              onChangeText={setQuickActionHarvestAmount}
-              keyboardType="decimal-pad"
-              style={styles.modalInput}
-              disabled={postPlantingQuickAction.isPending}
-            />
-
-            <Text style={styles.modalLabel}>Jednostka</Text>
-            <SegmentedButtons
-              value={quickActionHarvestUnit}
-              onValueChange={(value) =>
-                setQuickActionHarvestUnit(value as HarvestUnit)
-              }
-              buttons={[
-                { value: "g", label: "g" },
-                { value: "kg", label: "kg" },
-                { value: "pcs", label: "pcs" },
-                { value: "bunch", label: "bunch" },
-              ]}
-            />
-
-            <TextInput
-              mode="outlined"
-              label="Notatka (opcjonalnie)"
-              value={quickActionHarvestNote}
-              onChangeText={setQuickActionHarvestNote}
-              multiline
-              numberOfLines={3}
-              style={styles.modalInput}
-              disabled={postPlantingQuickAction.isPending}
-            />
-
-            <View style={styles.modalActionsBetween}>
-              <Button
-                mode="outlined"
-                onPress={() => setQuickActionStep("menu")}
-                disabled={postPlantingQuickAction.isPending}
-              >
-                Wstecz
-              </Button>
-              <Button
-                mode="contained"
-                onPress={handleSavePlantingHarvestQuickAction}
-                loading={postPlantingQuickAction.isPending}
-                disabled={postPlantingQuickAction.isPending || isOffline}
-              >
-                Zapisz
-              </Button>
-            </View>
           </View>
         ) : null}
 

@@ -20,6 +20,7 @@ export const useDeleteHarvestResultRecord = (id: string, bedId?: string) => {
       deleteHarvestResultRecord({ id, recordId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: plantingKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: plantingKeys.timeline(id) });
       queryClient.invalidateQueries({
         queryKey: plantingKeys.seasonComparison(id),
       });

@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { actionTaskKeys } from "../actionTasks/actionTaskKeys";
 import { bedKeys } from "../beds/bedKeys";
 import { plantingKeys } from "../plantings/plantingKeys";
+import { quickActionKeys } from "./quickActionKeys";
 import { PostBedQuickActionDto } from "./types";
 
 const postBedQuickAction = async (
@@ -41,6 +42,9 @@ export const usePostBedQuickAction = (bedId: string | null) => {
         queryClient.invalidateQueries({ queryKey: bedKeys.detail(bedId) }),
         queryClient.invalidateQueries({ queryKey: bedKeys.seasons(bedId) }),
         queryClient.invalidateQueries({ queryKey: plantingKeys.all }),
+        queryClient.invalidateQueries({
+          queryKey: quickActionKeys.bedNotes(bedId),
+        }),
       ]);
     },
   });

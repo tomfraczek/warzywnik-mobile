@@ -1,5 +1,17 @@
-import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
-import { ActivityIndicator, Icon, MD3Theme, useTheme } from "react-native-paper";
+import {
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Text,
+  View,
+  ViewStyle,
+} from "react-native";
+import {
+  ActivityIndicator,
+  Icon,
+  MD3Theme,
+  useTheme,
+} from "react-native-paper";
 
 type PrimaryActionButtonProps = {
   label: string;

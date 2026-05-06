@@ -8,8 +8,8 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MD3Theme, Surface, useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type BottomSheetModalProps = {
   visible: boolean;
@@ -56,22 +56,22 @@ export function BottomSheetModal({
 
   const animateOut = useCallback(
     (callback?: () => void) => {
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: CLOSE_DURATION,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: Math.max(sheetHeight, 320),
-        duration: CLOSE_DURATION,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start(({ finished }) => {
-      if (finished) callback?.();
-    });
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: CLOSE_DURATION,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: Math.max(sheetHeight, 320),
+          duration: CLOSE_DURATION,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) callback?.();
+      });
     },
     [backdropOpacity, sheetHeight, translateY],
   );
@@ -132,7 +132,7 @@ export function BottomSheetModal({
       onRequestClose={triggerDismiss}
     >
       <View pointerEvents="box-none" style={styles.overlayRoot}>
-        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}> 
+        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={triggerDismiss} />
         </Animated.View>
 

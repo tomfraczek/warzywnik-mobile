@@ -1,0 +1,155 @@
+import { getResponseError } from "@/src/api/axios";
+import { useGetPlantingQuickActionNotes } from "@/src/api/queries/quickActions/useGetPlantingQuickActionNotes";
+import { Screen } from "@/src/components/Screen";
+import { useLocalSearchParams } from "expo-router";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Button, MD3Theme, Text, useTheme } from "react-native-paper";
+
+const formatNoteDateTime = (value?: string | null) => {
+  if (!value) return "Brak daty";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Brak daty";
+  return new Intl.DateTimeFormat("pl-PL", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+};
+
+function buildPalette(dark: boolean) {
+  return {
+    background: dark ? "#141816" : "#F7F8F5",
+    cardBg: dark ? "#1A1F1C" : "#FFFFFF",
+    cardBorder: dark ? "#252D29" : "#E8ECE7",
+    heading: dark ? "#F2F5F1" : "#1D2420",
+    secondary: dark ? "#9AA59E" : "#6E7972",
+    meta: dark ? "#7A8880" : "#97A29B",
+    accent: dark ? "#7AB88A" : "#4A7C59",
+  };
+}
+
+export default function PlantingNotesScreen() {
+  const theme = useTheme<MD3Theme>();
+  const palette = buildPalette(theme.dark);
+  const styles = makeStyles(theme);
+  const { plantingId } = useLocalSearchParams<{
+    plantingId?: string | string[];
+  }>();
+  const resolvedPlantingId = Array.isArray(plantingId)
+    ? plantingId[0]
+    : plantingId;
+
+  const notesQuery = useGetPlantingQuickActionNotes(resolvedPlantingId ?? null);
+  const notes = notesQuery.data?.items ?? [];
+
+  return (
+    <Screen
+      style={{ backgroundColor: palette.background }}
+      safeAreaEdges={["left", "right"]}
+    >
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notatki</Text>
+
+          {notesQuery.isLoading ? (
+            <Text style={styles.valueText}>Ładowanie…</Text>
+          ) : null}
+
+          {notesQuery.error ? (
+            <View>
+              <Text style={styles.errorText}>
+                {String(getResponseError(notesQuery.error))}
+              </Text>
+              <Button mode="outlined" onPress={() => notesQuery.refetch()}>
+                Spróbuj ponownie
+              </Button>
+            </View>
+          ) : null}
+
+          {!notesQuery.isLoading && !notesQuery.error && notes.length === 0 ? (
+            <Text style={styles.valueText}>Brak notatek.</Text>
+          ) : null}
+
+          {notes.map((note) => (
+            <View key={note.id} style={styles.timelineRow}>
+              <View style={styles.timelineDot} />
+              <View style={styles.timelineContent}>
+                <Text style={styles.timelineDate}>
+                  {formatNoteDateTime(note.occurredAt ?? note.createdAt)}
+                </Text>
+                <Text style={styles.timelineText}>{note.note}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </Screen>
+  );
+}
+
+const makeStyles = (theme: MD3Theme) => {
+  const palette = buildPalette(theme.dark);
+  return StyleSheet.create({
+    container: {
+      paddingHorizontal: 16,
+      paddingTop: 8,
+      paddingBottom: 24,
+      backgroundColor: palette.background,
+    },
+    section: {
+      backgroundColor: palette.cardBg,
+      borderColor: palette.cardBorder,
+      borderWidth: 1,
+      borderRadius: 22,
+      padding: 20,
+    },
+    sectionTitle: {
+      fontSize: 19,
+      fontWeight: "700",
+      color: palette.heading,
+      marginBottom: 8,
+    },
+    valueText: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: palette.secondary,
+    },
+    errorText: {
+      fontSize: 14,
+      color: theme.colors.error,
+      marginBottom: 10,
+    },
+    timelineRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+      borderTopWidth: 1,
+      borderTopColor: palette.cardBorder,
+      paddingVertical: 12,
+    },
+    timelineDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 999,
+      backgroundColor: palette.accent,
+      marginTop: 6,
+    },
+    timelineContent: {
+      flex: 1,
+      gap: 4,
+      minWidth: 0,
+    },
+    timelineDate: {
+      fontSize: 12,
+      color: palette.meta,
+      fontWeight: "500",
+    },
+    timelineText: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: palette.heading,
+    },
+  });
+};
