@@ -21,6 +21,8 @@ import { useGetBed } from "@/src/api/queries/beds/useGetBed";
 import { useGetBedHarvestPrompts } from "@/src/api/queries/beds/useGetBedHarvestPrompts";
 import { useUpdateBed } from "@/src/api/queries/beds/useUpdateBed";
 import { Planting } from "@/src/api/queries/plantings/types";
+import { usePostBedQuickAction } from "@/src/api/queries/quickActions/usePostBedQuickAction";
+import { MoistureLevel } from "@/src/api/queries/quickActions/types";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { usePostHarvestConfirmation } from "@/src/api/queries/plantings/usePostHarvestConfirmation";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
@@ -29,6 +31,8 @@ import { HarvestConfirmationModal } from "@/src/app/(tabs)/beds/_components/Harv
 import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostHarvestActionsModal";
 import { Screen } from "@/src/components/Screen";
 import CustomHeader from "@/src/components/navigation/CustomHeader";
+import { BottomSheetModal } from "@/src/components/ui/BottomSheetModal";
+import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import {
@@ -61,6 +65,7 @@ import {
   SegmentedButtons,
   Snackbar,
   Switch,
+  TextInput,
   useTheme,
 } from "react-native-paper";
 
@@ -351,6 +356,9 @@ export default function BedDetailsScreen() {
   const updateBed = useUpdateBed(resolvedBedId ?? "");
   const updateActionTask = useUpdateActionTask();
   const deleteActionTask = useDeleteActionTask();
+  const postBedQuickAction = usePostBedQuickAction(
+    !isBedDeleted ? (resolvedBedId ?? null) : null,
+  );
 
   const bed = data as Bed | undefined;
   const plantings = useMemo(
@@ -369,6 +377,12 @@ export default function BedDetailsScreen() {
   const [postHarvestModalVisible, setPostHarvestModalVisible] = useState(false);
   const [actionsVisible, setActionsVisible] = useState(false);
   const [taskInfoTask, setTaskInfoTask] = useState<ActionTask | null>(null);
+  const [quickActionModalVisible, setQuickActionModalVisible] =
+    useState(false);
+  const [quickActionStep, setQuickActionStep] = useState<
+    "menu" | "moisture" | "note"
+  >("menu");
+  const [quickActionNote, setQuickActionNote] = useState("");
 
   const [postHarvestActions, setPostHarvestActions] = useState<
     PostHarvestProposal[]
@@ -644,6 +658,53 @@ export default function BedDetailsScreen() {
     }
   };
 
+  const openQuickActionModal = () => {
+    setQuickActionStep("menu");
+    setQuickActionNote("");
+    setQuickActionModalVisible(true);
+  };
+
+  const closeQuickActionModal = () => {
+    if (postBedQuickAction.isPending) return;
+    setQuickActionModalVisible(false);
+    setQuickActionStep("menu");
+  };
+
+  const handleSubmitBedQuickAction = async (
+    payload:
+      | { actionKind: "WATERING" }
+      | { actionKind: "WEEDING" }
+      | { actionKind: "MOISTURE_CHECK"; moistureLevel: MoistureLevel }
+      | { actionKind: "NOTE"; note: string },
+  ) => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
+
+    try {
+      await postBedQuickAction.mutateAsync(payload);
+      await Promise.allSettled([
+        refetchPendingBedTasks(),
+        refetchHistoryBedTasks(),
+        refetchPlantings(),
+      ]);
+      closeQuickActionModal();
+
+      if (payload.actionKind === "WATERING") {
+        setSnackbarMessage("Zapisano podlewanie");
+      } else if (payload.actionKind === "WEEDING") {
+        setSnackbarMessage("Zapisano pielenie");
+      } else if (payload.actionKind === "MOISTURE_CHECK") {
+        setSnackbarMessage("Zapisano kontrolę wilgotności");
+      } else {
+        setSnackbarMessage("Dodano notatkę");
+      }
+    } catch (err) {
+      setSnackbarMessage(String(getResponseError(err)));
+    }
+  };
+
   const dimensions = useMemo(() => {
     if (!bed) return null;
     const parts = [
@@ -823,6 +884,15 @@ export default function BedDetailsScreen() {
             ) : null}
           </View>
         </View>
+
+        <PrimaryActionButton
+          onPress={openQuickActionModal}
+          icon="lightning-bolt-outline"
+          label="Dodaj akcję"
+          color={palette.accent}
+          disabled={isOffline || postBedQuickAction.isPending}
+          loading={postBedQuickAction.isPending}
+        />
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Informacje o grządce</Text>
@@ -1319,6 +1389,155 @@ export default function BedDetailsScreen() {
           onSubmit={handleCreatePostHarvestTasks}
         />
 
+        <BottomSheetModal
+          visible={quickActionModalVisible}
+          onDismiss={closeQuickActionModal}
+          dismissDisabled={postBedQuickAction.isPending}
+        >
+          {postBedQuickAction.isPending ? <ActivityIndicator /> : null}
+
+          {quickActionStep === "menu" ? (
+            <View style={styles.modalActionsColumn}>
+              <Text style={styles.modalTitle}>Dodaj akcję</Text>
+              <Button
+                mode="contained"
+                onPress={() =>
+                  handleSubmitBedQuickAction({ actionKind: "WATERING" })
+                }
+                disabled={postBedQuickAction.isPending || isOffline}
+              >
+                Podlano
+              </Button>
+              <Button
+                mode="contained"
+                onPress={() =>
+                  handleSubmitBedQuickAction({ actionKind: "WEEDING" })
+                }
+                disabled={postBedQuickAction.isPending || isOffline}
+              >
+                Wypielono
+              </Button>
+              <Button
+                mode="contained"
+                onPress={() => setQuickActionStep("moisture")}
+                disabled={postBedQuickAction.isPending || isOffline}
+              >
+                Kontrola wilgotności
+              </Button>
+              <Button
+                mode="contained"
+                onPress={() => setQuickActionStep("note")}
+                disabled={postBedQuickAction.isPending || isOffline}
+              >
+                Notatka
+              </Button>
+              <Button
+                mode="text"
+                onPress={closeQuickActionModal}
+                disabled={postBedQuickAction.isPending}
+              >
+                Zamknij
+              </Button>
+            </View>
+          ) : null}
+
+          {quickActionStep === "moisture" ? (
+            <View style={styles.modalActionsColumn}>
+              <Text style={styles.modalTitle}>Kontrola wilgotności</Text>
+              <Button
+                mode="contained"
+                onPress={() =>
+                  handleSubmitBedQuickAction({
+                    actionKind: "MOISTURE_CHECK",
+                    moistureLevel: "dry",
+                  })
+                }
+                disabled={postBedQuickAction.isPending || isOffline}
+              >
+                Sucho
+              </Button>
+              <Button
+                mode="contained"
+                onPress={() =>
+                  handleSubmitBedQuickAction({
+                    actionKind: "MOISTURE_CHECK",
+                    moistureLevel: "ok",
+                  })
+                }
+                disabled={postBedQuickAction.isPending || isOffline}
+              >
+                W porządku
+              </Button>
+              <Button
+                mode="contained"
+                onPress={() =>
+                  handleSubmitBedQuickAction({
+                    actionKind: "MOISTURE_CHECK",
+                    moistureLevel: "wet",
+                  })
+                }
+                disabled={postBedQuickAction.isPending || isOffline}
+              >
+                Mokro
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={() => setQuickActionStep("menu")}
+                disabled={postBedQuickAction.isPending}
+              >
+                Wstecz
+              </Button>
+            </View>
+          ) : null}
+
+          {quickActionStep === "note" ? (
+            <View style={styles.modalActionsColumn}>
+              <Text style={styles.modalTitle}>Notatka</Text>
+              <TextInput
+                mode="outlined"
+                label="Treść notatki"
+                value={quickActionNote}
+                onChangeText={setQuickActionNote}
+                multiline
+                numberOfLines={4}
+                style={styles.modalInput}
+                disabled={postBedQuickAction.isPending}
+              />
+              <View style={styles.modalActionsBetween}>
+                <Button
+                  mode="outlined"
+                  onPress={() => setQuickActionStep("menu")}
+                  disabled={postBedQuickAction.isPending}
+                >
+                  Wstecz
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={() => {
+                    const note = quickActionNote.trim();
+                    if (!note) {
+                      setSnackbarMessage("Wpisz notatkę.");
+                      return;
+                    }
+                    handleSubmitBedQuickAction({
+                      actionKind: "NOTE",
+                      note,
+                    });
+                  }}
+                  loading={postBedQuickAction.isPending}
+                  disabled={
+                    postBedQuickAction.isPending ||
+                    isOffline ||
+                    !quickActionNote.trim()
+                  }
+                >
+                  Zapisz
+                </Button>
+              </View>
+            </View>
+          ) : null}
+        </BottomSheetModal>
+
         <Portal>
           <Modal
             visible={!!taskInfoTask}
@@ -1813,6 +2032,31 @@ const makeStyles = (theme: MD3Theme) => {
       borderWidth: 1,
       borderColor: palette.cardBorder,
     },
+    actionSheetModal: {
+      backgroundColor: theme.colors.surface,
+      marginHorizontal: 0,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+      padding: 16,
+      paddingBottom: 26,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+      gap: 12,
+    },
+    bottomSheetModalWrapper: {
+      justifyContent: "flex-end",
+      margin: 0,
+    },
+    actionSheetHandle: {
+      alignSelf: "center",
+      width: 52,
+      height: 5,
+      borderRadius: 999,
+      backgroundColor: theme.colors.outline,
+      marginBottom: 2,
+    },
     modalTitle: {
       fontSize: 18,
       fontWeight: "700",
@@ -1839,6 +2083,14 @@ const makeStyles = (theme: MD3Theme) => {
     },
     modalActionsColumn: {
       gap: 10,
+    },
+    modalActionsBetween: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 10,
+    },
+    modalInput: {
+      backgroundColor: theme.colors.surface,
     },
     deleteButton: {
       borderColor: theme.colors.error,
