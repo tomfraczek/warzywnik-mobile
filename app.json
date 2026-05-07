@@ -27,7 +27,7 @@
         "ACCESS_WIFI_STATE"
       ],
       "googleServicesFile": "./google-services.json",
-      "package": "com.tomfraczek.warzywnikmobile"
+      "package": "com.tomfraczek.warzywnik.mobile"
     },
     "web": {
       "bundler": "metro",

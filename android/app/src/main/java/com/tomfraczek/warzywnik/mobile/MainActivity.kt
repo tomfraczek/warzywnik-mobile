@@ -1,4 +1,4 @@
-package com.tomfraczek.warzywnikmobile
+package com.tomfraczek.warzywnik.mobile
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

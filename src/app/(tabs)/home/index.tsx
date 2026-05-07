@@ -12,9 +12,11 @@ import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { WarningCard } from "@/src/components/ui/WarningCard";
 import { useSettings } from "@/src/context/SettingsProvider";
 import {
+  getTaskContextLabel,
   getTasksForToday,
   getTasksForTomorrow,
   isWeatherWarningTask,
+  resolveTaskTargetType,
 } from "@/src/features/tasks/model";
 import {
   getOperationalWarningsToday,
@@ -222,6 +224,10 @@ export default function HomeScreen() {
     isError: isWeatherError,
     error: weatherError,
   } = useGetMyWeather();
+  const localLocationLabel = location?.label ?? null;
+  const serverLocationLabel = weatherData?.location.label ?? null;
+  const weatherSubtitle =
+    serverLocationLabel ?? localLocationLabel ?? "Brak ustawionej lokalizacji";
   const { data: tasksData, isLoading: tasksLoading } = useGetMyTasks("pending");
   const { data: warningsData, isLoading: warningsLoading } = useGetMyWarnings();
   const { data: articlesData, isLoading: articlesLoading } = useGetArticles({
@@ -343,6 +349,12 @@ export default function HomeScreen() {
     });
   };
 
+  const getWeatherTaskContext = (task: (typeof weatherTasksToday)[number]) => {
+    const targetType = resolveTaskTargetType(task);
+    if (targetType !== "bed" && targetType !== "planting") return null;
+    return getTaskContextLabel(task);
+  };
+
   return (
     <Screen>
       <ScrollView
@@ -371,14 +383,7 @@ export default function HomeScreen() {
         ) : (
           <>
             <Pressable onPress={() => router.push("/(tabs)/home/weather")}>
-              <Card
-                title="Pogoda teraz"
-                subtitle={
-                  weatherData?.location.label ??
-                  location?.label ??
-                  "Brak ustawionej lokalizacji"
-                }
-              >
+              <Card title="Pogoda teraz" subtitle={weatherSubtitle}>
                 {isWeatherError ? (
                   <View style={styles.weatherErrorWrap}>
                     <Text style={styles.placeholder}>
@@ -388,6 +393,13 @@ export default function HomeScreen() {
                           ? "Pogoda chwilowo niedostępna."
                           : "Nie udało się pobrać pogody (błąd serwera)."}
                     </Text>
+                    {isWeatherMissingLocationError(weatherError) &&
+                    localLocationLabel ? (
+                      <Text style={styles.weatherMeta}>
+                        Lokalnie: {localLocationLabel}. Serwer nie ma jeszcze
+                        tej lokalizacji.
+                      </Text>
+                    ) : null}
                     <View style={styles.weatherErrorActions}>
                       {isWeatherMissingLocationError(weatherError) ? (
                         <Button
@@ -483,46 +495,49 @@ export default function HomeScreen() {
                   </Text>
                 ) : (
                   <>
-                    {weatherTasksToday.slice(0, 2).map((task) => (
-                      <Pressable
-                        key={task.id}
-                        style={styles.taskRow}
-                        onPress={handleTaskPress}
-                      >
-                        <View style={styles.taskDayDot} />
-                        <View style={styles.taskContent}>
-                          <Text style={styles.taskTitle}>{task.title}</Text>
-                          <Text style={styles.taskMeta}>
-                            Dziś
-                            {task.bedId || task.plantingId
-                              ? " • " +
-                                (task.meta?.locationLabel ?? task.bedId ?? "")
-                              : ""}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    ))}
-                    {weatherTasksTomorrow.slice(0, 2).map((task) => (
-                      <Pressable
-                        key={task.id}
-                        style={styles.taskRow}
-                        onPress={handleTaskPress}
-                      >
-                        <View
-                          style={[styles.taskDayDot, styles.taskDayDotTomorrow]}
-                        />
-                        <View style={styles.taskContent}>
-                          <Text style={styles.taskTitle}>{task.title}</Text>
-                          <Text style={styles.taskMeta}>
-                            Jutro
-                            {task.bedId || task.plantingId
-                              ? " • " +
-                                (task.meta?.locationLabel ?? task.bedId ?? "")
-                              : ""}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    ))}
+                    {weatherTasksToday.slice(0, 2).map((task) => {
+                      const taskContext = getWeatherTaskContext(task);
+
+                      return (
+                        <Pressable
+                          key={task.id}
+                          style={styles.taskRow}
+                          onPress={handleTaskPress}
+                        >
+                          <View style={styles.taskDayDot} />
+                          <View style={styles.taskContent}>
+                            <Text style={styles.taskTitle}>{task.title}</Text>
+                            <Text style={styles.taskMeta}>
+                              Dziś{taskContext ? " • " + taskContext : ""}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                    {weatherTasksTomorrow.slice(0, 2).map((task) => {
+                      const taskContext = getWeatherTaskContext(task);
+
+                      return (
+                        <Pressable
+                          key={task.id}
+                          style={styles.taskRow}
+                          onPress={handleTaskPress}
+                        >
+                          <View
+                            style={[
+                              styles.taskDayDot,
+                              styles.taskDayDotTomorrow,
+                            ]}
+                          />
+                          <View style={styles.taskContent}>
+                            <Text style={styles.taskTitle}>{task.title}</Text>
+                            <Text style={styles.taskMeta}>
+                              Jutro{taskContext ? " • " + taskContext : ""}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
                   </>
                 )}
               </View>

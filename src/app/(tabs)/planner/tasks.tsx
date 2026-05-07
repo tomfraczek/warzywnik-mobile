@@ -76,6 +76,9 @@ function WeatherTaskCard({ task, onDone, isDoneLoading }: TaskCardProps) {
     if (affectedBedsCount != null)
       return String(affectedBedsCount) + " grządek";
     if (locationLabel) return locationLabel;
+    if (targetType === "bed" && task.bedName) return task.bedName;
+    if (targetType === "planting" && task.vegetableName)
+      return task.vegetableName;
     if (task.bedId) return "Grządka " + String(task.bedId).slice(0, 6);
     if (task.plantingId) return "Uprawa " + String(task.plantingId).slice(0, 6);
     return null;

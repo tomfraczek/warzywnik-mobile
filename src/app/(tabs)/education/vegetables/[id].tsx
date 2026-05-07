@@ -453,7 +453,10 @@ export default function VegetableDetailsScreen() {
   }
 
   return (
-    <Screen style={{ backgroundColor: palette.background }}>
+    <Screen
+      style={{ backgroundColor: palette.background }}
+      safeAreaEdges={["left", "right"]}
+    >
       <ScrollView
         contentContainerStyle={[
           s.scroll,

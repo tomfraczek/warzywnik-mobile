@@ -2,6 +2,7 @@
 
 import { setAuthErrorHandler, setAuthTokenProvider } from "@/src/api/axios";
 import { AuthFlowLoader } from "@/src/components/AuthFlowLoader";
+import { LocationSetupRequiredModal } from "@/src/components/location/LocationSetupRequiredModal";
 import { OfflineBanner } from "@/src/components/OfflineBanner";
 import { isSsoAuthInProgress } from "@/src/features/push/authFlowState";
 import { ClerkProvider, useAuth, useClerk } from "@clerk/clerk-expo";
@@ -319,6 +320,7 @@ function RootLayoutContent() {
             tokenCache={tokenCache}
           >
             <AuthBootstrapGate />
+            <LocationSetupRequiredModal />
           </ClerkProvider>
         </PersistQueryClientProvider>
         <OfflineBanner />

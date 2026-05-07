@@ -1,4 +1,4 @@
-package com.tomfraczek.warzywnikmobile
+package com.tomfraczek.warzywnik.mobile
 
 import android.app.Application
 import android.content.res.Configuration

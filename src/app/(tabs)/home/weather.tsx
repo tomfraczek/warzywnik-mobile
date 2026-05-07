@@ -7,6 +7,7 @@ import { useGetMyWeather } from "@/src/api/queries/users/useGetMyWeather";
 import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
+import { useSettings } from "@/src/context/SettingsProvider";
 import { radius, spacing } from "@/src/theme/ui";
 import {
   formatTemperature,
@@ -130,6 +131,7 @@ function NextDayCard({ item }: { item: WeatherDayItem }) {
 export default function HomeWeatherScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
+  const { location } = useSettings();
 
   const { data, isLoading, isError, error, refetch } = useGetMyWeather();
 
@@ -159,6 +161,8 @@ export default function HomeWeatherScreen() {
   }
 
   if (isError || !data) {
+    const localLocationLabel = location?.label ?? null;
+
     return (
       <Screen safeAreaEdges={["top", "left", "right"]}>
         <View style={styles.center}>
@@ -169,6 +173,12 @@ export default function HomeWeatherScreen() {
                 ? "Pogoda chwilowo niedostępna."
                 : String(getResponseError(error))}
           </Text>
+          {isWeatherMissingLocationError(error) && localLocationLabel ? (
+            <Text style={styles.hintText}>
+              Lokalnie masz ustawione: {localLocationLabel}. Serwer nie ma tej
+              lokalizacji dla bieżącego konta.
+            </Text>
+          ) : null}
           <Button mode="outlined" onPress={() => refetch()}>
             Spróbuj ponownie
           </Button>
@@ -278,6 +288,11 @@ const makeStyles = (theme: MD3Theme) =>
     errorText: {
       fontSize: 14,
       color: theme.colors.error,
+      textAlign: "center",
+    },
+    hintText: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
       textAlign: "center",
     },
     header: {

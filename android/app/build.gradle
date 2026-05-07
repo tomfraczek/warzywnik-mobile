@@ -88,9 +88,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.tomfraczek.warzywnikmobile'
+    namespace 'com.tomfraczek.warzywnik.mobile'
     defaultConfig {
-        applicationId 'com.tomfraczek.warzywnikmobile'
+        applicationId 'com.tomfraczek.warzywnik.mobile'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

@@ -755,7 +755,7 @@ export default function PlantingDetailsScreen() {
       });
       await Promise.allSettled([refetch(), refetchPlantingTasks()]);
       closeQuickActionModal();
-      setSnackbarMessage("Dodano notatkę");
+      setSnackbarMessage("Akcja zarejestrowana: notatka");
     } catch (err) {
       setSnackbarMessage(String(getResponseError(err)));
     }
@@ -2546,13 +2546,16 @@ export default function PlantingDetailsScreen() {
         />
       ) : null}
 
-      <Snackbar
-        visible={!!snackbarMessage}
-        onDismiss={() => setSnackbarMessage(null)}
-        duration={3000}
-      >
-        {snackbarMessage}
-      </Snackbar>
+      <Portal>
+        <Snackbar
+          visible={!!snackbarMessage}
+          onDismiss={() => setSnackbarMessage(null)}
+          duration={3000}
+          wrapperStyle={{ marginBottom: 72 }}
+        >
+          {snackbarMessage}
+        </Snackbar>
+      </Portal>
     </Screen>
   );
 }

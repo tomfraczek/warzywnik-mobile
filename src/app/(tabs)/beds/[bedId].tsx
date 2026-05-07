@@ -716,13 +716,13 @@ export default function BedDetailsScreen() {
       closeQuickActionModal();
 
       if (payload.actionKind === "WATERING") {
-        setSnackbarMessage("Zapisano podlewanie");
+        setSnackbarMessage("Akcja zarejestrowana: podlewanie");
       } else if (payload.actionKind === "WEEDING") {
-        setSnackbarMessage("Zapisano pielenie");
+        setSnackbarMessage("Akcja zarejestrowana: pielenie");
       } else if (payload.actionKind === "MOISTURE_CHECK") {
-        setSnackbarMessage("Zapisano kontrolę wilgotności");
+        setSnackbarMessage("Akcja zarejestrowana: kontrola wilgotności");
       } else {
-        setSnackbarMessage("Dodano notatkę");
+        setSnackbarMessage("Akcja zarejestrowana: notatka");
       }
     } catch (err) {
       setSnackbarMessage(String(getResponseError(err)));
@@ -1697,15 +1697,18 @@ export default function BedDetailsScreen() {
             )}
           </Modal>
         </Portal>
+      </ScrollView>
 
+      <Portal>
         <Snackbar
           visible={!!snackbarMessage}
           onDismiss={() => setSnackbarMessage(null)}
           duration={2400}
+          wrapperStyle={{ marginBottom: 72 }}
         >
           {snackbarMessage}
         </Snackbar>
-      </ScrollView>
+      </Portal>
     </Screen>
   );
 }
