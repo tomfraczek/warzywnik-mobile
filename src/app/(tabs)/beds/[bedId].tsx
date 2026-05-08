@@ -26,6 +26,8 @@ import { usePostHarvestConfirmation } from "@/src/api/queries/plantings/usePostH
 import { MoistureLevel } from "@/src/api/queries/quickActions/types";
 import { useGetBedQuickActionNotes } from "@/src/api/queries/quickActions/useGetBedQuickActionNotes";
 import { usePostBedQuickAction } from "@/src/api/queries/quickActions/usePostBedQuickAction";
+import { TaskItem as MyTaskItem } from "@/src/api/queries/users/meTypes";
+import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { BedSeasonHistorySection } from "@/src/app/(tabs)/beds/_components/BedSeasonHistorySection";
 import { HarvestConfirmationModal } from "@/src/app/(tabs)/beds/_components/HarvestConfirmationModal";
@@ -41,6 +43,7 @@ import {
   getPlantingStatusTone,
   isPlantingActiveLifecycleStatus,
 } from "@/src/features/plantings/status";
+import { isTaskActive, isWeatherWarningTask } from "@/src/features/tasks/model";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { getTodayKey } from "@/src/utils/date";
 import { useQueryClient } from "@tanstack/react-query";
@@ -161,11 +164,11 @@ const sortTasksByDueAt = (tasks: ActionTask[]) =>
 const getTaskRecordDate = (task: ActionTask) =>
   task.doneAt ?? task.dueAt ?? task.createdAt ?? task.updatedAt ?? null;
 
-const sortTaskHistoryDesc = (tasks: ActionTask[]) =>
+const sortTaskHistoryAsc = (tasks: ActionTask[]) =>
   [...tasks].sort((a, b) => {
     const aDate = getTaskRecordDate(a) ?? "0000-01-01";
     const bDate = getTaskRecordDate(b) ?? "0000-01-01";
-    return bDate.localeCompare(aDate);
+    return aDate.localeCompare(bDate);
   });
 
 const getTaskStatusLabel = (status: ActionTask["status"]) => {
@@ -225,6 +228,98 @@ const getActionTaskAggregationScope = (task: ActionTask) => {
   const scope =
     task.metadata?.aggregationScope ?? task.meta?.aggregationScope ?? "none";
   return scope;
+};
+
+const normalizeMyTaskStatus = (status: unknown): ActionTask["status"] => {
+  const normalized = String(status ?? "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "done") return "done";
+  if (normalized === "canceled" || normalized === "cancelled") {
+    return "canceled";
+  }
+  return "pending";
+};
+
+const normalizeMyTaskSource = (
+  source: unknown,
+): ActionTask["source"] | undefined => {
+  const normalized = String(source ?? "")
+    .trim()
+    .toUpperCase();
+  if (normalized === "MANUAL") return "MANUAL";
+  if (normalized === "AUTOMATION") return "AUTOMATION";
+  if (normalized === "SUGGESTION") return "SUGGESTION";
+  if (normalized === "WEATHER_WARNING") return "WEATHER_WARNING";
+  if (normalized === "VEGETABLE_RULE") return "VEGETABLE_RULE";
+  return undefined;
+};
+
+const mapMyTaskToActionTask = (task: MyTaskItem): ActionTask => ({
+  id: task.id,
+  title: task.title,
+  description: task.description ?? null,
+  dueAt: task.dueAt ?? null,
+  status: normalizeMyTaskStatus(task.status),
+  source: normalizeMyTaskSource(task.source),
+  sourceType:
+    task.sourceType === "MANUAL" ||
+    task.sourceType === "AUTOMATION" ||
+    task.sourceType === "SUGGESTION"
+      ? task.sourceType
+      : undefined,
+  targetType: task.targetType as ActionTask["targetType"],
+  bedId: task.bedId ?? null,
+  plantingId: task.plantingId ?? null,
+  bedName: task.bedName ?? null,
+  vegetableName: task.vegetableName ?? null,
+  actionTemplate: task.actionTemplate
+    ? {
+        id: task.actionTemplate.id,
+        slug: task.actionTemplate.slug,
+        name: task.actionTemplate.name,
+        target: task.actionTemplate.target,
+        type: task.actionTemplate.type,
+        description: task.actionTemplate.description ?? null,
+        defaultDueOffsetDays: task.actionTemplate.defaultDueOffsetDays,
+      }
+    : null,
+  isManuallyRescheduled: task.isManuallyRescheduled,
+  meta: task.meta ?? null,
+  metadata: task.metadata ?? null,
+  suppressedAt: task.suppressedAt ?? null,
+});
+
+const isBedWeatherTaskForBed = (task: MyTaskItem, bedId: string | null) => {
+  if (!bedId) return false;
+  if (!isTaskActive(task) || !isWeatherWarningTask(task)) return false;
+
+  const targetType = task.targetType?.trim().toUpperCase();
+  const metaScope =
+    typeof task.meta?.scope === "string"
+      ? task.meta.scope.trim().toUpperCase()
+      : typeof task.metadata?.scope === "string"
+        ? task.metadata.scope.trim().toUpperCase()
+        : null;
+
+  const isBedScoped = targetType === "BED" || metaScope === "BED";
+  if (!isBedScoped) return false;
+
+  if (task.bedId === bedId) return true;
+
+  const affectedBedIdsMeta = Array.isArray(task.meta?.affectedBedIds)
+    ? task.meta?.affectedBedIds
+    : Array.isArray(task.metadata?.affectedBedIds)
+      ? task.metadata?.affectedBedIds
+      : [];
+
+  if (affectedBedIdsMeta.includes(bedId)) return true;
+
+  const affectsAllBeds =
+    task.meta?.affectsAllBeds === true ||
+    task.metadata?.affectsAllBeds === true;
+
+  return affectsAllBeds;
 };
 
 type PlantingRowProps = {
@@ -367,6 +462,12 @@ export default function BedDetailsScreen() {
     undefined,
     "own",
   );
+  const {
+    data: myTasksData,
+    isLoading: isMyTasksLoading,
+    error: myTasksError,
+    refetch: refetchMyTasks,
+  } = useGetMyTasks("pending");
   const deleteBed = useDeleteBed();
   const updateBed = useUpdateBed(resolvedBedId ?? "");
   const updateActionTask = useUpdateActionTask();
@@ -419,19 +520,30 @@ export default function BedDetailsScreen() {
     () => historyBedTasksResponse?.items ?? [],
     [historyBedTasksResponse?.items],
   );
-  const pendingTasks = useMemo(
+  const weatherBedTasks = useMemo(
     () =>
-      sortTasksByDueAt(
-        pendingBedTasks.filter((task) => {
-          if (task.status !== "pending" || task.suppressedAt) return false;
-          return resolveActionTaskTargetType(task) === "bed";
-        }),
-      ),
-    [pendingBedTasks],
+      (myTasksData?.items ?? [])
+        .filter((task) => isBedWeatherTaskForBed(task, resolvedBedId ?? null))
+        .map(mapMyTaskToActionTask),
+    [myTasksData?.items, resolvedBedId],
   );
+  const pendingTasks = useMemo(() => {
+    const ownPendingBedTasks = pendingBedTasks.filter((task) => {
+      if (task.status !== "pending" || task.suppressedAt) return false;
+      return resolveActionTaskTargetType(task) === "bed";
+    });
+
+    const existingIds = new Set(ownPendingBedTasks.map((task) => task.id));
+    const merged = [
+      ...ownPendingBedTasks,
+      ...weatherBedTasks.filter((task) => !existingIds.has(task.id)),
+    ];
+
+    return sortTasksByDueAt(merged);
+  }, [pendingBedTasks, weatherBedTasks]);
   const historyTasks = useMemo(
     () =>
-      sortTaskHistoryDesc(
+      sortTaskHistoryAsc(
         historyBedTasks.filter((task) => {
           const isDoneOrCanceled =
             task.status === "done" || task.status === "canceled";
@@ -525,6 +637,9 @@ export default function BedDetailsScreen() {
   const hasAttentionItems =
     harvestPrompts.length > 0 || pendingTasks.length > 0;
 
+  const tasksError = bedTasksError ?? myTasksError;
+  const isTasksLoading = isBedTasksLoading || isMyTasksLoading;
+
   const attentionPlantingIds = useMemo(() => {
     const ids = new Set<string>();
     harvestPrompts.forEach((prompt) => ids.add(prompt.plantingId));
@@ -612,9 +727,12 @@ export default function BedDetailsScreen() {
         payload: { status: "done" },
       });
       setSnackbarMessage("Zadanie wykonane");
-      await refetchPendingBedTasks();
-      await refetchHistoryBedTasks();
-      await refetchPlantings();
+      await Promise.allSettled([
+        refetchPendingBedTasks(),
+        refetchHistoryBedTasks(),
+        refetchPlantings(),
+        refetchMyTasks(),
+      ]);
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
     }
@@ -631,9 +749,12 @@ export default function BedDetailsScreen() {
         bedId: resolvedBedId ?? null,
       });
       setSnackbarMessage("Zadanie usunięte");
-      await refetchPendingBedTasks();
-      await refetchHistoryBedTasks();
-      await refetchPlantings();
+      await Promise.allSettled([
+        refetchPendingBedTasks(),
+        refetchHistoryBedTasks(),
+        refetchPlantings(),
+        refetchMyTasks(),
+      ]);
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
     }
@@ -1127,22 +1248,28 @@ export default function BedDetailsScreen() {
             style={styles.segmentedButtons}
           />
 
-          {isBedTasksLoading ? <ActivityIndicator /> : null}
+          {isTasksLoading ? <ActivityIndicator /> : null}
 
-          {bedTasksError ? (
+          {tasksError ? (
             <View style={styles.inlineErrorBox}>
               <Text style={styles.errorText}>
-                {String(getResponseError(bedTasksError))}
+                {String(getResponseError(tasksError))}
               </Text>
-              <Button mode="outlined" onPress={() => refetchPendingBedTasks()}>
+              <Button
+                mode="outlined"
+                onPress={() => {
+                  void Promise.allSettled([
+                    refetchPendingBedTasks(),
+                    refetchMyTasks(),
+                  ]);
+                }}
+              >
                 Spróbuj ponownie
               </Button>
             </View>
           ) : null}
 
-          {!isBedTasksLoading &&
-          !bedTasksError &&
-          filteredTasks.length === 0 ? (
+          {!isTasksLoading && !tasksError && filteredTasks.length === 0 ? (
             <Text style={styles.valueText}>
               {tasksFilter === "active"
                 ? "Brak aktywnych zadań."

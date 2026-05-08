@@ -23,11 +23,11 @@ const formatDate = (value?: string | null) => {
 const getTaskRecordDate = (task: ActionTask) =>
   task.doneAt ?? task.dueAt ?? task.createdAt ?? task.updatedAt ?? null;
 
-const sortTaskHistoryDesc = (tasks: ActionTask[]) =>
+const sortTaskHistoryAsc = (tasks: ActionTask[]) =>
   [...tasks].sort((a, b) => {
     const aDate = getTaskRecordDate(a) ?? "0000-01-01";
     const bDate = getTaskRecordDate(b) ?? "0000-01-01";
-    return bDate.localeCompare(aDate);
+    return aDate.localeCompare(bDate);
   });
 
 const getTaskStatusLabel = (status: ActionTask["status"]) => {
@@ -77,7 +77,7 @@ export default function BedHistoryScreen() {
   );
   const allHistoryTasks = useMemo(
     () =>
-      sortTaskHistoryDesc(
+      sortTaskHistoryAsc(
         (data?.items ?? []).filter(
           (task) => task.status === "done" || task.status === "canceled",
         ),

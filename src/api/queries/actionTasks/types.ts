@@ -91,6 +91,7 @@ export const resolveActionTaskSourceType = (
   if (legacySource === "MANUAL") return "MANUAL";
   if (legacySource === "AUTOMATION") return "AUTOMATION";
   if (legacySource === "SUGGESTION") return "SUGGESTION";
+  if (legacySource === "WEATHER_WARNING") return "AUTOMATION";
   if (legacySource === "VEGETABLE_RULE") return "AUTOMATION";
   return null;
 };

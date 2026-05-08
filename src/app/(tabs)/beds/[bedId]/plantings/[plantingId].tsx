@@ -38,6 +38,8 @@ import { useGetPlantingAvailableStatuses } from "@/src/api/queries/plantings/use
 import { useUpdatePlanting } from "@/src/api/queries/plantings/useUpdatePlanting";
 import { useGetPlantingQuickActionNotes } from "@/src/api/queries/quickActions/useGetPlantingQuickActionNotes";
 import { usePostPlantingQuickAction } from "@/src/api/queries/quickActions/usePostPlantingQuickAction";
+import { TaskItem as MyTaskItem } from "@/src/api/queries/users/meTypes";
+import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { Screen } from "@/src/components/Screen";
 import CustomHeader from "@/src/components/navigation/CustomHeader";
@@ -49,6 +51,7 @@ import {
   getPlantingStatusLabel,
   getPlantingStatusTone,
 } from "@/src/features/plantings/status";
+import { isTaskActive, isWeatherWarningTask } from "@/src/features/tasks/model";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { getTodayKey } from "@/src/utils/date";
 import { formatQualityRating, formatYield } from "@/src/utils/learningMappers";
@@ -227,6 +230,96 @@ const getStatusLabel = (
   return "Opanowany";
 };
 
+const normalizeMyTaskStatus = (status: unknown): ActionTask["status"] => {
+  const normalized = String(status ?? "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "done") return "done";
+  if (normalized === "canceled" || normalized === "cancelled") {
+    return "canceled";
+  }
+  return "pending";
+};
+
+const normalizeMyTaskSource = (
+  source: unknown,
+): ActionTask["source"] | undefined => {
+  const normalized = String(source ?? "")
+    .trim()
+    .toUpperCase();
+  if (normalized === "MANUAL") return "MANUAL";
+  if (normalized === "AUTOMATION") return "AUTOMATION";
+  if (normalized === "SUGGESTION") return "SUGGESTION";
+  if (normalized === "WEATHER_WARNING") return "WEATHER_WARNING";
+  if (normalized === "VEGETABLE_RULE") return "VEGETABLE_RULE";
+  return undefined;
+};
+
+const mapMyTaskToActionTask = (task: MyTaskItem): ActionTask => ({
+  id: task.id,
+  title: task.title,
+  description: task.description ?? null,
+  dueAt: task.dueAt ?? null,
+  status: normalizeMyTaskStatus(task.status),
+  source: normalizeMyTaskSource(task.source),
+  sourceType:
+    task.sourceType === "MANUAL" ||
+    task.sourceType === "AUTOMATION" ||
+    task.sourceType === "SUGGESTION"
+      ? task.sourceType
+      : undefined,
+  targetType: task.targetType as ActionTask["targetType"],
+  bedId: task.bedId ?? null,
+  plantingId: task.plantingId ?? null,
+  bedName: task.bedName ?? null,
+  vegetableName: task.vegetableName ?? null,
+  actionTemplate: task.actionTemplate
+    ? {
+        id: task.actionTemplate.id,
+        slug: task.actionTemplate.slug,
+        name: task.actionTemplate.name,
+        target: task.actionTemplate.target,
+        type: task.actionTemplate.type,
+        description: task.actionTemplate.description ?? null,
+        defaultDueOffsetDays: task.actionTemplate.defaultDueOffsetDays,
+      }
+    : null,
+  isManuallyRescheduled: task.isManuallyRescheduled,
+  meta: task.meta ?? null,
+  metadata: task.metadata ?? null,
+  suppressedAt: task.suppressedAt ?? null,
+});
+
+const isPlantingWeatherTaskForPlanting = (
+  task: MyTaskItem,
+  plantingId: string | null,
+) => {
+  if (!plantingId) return false;
+  if (!isTaskActive(task) || !isWeatherWarningTask(task)) return false;
+
+  const targetType = task.targetType?.trim().toUpperCase();
+  const metaScope =
+    typeof task.meta?.scope === "string"
+      ? task.meta.scope.trim().toUpperCase()
+      : typeof task.metadata?.scope === "string"
+        ? task.metadata.scope.trim().toUpperCase()
+        : null;
+
+  const isPlantingScoped =
+    targetType === "PLANTING" || metaScope === "PLANTING";
+  if (!isPlantingScoped) return false;
+
+  if (task.plantingId === plantingId) return true;
+
+  const affectedPlantingIdsMeta = Array.isArray(task.meta?.affectedPlantingIds)
+    ? task.meta?.affectedPlantingIds
+    : Array.isArray(task.metadata?.affectedPlantingIds)
+      ? task.metadata?.affectedPlantingIds
+      : [];
+
+  return affectedPlantingIdsMeta.includes(plantingId);
+};
+
 export default function PlantingDetailsScreen() {
   const theme = useTheme<MD3Theme>();
   const palette = buildPalette(theme.dark);
@@ -261,6 +354,12 @@ export default function PlantingDetailsScreen() {
     isLoading: isPlantingTasksLoading,
     error: plantingTasksError,
   } = useGetPlantingActionTasks(resolvedPlantingId ?? null, "pending");
+  const {
+    data: myTasksData,
+    isLoading: isMyTasksLoading,
+    error: myTasksError,
+    refetch: refetchMyTasks,
+  } = useGetMyTasks("pending");
   const updateActionTask = useUpdateActionTask();
 
   const [problemsTab, setProblemsTab] = useState<"diseases" | "pests">(
@@ -441,6 +540,15 @@ export default function PlantingDetailsScreen() {
     () => pestDictionaryQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [pestDictionaryQuery.data?.pages],
   );
+  const weatherPlantingTasks = useMemo(
+    () =>
+      (myTasksData?.items ?? [])
+        .filter((task) =>
+          isPlantingWeatherTaskForPlanting(task, resolvedPlantingId ?? null),
+        )
+        .map(mapMyTaskToActionTask),
+    [myTasksData?.items, resolvedPlantingId],
+  );
   const commonPests = useMemo(
     () =>
       commonPestsQuery.data?.pages
@@ -468,15 +576,19 @@ export default function PlantingDetailsScreen() {
       (diseaseResolvedQuery.data?.length ?? 0) +
       (pestResolvedQuery.data?.length ?? 0) >
     0;
-  const plantingTasks = useMemo(
-    () =>
-      sortTasksByDueAt(
-        (plantingTasksResponse?.items ?? []).filter(
-          (task) => task.status === "pending" && !task.suppressedAt,
-        ),
-      ),
-    [plantingTasksResponse?.items],
-  );
+  const plantingTasks = useMemo(() => {
+    const ownPendingTasks = (plantingTasksResponse?.items ?? []).filter(
+      (task) => task.status === "pending" && !task.suppressedAt,
+    );
+
+    const existingIds = new Set(ownPendingTasks.map((task) => task.id));
+    const merged = [
+      ...ownPendingTasks,
+      ...weatherPlantingTasks.filter((task) => !existingIds.has(task.id)),
+    ];
+
+    return sortTasksByDueAt(merged);
+  }, [plantingTasksResponse?.items, weatherPlantingTasks]);
   const groupedPlantingTasks = useMemo(() => {
     const overdue: ActionTask[] = [];
     const active: ActionTask[] = [];
@@ -518,6 +630,8 @@ export default function PlantingDetailsScreen() {
     if (tasksFilter === "overdue") return groupedPlantingTasks.overdue;
     return groupedPlantingTasks.active;
   }, [groupedPlantingTasks, tasksFilter]);
+  const tasksError = plantingTasksError ?? myTasksError;
+  const isTasksLoading = isPlantingTasksLoading || isMyTasksLoading;
 
   useEffect(() => {
     if (taskIdsCompleting.length === 0) return;
@@ -819,8 +933,11 @@ export default function PlantingDetailsScreen() {
         payload: { status: "done" },
       });
       setSnackbarMessage("Zadanie wykonane");
-      await refetchPlantingTasks();
-      await refetch();
+      await Promise.allSettled([
+        refetchPlantingTasks(),
+        refetch(),
+        refetchMyTasks(),
+      ]);
     } catch (err) {
       setTaskIdsCompleting((prev) => prev.filter((id) => id !== taskId));
       Alert.alert("Błąd", String(getResponseError(err)));
@@ -838,8 +955,11 @@ export default function PlantingDetailsScreen() {
         payload: { status: "canceled" },
       });
       setSnackbarMessage("Zadanie anulowane.");
-      await refetchPlantingTasks();
-      await refetch();
+      await Promise.allSettled([
+        refetchPlantingTasks(),
+        refetch(),
+        refetchMyTasks(),
+      ]);
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
     }
@@ -1417,21 +1537,29 @@ export default function PlantingDetailsScreen() {
 
         <Surface style={styles.section} elevation={0}>
           <Text style={styles.sectionTitle}>Zadania</Text>
-          {isPlantingTasksLoading ? <ActivityIndicator /> : null}
+          {isTasksLoading ? <ActivityIndicator /> : null}
 
-          {plantingTasksError ? (
+          {tasksError ? (
             <View>
               <Text style={styles.errorText}>
-                {String(getResponseError(plantingTasksError))}
+                {String(getResponseError(tasksError))}
               </Text>
-              <Button mode="outlined" onPress={() => refetchPlantingTasks()}>
+              <Button
+                mode="outlined"
+                onPress={() => {
+                  void Promise.allSettled([
+                    refetchPlantingTasks(),
+                    refetchMyTasks(),
+                  ]);
+                }}
+              >
                 Spróbuj ponownie
               </Button>
             </View>
           ) : null}
 
-          {!isPlantingTasksLoading &&
-          !plantingTasksError &&
+          {!isTasksLoading &&
+          !tasksError &&
           groupedPlantingTasks.visibleCount === 0 ? (
             <View style={styles.tasksCelebrationCard}>
               <View style={styles.tasksCelebrationConfettiLayer}>
