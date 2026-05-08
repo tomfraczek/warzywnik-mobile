@@ -11,6 +11,8 @@ import {
   createEmptyPlantingFormValues,
   validatePlantingForm,
 } from "@/src/app/(tabs)/beds/_utils/plantingForm";
+import { Screen } from "@/src/components/Screen";
+import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { useFocusEffect } from "@react-navigation/native";
@@ -28,6 +30,9 @@ export default function PlantingCreateScreen() {
   const { data: bed } = useGetBed(resolvedBedId ?? null);
   const [warningsVisible, setWarningsVisible] = useState(false);
   const [warnings, setWarnings] = useState<Warning[]>([]);
+  const [validationMessage, setValidationMessage] = useState<string | null>(
+    null,
+  );
   const createPlanting = useCreatePlanting();
   const isOffline = useIsOffline();
 
@@ -46,18 +51,17 @@ export default function PlantingCreateScreen() {
 
   const handleSubmit = async () => {
     if (isOffline) {
-      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
       return;
     }
     const errorMessage = validatePlantingForm(values);
     if (errorMessage) {
-      Alert.alert("Błąd", errorMessage);
+      setValidationMessage(errorMessage);
       return;
     }
     if (!resolvedBedId) {
-      Alert.alert("Błąd", "Brak identyfikatora grządki.");
       return;
     }
+    setValidationMessage(null);
 
     try {
       if (__DEV__) {
@@ -105,14 +109,33 @@ export default function PlantingCreateScreen() {
   };
 
   return (
-    <>
+    <Screen safeAreaEdges={["left", "right", "bottom"]}>
+      <CustomHeader title="Nowa uprawa" showBack />
       <PlantingForm
         values={values}
-        onChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))}
+        onChange={(patch) => {
+          setValues((prev) => ({ ...prev, ...patch }));
+          if (validationMessage && patch.vegetableId) {
+            setValidationMessage(null);
+          }
+        }}
         onSubmit={handleSubmit}
         submitLabel="Dodaj uprawę"
         isSubmitting={createPlanting.isPending}
         showSowedAt={false}
+        showHeaderIntro
+        screenTitle="Nowa uprawa"
+        screenSubtitle="Dodaj nową uprawę do swojej grządki."
+        heroPillLabel="Nowa uprawa"
+        heroTitle="Rozpocznij nową uprawę"
+        heroDescription="Wybierz warzywo i sposób rozpoczęcia uprawy."
+        validationMessage={validationMessage}
+        offlineMessage={isOffline ? OFFLINE_MUTATION_MESSAGE : null}
+        blockingMessage={
+          resolvedBedId
+            ? null
+            : "Nie udało się otworzyć kontekstu grządki. Wróć do listy grządek i spróbuj ponownie."
+        }
         onPickVegetable={() => router.push("/(tabs)/beds/vegetables")}
         onClearVegetable={() =>
           setValues((prev) => ({
@@ -137,6 +160,6 @@ export default function PlantingCreateScreen() {
           setWarningsVisible(false);
         }}
       />
-    </>
+    </Screen>
   );
 }

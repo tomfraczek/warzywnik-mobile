@@ -18,7 +18,7 @@ export default function BedsLayout() {
       <Stack.Screen name="[bedId]/edit" options={{ title: "Edytuj grządkę" }} />
       <Stack.Screen
         name="[bedId]/plantings/new"
-        options={{ title: "Nowa uprawa" }}
+        options={{ title: "Nowa uprawa", headerShown: false }}
       />
       <Stack.Screen
         name="[bedId]/plantings/[plantingId]"
@@ -41,7 +41,10 @@ export default function BedsLayout() {
         options={{ title: "Notatki" }}
       />
       <Stack.Screen name="soils" options={{ title: "Wybierz glebę" }} />
-      <Stack.Screen name="vegetables" options={{ title: "Wybierz warzywo" }} />
+      <Stack.Screen
+        name="vegetables"
+        options={{ title: "Wybierz warzywo", headerShown: false }}
+      />
       <Stack.Screen name="garden" options={{ title: "Ogród" }} />
     </Stack>
   );

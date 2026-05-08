@@ -38,11 +38,29 @@ function WarningsModalComponent({
 }: WarningsModalProps) {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
-  const getSeverityColor = (severity: WarningSeverity) => {
-    if (severity === "CRITICAL") return theme.colors.error;
-    if (severity === "WARNING") return theme.colors.tertiary;
-    return theme.colors.primary;
+  const getSeverityTone = (severity: WarningSeverity) => {
+    if (severity === "CRITICAL") {
+      return {
+        bg: theme.dark ? "#2C1F1F" : "#FCEEF0",
+        border: theme.dark ? "#503434" : "#F3D1D7",
+        text: theme.dark ? "#E4A5AE" : "#A94A58",
+      };
+    }
+    if (severity === "WARNING") {
+      return {
+        bg: theme.dark ? "#2A251B" : "#FDF5E8",
+        border: theme.dark ? "#4A3D27" : "#F0DFC0",
+        text: theme.dark ? "#E1C48B" : "#9B6E2A",
+      };
+    }
+
+    return {
+      bg: theme.dark ? "#1A2328" : "#EEF6FB",
+      border: theme.dark ? "#2B3A42" : "#D3E7F4",
+      text: theme.dark ? "#9FC6DD" : "#3F6C89",
+    };
   };
+
   const getSeverityIcon = (severity: WarningSeverity) => {
     if (severity === "CRITICAL") return "alert";
     if (severity === "WARNING") return "alert";
@@ -62,27 +80,39 @@ function WarningsModalComponent({
       >
         <View style={styles.sheet}>
           <Text style={styles.title}>Wykryte ostrzeżenia</Text>
+          <Text style={styles.subtitle}>
+            Zanim dodasz uprawę, sprawdź wykryte uwagi i zdecyduj, czy chcesz je
+            poprawić teraz.
+          </Text>
           <ScrollView
             style={styles.list}
             contentContainerStyle={styles.listContent}
           >
             {warnings.map((warning, index) => (
-              <View key={`${warning.code}-${index}`} style={styles.card}>
-                <View
-                  style={[
-                    styles.severityBar,
-                    { backgroundColor: getSeverityColor(warning.severity) },
-                  ]}
-                />
+              <View
+                key={`${warning.code}-${index}`}
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: getSeverityTone(warning.severity).bg,
+                    borderColor: getSeverityTone(warning.severity).border,
+                  },
+                ]}
+              >
                 <View style={styles.cardHeader}>
                   <View style={styles.iconWrap}>
                     <MaterialCommunityIcons
                       name={getSeverityIcon(warning.severity)}
                       size={18}
-                      color={getSeverityColor(warning.severity)}
+                      color={getSeverityTone(warning.severity).text}
                     />
                   </View>
-                  <Text style={styles.cardTitle}>
+                  <Text
+                    style={[
+                      styles.cardTitle,
+                      { color: getSeverityTone(warning.severity).text },
+                    ]}
+                  >
                     {interpolateWarningText(warning.title, warning.details)}
                   </Text>
                 </View>
@@ -101,7 +131,7 @@ function WarningsModalComponent({
             <Button
               mode="outlined"
               onPress={onCancel}
-              style={styles.actionButton}
+              style={styles.secondaryButton}
             >
               Wróć i popraw
             </Button>
@@ -128,54 +158,49 @@ const makeStyles = (theme: MD3Theme) =>
     },
     sheet: {
       backgroundColor: theme.colors.surface,
-      padding: 16,
-      borderRadius: 18,
+      padding: 20,
+      borderRadius: 26,
       maxHeight: "80%",
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 3 },
       shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 3,
+      shadowRadius: 14,
+      elevation: 4,
     },
     title: {
-      fontSize: 18,
+      fontSize: 21,
       fontWeight: "700",
-      marginBottom: 12,
+      marginBottom: 6,
       color: theme.colors.onSurface,
+    },
+    subtitle: {
+      fontSize: 13,
+      lineHeight: 19,
+      color: theme.colors.onSurfaceVariant,
+      marginBottom: 14,
     },
     list: {
       maxHeight: "70%",
     },
     listContent: {
-      paddingBottom: 24,
+      paddingBottom: 20,
     },
     card: {
-      borderRadius: 12,
+      borderRadius: 16,
       padding: 12,
-      marginBottom: 12,
-      backgroundColor: theme.colors.surfaceVariant,
-      borderWidth: 0,
-      overflow: "hidden",
-      position: "relative",
-    },
-    severityBar: {
-      position: "absolute",
-      left: 0,
-      top: 0,
-      bottom: 0,
-      width: 4,
+      marginBottom: 10,
+      borderWidth: 1,
     },
     cardHeader: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 8,
+      marginBottom: 7,
       gap: 8,
     },
     cardTitle: {
-      fontSize: 14,
+      fontSize: 15,
       fontWeight: "600",
       flex: 1,
-      color: theme.colors.onSurface,
     },
     iconWrap: {
       width: 22,
@@ -186,22 +211,24 @@ const makeStyles = (theme: MD3Theme) =>
     cardMessage: {
       fontSize: 13,
       color: theme.colors.onSurface,
-      marginBottom: 8,
+      marginBottom: 6,
     },
     cardHint: {
       fontSize: 12,
       color: theme.colors.onSurfaceVariant,
     },
     actions: {
-      flexDirection: "column",
+      flexDirection: "row",
       gap: 10,
-      marginTop: 12,
+      marginTop: 6,
     },
-    actionButton: {
+    secondaryButton: {
       borderColor: theme.colors.outline,
-      width: "100%",
+      flex: 1,
+      borderRadius: 14,
     },
     primaryButton: {
-      width: "100%",
+      flex: 1,
+      borderRadius: 14,
     },
   });

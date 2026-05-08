@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { TextInput as PaperTextInput } from "react-native-paper";
+import { Icon, MD3Theme, useTheme } from "react-native-paper";
 import { DatePickerModal } from "react-native-paper-dates";
 
 type PlantingFormProps = {
@@ -23,6 +23,15 @@ type PlantingFormProps = {
   showSowedAt?: boolean;
   onPickVegetable: () => void;
   onClearVegetable?: () => void;
+  showHeaderIntro?: boolean;
+  screenTitle?: string;
+  screenSubtitle?: string;
+  heroPillLabel?: string;
+  heroTitle?: string;
+  heroDescription?: string;
+  validationMessage?: string | null;
+  offlineMessage?: string | null;
+  blockingMessage?: string | null;
 };
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -40,6 +49,33 @@ const parseIsoDate = (value?: string) => {
   return Number.isNaN(d.getTime()) ? undefined : d;
 };
 
+function buildPalette(dark: boolean) {
+  return {
+    background: dark ? "#141816" : "#F7F8F5",
+    cardBg: dark ? "#1A1F1C" : "#FFFFFF",
+    cardBorder: dark ? "#252D29" : "#E8ECE7",
+    heading: dark ? "#F2F5F1" : "#1D2420",
+    secondary: dark ? "#9AA59E" : "#6E7972",
+    tertiary: dark ? "#7A8880" : "#97A29B",
+    accent: dark ? "#7AB88A" : "#4A7C59",
+    accentBg: dark ? "#1A2E1F" : "#EBF5EE",
+    accentBorder: dark ? "#2A4A32" : "#C5DFC9",
+    selectorBg: dark ? "#17201B" : "#F3F7F2",
+    selectorBorder: dark ? "#27322C" : "#E2EAE1",
+    inputBg: dark ? "#161C19" : "#F3F6F2",
+    inputBorder: dark ? "#252D29" : "#E4E9E3",
+    placeholder: dark ? "#5A6660" : "#A8B4AE",
+    heroPillBg: dark ? "#202A23" : "#EDF4EE",
+    heroPillText: dark ? "#9ECFA9" : "#4F7459",
+    offlineBg: dark ? "#212A24" : "#EFF5F0",
+    offlineBorder: dark ? "#2F3C34" : "#D8E6D9",
+    offlineText: dark ? "#AFC7B6" : "#4F6A58",
+    errorBg: dark ? "#2B1F20" : "#FCEFF1",
+    errorBorder: dark ? "#4A3336" : "#F2D3D8",
+    errorText: dark ? "#E5A7B2" : "#B44A5E",
+  };
+}
+
 function PlantingFormComponent({
   values,
   onChange,
@@ -49,7 +85,18 @@ function PlantingFormComponent({
   showSowedAt = true,
   onPickVegetable,
   onClearVegetable,
+  showHeaderIntro = false,
+  screenTitle = "Nowa uprawa",
+  screenSubtitle = "Dodaj nową uprawę do swojej grządki.",
+  heroPillLabel = "Nowa uprawa",
+  heroTitle = "Rozpocznij nową uprawę",
+  heroDescription = "Wybierz warzywo i sposób rozpoczęcia uprawy.",
+  validationMessage,
+  offlineMessage,
+  blockingMessage,
 }: PlantingFormProps) {
+  const theme = useTheme<MD3Theme>();
+  const palette = buildPalette(theme.dark);
   const [sowedOpen, setSowedOpen] = useState(false);
   const isOffline = useIsOffline();
 
@@ -64,89 +111,293 @@ function PlantingFormComponent({
     error: vegetableError,
   } = useGetVegetable(values.vegetableId ?? null);
 
-  const vegetableLabel = values.vegetableId
-    ? isVegetableLoading
-      ? "Ładowanie..."
-      : (vegetable?.name ?? (vegetableError ? "Brak danych" : "Brak danych"))
-    : "Wybierz warzywo";
+  const resolvedVegetableName =
+    vegetable?.name?.trim() || values.vegetableName?.trim() || null;
+  const submitDisabled =
+    Boolean(isSubmitting) || isOffline || !!blockingMessage;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Podstawy</Text>
+    <ScrollView
+      contentContainerStyle={[
+        styles.container,
+        { backgroundColor: palette.background },
+      ]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      {showHeaderIntro ? (
+        <View style={styles.screenIntro}>
+          <Text style={[styles.screenTitle, { color: palette.heading }]}>
+            {screenTitle}
+          </Text>
+          <Text style={[styles.screenSubtitle, { color: palette.secondary }]}>
+            {screenSubtitle}
+          </Text>
+        </View>
+      ) : null}
 
-        <Pressable style={styles.pickerRow} onPress={onPickVegetable}>
-          <View>
-            <Text style={styles.label}>Warzywo *</Text>
-            <Text style={styles.valueText}>{vegetableLabel}</Text>
+      {showHeaderIntro ? (
+        <View
+          style={[
+            styles.heroCard,
+            {
+              backgroundColor: palette.cardBg,
+              borderColor: palette.cardBorder,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.heroPill,
+              {
+                backgroundColor: palette.heroPillBg,
+                borderColor: palette.accentBorder,
+              },
+            ]}
+          >
+            <Text
+              style={[styles.heroPillText, { color: palette.heroPillText }]}
+            >
+              {heroPillLabel}
+            </Text>
           </View>
-          <Text style={styles.linkText}>Wybierz</Text>
+          <Text style={[styles.heroTitle, { color: palette.heading }]}>
+            {heroTitle}
+          </Text>
+          <Text style={[styles.heroDescription, { color: palette.secondary }]}>
+            {heroDescription}
+          </Text>
+        </View>
+      ) : null}
+
+      <View
+        style={[
+          styles.section,
+          { backgroundColor: palette.cardBg, borderColor: palette.cardBorder },
+        ]}
+      >
+        <Text style={[styles.sectionTitle, { color: palette.heading }]}>
+          Podstawy
+        </Text>
+        <Text style={[styles.sectionDescription, { color: palette.tertiary }]}>
+          Zacznij od wyboru warzywa i sposobu rozpoczęcia uprawy.
+        </Text>
+
+        <Text style={[styles.label, { color: palette.secondary }]}>
+          Warzywo *
+        </Text>
+        <Pressable
+          style={[
+            styles.vegetableSelector,
+            {
+              backgroundColor: palette.selectorBg,
+              borderColor: values.vegetableId
+                ? palette.accentBorder
+                : palette.selectorBorder,
+            },
+          ]}
+          onPress={onPickVegetable}
+        >
+          <View style={styles.vegetableSelectorContent}>
+            {isVegetableLoading && values.vegetableId ? (
+              <View style={styles.skeletonWrap}>
+                <View
+                  style={[
+                    styles.skeletonLinePrimary,
+                    { backgroundColor: palette.inputBorder },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.skeletonLineSecondary,
+                    { backgroundColor: palette.inputBorder },
+                  ]}
+                />
+              </View>
+            ) : values.vegetableId ? (
+              <>
+                <Text
+                  style={[styles.vegetableTitle, { color: palette.heading }]}
+                >
+                  {resolvedVegetableName ?? "Wybrane warzywo"}
+                </Text>
+                <Text
+                  style={[
+                    styles.vegetableSubtitle,
+                    { color: palette.secondary },
+                  ]}
+                >
+                  {vegetableError
+                    ? "Nie udało się pobrać danych warzywa"
+                    : "Możesz zmienić wybór w dowolnym momencie"}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text
+                  style={[styles.vegetableTitle, { color: palette.heading }]}
+                >
+                  Wybierz warzywo
+                </Text>
+                <Text
+                  style={[
+                    styles.vegetableSubtitle,
+                    { color: palette.secondary },
+                  ]}
+                >
+                  Przejdź do biblioteki warzyw
+                </Text>
+              </>
+            )}
+          </View>
+          <View style={styles.selectorActionWrap}>
+            <Text
+              style={[styles.selectorActionText, { color: palette.accent }]}
+            >
+              {values.vegetableId ? "Zmień" : "Wybierz"}
+            </Text>
+            <Icon source="chevron-right" size={20} color={palette.accent} />
+          </View>
         </Pressable>
 
+        {validationMessage ? (
+          <Text style={[styles.validationText, { color: palette.errorText }]}>
+            {validationMessage}
+          </Text>
+        ) : null}
+
         {values.vegetableId && onClearVegetable ? (
-          <Pressable onPress={onClearVegetable}>
-            <Text style={styles.clearText}>Usuń wybór</Text>
+          <Pressable onPress={onClearVegetable} style={styles.clearAction}>
+            <Text style={[styles.clearText, { color: palette.errorText }]}>
+              Usuń wybór
+            </Text>
           </Pressable>
         ) : null}
 
-        <Text style={styles.label}>Metoda startu *</Text>
-        <View style={styles.statusRow}>
+        <Text style={[styles.label, { color: palette.secondary }]}>
+          Metoda startu *
+        </Text>
+        <View style={styles.startMethodGrid}>
           <Pressable
             style={[
-              styles.statusChip,
-              values.startMethod === "DIRECT_SOW" && styles.statusChipActive,
+              styles.startMethodCard,
+              {
+                backgroundColor:
+                  values.startMethod === "DIRECT_SOW"
+                    ? palette.accentBg
+                    : palette.selectorBg,
+                borderColor:
+                  values.startMethod === "DIRECT_SOW"
+                    ? palette.accentBorder
+                    : palette.selectorBorder,
+              },
             ]}
             onPress={() => onChange({ startMethod: "DIRECT_SOW" })}
           >
+            <Icon
+              source="seed-outline"
+              size={16}
+              color={
+                values.startMethod === "DIRECT_SOW"
+                  ? palette.accent
+                  : palette.secondary
+              }
+            />
             <Text
               style={[
-                styles.statusChipText,
-                values.startMethod === "DIRECT_SOW" &&
-                  styles.statusChipTextActive,
+                styles.startMethodTitle,
+                {
+                  color:
+                    values.startMethod === "DIRECT_SOW"
+                      ? palette.accent
+                      : palette.heading,
+                },
               ]}
             >
               Siew bezpośredni
+            </Text>
+            <Text
+              style={[styles.startMethodSubtitle, { color: palette.secondary }]}
+            >
+              Nasiona trafiają od razu do grządki
             </Text>
           </Pressable>
 
           <Pressable
             style={[
-              styles.statusChip,
-              values.startMethod === "TRANSPLANT" && styles.statusChipActive,
+              styles.startMethodCard,
+              {
+                backgroundColor:
+                  values.startMethod === "TRANSPLANT"
+                    ? palette.accentBg
+                    : palette.selectorBg,
+                borderColor:
+                  values.startMethod === "TRANSPLANT"
+                    ? palette.accentBorder
+                    : palette.selectorBorder,
+              },
             ]}
             onPress={() => onChange({ startMethod: "TRANSPLANT" })}
           >
+            <Icon
+              source="sprout-outline"
+              size={16}
+              color={
+                values.startMethod === "TRANSPLANT"
+                  ? palette.accent
+                  : palette.secondary
+              }
+            />
             <Text
               style={[
-                styles.statusChipText,
-                values.startMethod === "TRANSPLANT" &&
-                  styles.statusChipTextActive,
+                styles.startMethodTitle,
+                {
+                  color:
+                    values.startMethod === "TRANSPLANT"
+                      ? palette.accent
+                      : palette.heading,
+                },
               ]}
             >
               Rozsada
+            </Text>
+            <Text
+              style={[styles.startMethodSubtitle, { color: palette.secondary }]}
+            >
+              Najpierw przygotowujesz sadzonki
             </Text>
           </Pressable>
         </View>
 
         {showSowedAt ? (
           <>
-            <Text style={styles.label}>Data siewu</Text>
-            <View style={styles.dateRow}>
-              <View style={styles.dateField}>
-                <PaperTextInput
-                  mode="outlined"
-                  value={isoToDateOnly(values.sowedAt)}
-                  placeholder="YYYY-MM-DD"
-                  editable={false}
-                  right={
-                    <PaperTextInput.Icon
-                      icon="calendar"
-                      onPress={() => setSowedOpen(true)}
-                    />
-                  }
-                />
-              </View>
-            </View>
+            <Text style={[styles.label, { color: palette.secondary }]}>
+              Data siewu
+            </Text>
+            <Pressable
+              style={[
+                styles.dateInput,
+                {
+                  backgroundColor: palette.inputBg,
+                  borderColor: palette.inputBorder,
+                },
+              ]}
+              onPress={() => setSowedOpen(true)}
+            >
+              <Text
+                style={[
+                  styles.dateInputText,
+                  {
+                    color: isoToDateOnly(values.sowedAt)
+                      ? palette.heading
+                      : palette.placeholder,
+                  },
+                ]}
+              >
+                {isoToDateOnly(values.sowedAt) || "YYYY-MM-DD"}
+              </Text>
+              <Icon source="calendar" size={18} color={palette.secondary} />
+            </Pressable>
 
             <DatePickerModal
               locale="pl"
@@ -164,23 +415,88 @@ function PlantingFormComponent({
         ) : null}
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notatki</Text>
+      <View
+        style={[
+          styles.section,
+          { backgroundColor: palette.cardBg, borderColor: palette.cardBorder },
+        ]}
+      >
+        <Text style={[styles.sectionTitle, { color: palette.heading }]}>
+          Notatki
+        </Text>
         <TextInput
-          style={[styles.input, styles.textarea]}
+          style={[
+            styles.notesInput,
+            {
+              backgroundColor: palette.inputBg,
+              borderColor: palette.inputBorder,
+              color: palette.heading,
+            },
+          ]}
           value={values.notes}
           onChangeText={(text) => onChange({ notes: text })}
           placeholder="Opcjonalnie"
+          placeholderTextColor={palette.placeholder}
           multiline
+          numberOfLines={5}
+          textAlignVertical="top"
         />
       </View>
+
+      {isOffline && offlineMessage ? (
+        <View
+          style={[
+            styles.inlineNotice,
+            {
+              backgroundColor: palette.offlineBg,
+              borderColor: palette.offlineBorder,
+            },
+          ]}
+        >
+          <Icon
+            source="wifi-strength-off-outline"
+            size={16}
+            color={palette.offlineText}
+          />
+          <Text
+            style={[styles.inlineNoticeText, { color: palette.offlineText }]}
+          >
+            {offlineMessage}
+          </Text>
+        </View>
+      ) : null}
+
+      {blockingMessage ? (
+        <View
+          style={[
+            styles.blockingCard,
+            {
+              backgroundColor: palette.errorBg,
+              borderColor: palette.errorBorder,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.blockingCardTitle, { color: palette.errorText }]}
+          >
+            Nie można kontynuować
+          </Text>
+          <Text style={[styles.blockingCardText, { color: palette.errorText }]}>
+            {blockingMessage}
+          </Text>
+        </View>
+      ) : null}
 
       <Pressable
         style={[
           styles.submitButton,
-          (isSubmitting || isOffline) && styles.disabledButton,
+          {
+            backgroundColor: palette.accent,
+            borderColor: palette.accent,
+          },
+          submitDisabled && styles.disabledButton,
         ]}
-        disabled={Boolean(isSubmitting) || isOffline}
+        disabled={submitDisabled}
         onPress={onSubmit}
       >
         {isSubmitting ? (
@@ -197,103 +513,220 @@ export const PlantingForm = memo(PlantingFormComponent);
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
-    paddingBottom: 32,
-    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 48,
+    gap: 20,
+  },
+  screenIntro: {
+    gap: 8,
+    marginTop: 4,
+  },
+  screenTitle: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: "700",
+    letterSpacing: -0.3,
+  },
+  screenSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  heroCard: {
+    borderWidth: 1,
+    borderRadius: 24,
+    paddingHorizontal: 22,
+    paddingVertical: 20,
+    gap: 10,
+  },
+  heroPill: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  heroPillText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  heroTitle: {
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: "700",
+    letterSpacing: -0.3,
+  },
+  heroDescription: {
+    fontSize: 14,
+    lineHeight: 21,
   },
   section: {
-    marginBottom: 20,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 12,
-    padding: 12,
+    padding: 20,
+    gap: 12,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 12,
+    fontSize: 19,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
+  sectionDescription: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: -4,
+    marginBottom: 4,
   },
   label: {
-    fontSize: 14,
-    color: "#374151",
-    marginBottom: 6,
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 2,
   },
-  input: {
+  vegetableSelector: {
+    minHeight: 82,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  textarea: {
-    minHeight: 90,
-    textAlignVertical: "top",
-  },
-  pickerRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 8,
+    gap: 12,
   },
-  valueText: {
-    fontSize: 14,
-    color: "#111827",
+  vegetableSelectorContent: {
+    flex: 1,
+    gap: 3,
   },
-  linkText: {
-    color: "#2563eb",
+  vegetableTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    lineHeight: 21,
+  },
+  vegetableSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  selectorActionWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  selectorActionText: {
+    fontSize: 13,
     fontWeight: "600",
   },
-  clearText: {
-    color: "#ef4444",
-    marginTop: 8,
+  skeletonWrap: {
+    gap: 8,
+    paddingVertical: 2,
   },
-  dateRow: {
+  skeletonLinePrimary: {
+    width: 140,
+    height: 11,
+    borderRadius: 999,
+  },
+  skeletonLineSecondary: {
+    width: 180,
+    height: 9,
+    borderRadius: 999,
+  },
+  validationText: {
+    marginTop: -4,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+  clearAction: {
+    marginTop: -4,
+    alignSelf: "flex-start",
+  },
+  clearText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  startMethodGrid: {
+    gap: 10,
+  },
+  startMethodCard: {
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    gap: 4,
+  },
+  startMethodTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  startMethodSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  dateInput: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 12,
-  },
-  dateField: {
-    flex: 1,
-  },
-  statusRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  statusChip: {
+    justifyContent: "space-between",
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-    marginBottom: 8,
+    borderRadius: 16,
+    minHeight: 52,
+    paddingHorizontal: 14,
   },
-  statusChipActive: {
-    backgroundColor: "#111827",
-    borderColor: "#111827",
+  dateInputText: {
+    fontSize: 15,
   },
-  statusChipText: {
-    fontSize: 12,
-    color: "#111827",
+  notesInput: {
+    minHeight: 126,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    lineHeight: 21,
   },
-  statusChipTextActive: {
-    color: "#fff",
+  inlineNotice: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  inlineNoticeText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+  blockingCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  blockingCardTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  blockingCardText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   submitButton: {
-    backgroundColor: "#111827",
-    paddingVertical: 12,
-    borderRadius: 10,
+    height: 56,
+    borderRadius: 18,
+    borderWidth: 1,
     alignItems: "center",
-    marginBottom: 8,
+    justifyContent: "center",
+    marginTop: 2,
   },
   disabledButton: {
-    opacity: 0.6,
+    opacity: 0.55,
   },
   submitText: {
     color: "#fff",
-    fontWeight: "600",
+    fontWeight: "700",
+    fontSize: 16,
+    letterSpacing: 0.2,
   },
 });
