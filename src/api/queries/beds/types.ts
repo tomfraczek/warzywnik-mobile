@@ -16,8 +16,6 @@ export type Bed = {
   name: string;
   description?: string | null;
   locationLabel?: string | null;
-  lengthCm?: number | null;
-  widthCm?: number | null;
   depthCm?: number | null;
   cultivationEnvironment?: CultivationEnvironment | null;
   soilId?: string | null;
@@ -36,8 +34,6 @@ export type CreateBedDto = {
   name: string;
   description?: string;
   locationLabel?: string;
-  lengthCm?: number;
-  widthCm?: number;
   depthCm?: number;
   cultivationEnvironment?: CultivationEnvironment;
   soilId?: string | null;

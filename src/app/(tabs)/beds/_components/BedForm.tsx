@@ -200,44 +200,18 @@ function BedFormComponent({
       {/* ── B. Parametry fizyczne ── */}
       <SectionCard
         title="Parametry fizyczne"
-        description="Opcjonalne wymiary grządki w centymetrach."
+        description="Opcjonalna głębokość grządki w centymetrach."
         palette={palette}
       >
-        <View style={s.dimsRow}>
-          <View style={s.dimCol}>
-            <FieldLabel label="Długość (cm)" palette={palette} optional />
-            <TextInput
-              style={inputStyle}
-              value={values.lengthCm}
-              onChangeText={(text) => onChange({ lengthCm: text })}
-              keyboardType="numeric"
-              placeholder="np. 120"
-              placeholderTextColor={palette.placeholder}
-            />
-          </View>
-          <View style={s.dimCol}>
-            <FieldLabel label="Szerokość (cm)" palette={palette} optional />
-            <TextInput
-              style={inputStyle}
-              value={values.widthCm}
-              onChangeText={(text) => onChange({ widthCm: text })}
-              keyboardType="numeric"
-              placeholder="np. 80"
-              placeholderTextColor={palette.placeholder}
-            />
-          </View>
-          <View style={[s.dimCol, s.dimColLast]}>
-            <FieldLabel label="Głębokość (cm)" palette={palette} optional />
-            <TextInput
-              style={inputStyle}
-              value={values.depthCm}
-              onChangeText={(text) => onChange({ depthCm: text })}
-              keyboardType="numeric"
-              placeholder="np. 30"
-              placeholderTextColor={palette.placeholder}
-            />
-          </View>
-        </View>
+        <FieldLabel label="Głębokość (cm)" palette={palette} optional />
+        <TextInput
+          style={inputStyle}
+          value={values.depthCm}
+          onChangeText={(text) => onChange({ depthCm: text })}
+          keyboardType="numeric"
+          placeholder="np. 30"
+          placeholderTextColor={palette.placeholder}
+        />
 
         <View style={{ marginTop: 4 }}>
           <FieldLabel label="Rodzaj uprawy" palette={palette} />
@@ -482,17 +456,6 @@ const s = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 14,
   },
-  // dims row
-  dimsRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 4,
-  },
-  dimCol: {
-    flex: 1,
-    marginRight: 0,
-  },
-  dimColLast: {},
   // cultivation env grid
   envGrid: {
     flexDirection: "row",

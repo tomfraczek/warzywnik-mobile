@@ -9,8 +9,6 @@ export type BedFormValues = {
   name: string;
   description: string;
   locationLabel: string;
-  lengthCm: string;
-  widthCm: string;
   depthCm: string;
   cultivationEnvironment: CultivationEnvironment;
   soilId: string | null;
@@ -27,8 +25,6 @@ export const createEmptyBedFormValues = (): BedFormValues => ({
   name: "",
   description: "",
   locationLabel: "",
-  lengthCm: "",
-  widthCm: "",
   depthCm: "",
   cultivationEnvironment: "GROUND_OUTDOOR",
   soilId: null,
@@ -45,8 +41,6 @@ export const bedToFormValues = (bed: Bed): BedFormValues => ({
   name: bed.name ?? "",
   description: bed.description ?? "",
   locationLabel: bed.locationLabel ?? "",
-  lengthCm: bed.lengthCm != null ? String(bed.lengthCm) : "",
-  widthCm: bed.widthCm != null ? String(bed.widthCm) : "",
   depthCm: bed.depthCm != null ? String(bed.depthCm) : "",
   cultivationEnvironment: bed.cultivationEnvironment ?? "GROUND_OUTDOOR",
   soilId: bed.soilId ?? bed.soil?.id ?? null,
@@ -85,8 +79,6 @@ export const validateBedForm = (values: BedFormValues): string | null => {
   }
 
   const numericErrors = [
-    validateOptionalNumber("Długość", values.lengthCm),
-    validateOptionalNumber("Szerokość", values.widthCm),
     validateOptionalNumber("Głębokość", values.depthCm),
     validateOptionalNumber("N", values.measuredN),
     validateOptionalNumber("P", values.measuredP),
@@ -117,12 +109,6 @@ export const buildCreateBedPayload = (values: BedFormValues): CreateBedDto => {
   const locationLabel = normalizeText(values.locationLabel);
   if (locationLabel) payload.locationLabel = locationLabel;
 
-  const lengthCm = toOptionalNumber(values.lengthCm);
-  if (lengthCm != null) payload.lengthCm = lengthCm;
-
-  const widthCm = toOptionalNumber(values.widthCm);
-  if (widthCm != null) payload.widthCm = widthCm;
-
   const depthCm = toOptionalNumber(values.depthCm);
   if (depthCm != null) payload.depthCm = depthCm;
 
@@ -148,8 +134,6 @@ const normalizeComparable = (values: BedFormValues) => ({
   name: normalizeText(values.name) || null,
   description: normalizeText(values.description) || null,
   locationLabel: normalizeText(values.locationLabel) || null,
-  lengthCm: toOptionalNumber(values.lengthCm),
-  widthCm: toOptionalNumber(values.widthCm),
   depthCm: toOptionalNumber(values.depthCm),
   cultivationEnvironment: values.cultivationEnvironment,
   soilId: values.soilId ?? null,

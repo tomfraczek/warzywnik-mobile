@@ -174,7 +174,7 @@ function BedCard({
   );
   const hasPendingTasks = relevantPendingTasks.length > 0;
   const soilName = bed.soil?.name ?? null;
-  const hasDimensions = bed.lengthCm || bed.widthCm || bed.depthCm;
+  const hasDimensions = bed.depthCm != null;
   const hasMeasurements =
     bed.soilTestingEnabled &&
     (bed.measuredN != null ||
@@ -182,13 +182,7 @@ function BedCard({
       bed.measuredK != null ||
       bed.measuredPh != null);
 
-  const dimensionLabel = [
-    bed.lengthCm ? `${bed.lengthCm}` : null,
-    bed.widthCm ? `${bed.widthCm}` : null,
-    bed.depthCm ? `${bed.depthCm}` : null,
-  ]
-    .filter(Boolean)
-    .join(" × ");
+  const dimensionLabel = bed.depthCm != null ? `${bed.depthCm} cm` : null;
 
   const measurementLabel = [
     bed.measuredN != null ? `N ${bed.measuredN}` : null,
@@ -257,10 +251,10 @@ function BedCard({
         </Text>
       ) : null}
 
-      {/* dimensions */}
+      {/* depth */}
       {hasDimensions ? (
         <Text style={[s.cardDims, { color: palette.meta }]}>
-          {dimensionLabel} cm
+          Głębokość: {dimensionLabel}
         </Text>
       ) : null}
 

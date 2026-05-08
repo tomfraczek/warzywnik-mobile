@@ -852,14 +852,9 @@ export default function BedDetailsScreen() {
     }
   };
 
-  const dimensions = useMemo(() => {
+  const depthLabel = useMemo(() => {
     if (!bed) return null;
-    const parts = [
-      bed.lengthCm != null ? `${bed.lengthCm} cm` : null,
-      bed.widthCm != null ? `${bed.widthCm} cm` : null,
-      bed.depthCm != null ? `${bed.depthCm} cm` : null,
-    ].filter(Boolean);
-    return parts.length > 0 ? parts.join(" × ") : null;
+    return bed.depthCm != null ? `${bed.depthCm} cm` : null;
   }, [bed]);
 
   const cultivationEnvironmentLabel = useMemo(() => {
@@ -1697,26 +1692,12 @@ export default function BedDetailsScreen() {
                 </View>
               </View>
 
-              {dimensions ? (
+              {depthLabel ? (
                 <>
                   <View style={styles.sectionDivider} />
-                  <Text style={styles.subsectionTitle}>Wymiary</Text>
-                  <Text style={styles.dimensionSummary}>{dimensions}</Text>
+                  <Text style={styles.subsectionTitle}>Głębokość grządki</Text>
+                  <Text style={styles.dimensionSummary}>{depthLabel}</Text>
                   <View style={styles.metricGrid}>
-                    {bed.lengthCm != null ? (
-                      <View style={styles.metricCard}>
-                        <Text style={styles.metricLabel}>Długość</Text>
-                        <Text style={styles.metricValue}>{bed.lengthCm}</Text>
-                        <Text style={styles.metricUnit}>cm</Text>
-                      </View>
-                    ) : null}
-                    {bed.widthCm != null ? (
-                      <View style={styles.metricCard}>
-                        <Text style={styles.metricLabel}>Szerokość</Text>
-                        <Text style={styles.metricValue}>{bed.widthCm}</Text>
-                        <Text style={styles.metricUnit}>cm</Text>
-                      </View>
-                    ) : null}
                     {bed.depthCm != null ? (
                       <View style={styles.metricCard}>
                         <Text style={styles.metricLabel}>Głębokość</Text>
