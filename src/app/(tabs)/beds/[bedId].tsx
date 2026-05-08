@@ -87,6 +87,7 @@ function buildPalette(dark: boolean) {
     secondary: dark ? "#9AA59E" : "#6E7972",
     meta: dark ? "#7A8880" : "#97A29B",
     accent: dark ? "#7AB88A" : "#4A7C59",
+    secondaryCta: dark ? "#4C7FB1" : "#356FA5",
     accentBg: dark ? "#1A2E1F" : "#EBF5EE",
     accentBorder: dark ? "#2A4A32" : "#C5DFC9",
     statusActiveBg: dark ? "#1A2E1F" : "#E6F4E9",
@@ -395,6 +396,7 @@ export default function BedDetailsScreen() {
   const [actionsVisible, setActionsVisible] = useState(false);
   const [taskInfoTask, setTaskInfoTask] = useState<ActionTask | null>(null);
   const [quickActionModalVisible, setQuickActionModalVisible] = useState(false);
+  const [bedInfoModalVisible, setBedInfoModalVisible] = useState(false);
   const [quickActionStep, setQuickActionStep] = useState<
     "menu" | "moisture" | "note"
   >("menu");
@@ -843,6 +845,18 @@ export default function BedDetailsScreen() {
                 Grządka
               </Text>
             </View>
+            <Pressable
+              onPress={() => setBedInfoModalVisible(true)}
+              style={styles.heroInfoButton}
+              accessibilityRole="button"
+              accessibilityLabel="Informacje o grządce"
+            >
+              <Icon
+                source="information-outline"
+                size={18}
+                color={palette.secondary}
+              />
+            </Pressable>
           </View>
 
           <View style={styles.titleRow}>
@@ -912,158 +926,24 @@ export default function BedDetailsScreen() {
         <PrimaryActionButton
           onPress={openQuickActionModal}
           icon="lightning-bolt-outline"
-          label="Dodaj akcję"
+          label="Wykonaj akcję"
           color={palette.accent}
           disabled={isOffline || postBedQuickAction.isPending}
           loading={postBedQuickAction.isPending}
           style={styles.quickActionButton}
         />
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Informacje o grządce</Text>
-
-          <Text style={styles.subsectionTitle}>Podstawowe informacje</Text>
-          <View style={styles.infoRows}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Nazwa</Text>
-              <Text style={styles.infoValue}>{bed.name}</Text>
-            </View>
-            {bed.locationLabel ? (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Lokalizacja</Text>
-                <Text style={styles.infoValue}>{bed.locationLabel}</Text>
-              </View>
-            ) : null}
-            {bed.description ? (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Opis</Text>
-                <Text style={styles.infoValue}>{bed.description}</Text>
-              </View>
-            ) : null}
-            <View style={styles.infoRowSwitch}>
-              <View style={styles.infoRowSwitchText}>
-                <Text style={styles.infoLabel}>Status grządki</Text>
-                <Text style={styles.infoValueMuted}>
-                  {bed.isActive !== true ? "Nieaktywna" : "Aktywna"}
-                </Text>
-              </View>
-              <Switch
-                value={bed.isActive === true}
-                onValueChange={handleToggleBedActive}
-                disabled={updateBed.isPending || isOffline}
-              />
-            </View>
-          </View>
-
-          {dimensions ? (
-            <>
-              <View style={styles.sectionDivider} />
-              <Text style={styles.subsectionTitle}>Wymiary</Text>
-              <Text style={styles.dimensionSummary}>{dimensions}</Text>
-              <View style={styles.metricGrid}>
-                {bed.lengthCm != null ? (
-                  <View style={styles.metricCard}>
-                    <Text style={styles.metricLabel}>Długość</Text>
-                    <Text style={styles.metricValue}>{bed.lengthCm}</Text>
-                    <Text style={styles.metricUnit}>cm</Text>
-                  </View>
-                ) : null}
-                {bed.widthCm != null ? (
-                  <View style={styles.metricCard}>
-                    <Text style={styles.metricLabel}>Szerokość</Text>
-                    <Text style={styles.metricValue}>{bed.widthCm}</Text>
-                    <Text style={styles.metricUnit}>cm</Text>
-                  </View>
-                ) : null}
-                {bed.depthCm != null ? (
-                  <View style={styles.metricCard}>
-                    <Text style={styles.metricLabel}>Głębokość</Text>
-                    <Text style={styles.metricValue}>{bed.depthCm}</Text>
-                    <Text style={styles.metricUnit}>cm</Text>
-                  </View>
-                ) : null}
-              </View>
-            </>
-          ) : null}
-
-          <View style={styles.sectionDivider} />
-          <Text style={styles.subsectionTitle}>Środowisko uprawy</Text>
-          <View style={styles.infoRows}>
-            {cultivationEnvironmentLabel ? (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Środowisko</Text>
-                <Text style={styles.infoValue}>
-                  {cultivationEnvironmentLabel}
-                </Text>
-              </View>
-            ) : null}
-            {!cultivationEnvironmentLabel ? (
-              <Text style={styles.valueText}>Brak danych o środowisku.</Text>
-            ) : null}
-          </View>
-
-          <View style={styles.sectionDivider} />
-          <Text style={styles.subsectionTitle}>Gleba</Text>
-          <View style={styles.infoRows}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Typ gleby</Text>
-              <Text style={styles.infoValue}>
-                {soilSlugLabel ?? getSoilLabel(bed)}
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Analiza gleby</Text>
-              <Text style={styles.infoValue}>
-                {bed.soilTestingEnabled ? "Włączona" : "Wyłączona"}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {hasSoilAnalysisData ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Analiza gleby</Text>
-            <View style={styles.metricGrid}>
-              {bed.measuredN != null ? (
-                <View style={styles.metricCard}>
-                  <Text style={styles.metricLabel}>N</Text>
-                  <Text style={styles.metricValue}>{bed.measuredN}</Text>
-                </View>
-              ) : null}
-              {bed.measuredP != null ? (
-                <View style={styles.metricCard}>
-                  <Text style={styles.metricLabel}>P</Text>
-                  <Text style={styles.metricValue}>{bed.measuredP}</Text>
-                </View>
-              ) : null}
-              {bed.measuredK != null ? (
-                <View style={styles.metricCard}>
-                  <Text style={styles.metricLabel}>K</Text>
-                  <Text style={styles.metricValue}>{bed.measuredK}</Text>
-                </View>
-              ) : null}
-              {bed.measuredPh != null ? (
-                <View style={styles.metricCard}>
-                  <Text style={styles.metricLabel}>pH</Text>
-                  <Text style={styles.metricValue}>{bed.measuredPh}</Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-        ) : null}
+        <PrimaryActionButton
+          onPress={() => router.push(`/(tabs)/beds/${bed.id}/plantings/new`)}
+          icon="sprout-outline"
+          label="Dodaj warzywo"
+          color={palette.secondaryCta}
+          disabled={isOffline}
+          style={styles.addVegetableButton}
+        />
 
         <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Uprawy</Text>
-            <Pressable
-              style={styles.linkButton}
-              onPress={() =>
-                router.push(`/(tabs)/beds/${bed.id}/plantings/new`)
-              }
-            >
-              <Text style={styles.linkButtonText}>Dodaj uprawę</Text>
-            </Pressable>
-          </View>
+          <Text style={styles.sectionTitle}>Twoje warzywa</Text>
 
           <SegmentedButtons
             value={plantingsFilter}
@@ -1152,6 +1032,38 @@ export default function BedDetailsScreen() {
             </Pressable>
           ) : null}
         </View>
+
+        {hasSoilAnalysisData ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Analiza gleby</Text>
+            <View style={styles.metricGrid}>
+              {bed.measuredN != null ? (
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricLabel}>N</Text>
+                  <Text style={styles.metricValue}>{bed.measuredN}</Text>
+                </View>
+              ) : null}
+              {bed.measuredP != null ? (
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricLabel}>P</Text>
+                  <Text style={styles.metricValue}>{bed.measuredP}</Text>
+                </View>
+              ) : null}
+              {bed.measuredK != null ? (
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricLabel}>K</Text>
+                  <Text style={styles.metricValue}>{bed.measuredK}</Text>
+                </View>
+              ) : null}
+              {bed.measuredPh != null ? (
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricLabel}>pH</Text>
+                  <Text style={styles.metricValue}>{bed.measuredPh}</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
 
         {harvestPrompts.length > 0 ? (
           <View style={styles.section}>
@@ -1294,7 +1206,7 @@ export default function BedDetailsScreen() {
                     onPress={() => handleDeleteTask(task.id)}
                     disabled={deleteActionTask.isPending || isOffline}
                   >
-                    Usuń
+                    Anuluj
                   </Button>
                   <Button
                     mode="contained"
@@ -1302,7 +1214,7 @@ export default function BedDetailsScreen() {
                     onPress={() => handleMarkTaskDone(task.id)}
                     disabled={updateActionTask.isPending || isOffline}
                   >
-                    Done
+                    Zrobione
                   </Button>
                 </View>
               </View>
@@ -1473,7 +1385,7 @@ export default function BedDetailsScreen() {
 
           {quickActionStep === "menu" ? (
             <View style={styles.modalActionsColumn}>
-              <Text style={styles.modalTitle}>Dodaj akcję</Text>
+              <Text style={styles.modalTitle}>Wykonaj akcję</Text>
               <Button
                 mode="contained"
                 onPress={() =>
@@ -1615,6 +1527,125 @@ export default function BedDetailsScreen() {
 
         <Portal>
           <Modal
+            visible={bedInfoModalVisible}
+            onDismiss={() => setBedInfoModalVisible(false)}
+            contentContainerStyle={styles.bedInfoModal}
+          >
+            <ScrollView
+              contentContainerStyle={styles.bedInfoModalContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.modalTitle}>Informacje o grządce</Text>
+
+              <Text style={styles.subsectionTitle}>Podstawowe informacje</Text>
+              <View style={styles.infoRows}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Nazwa</Text>
+                  <Text style={styles.infoValue}>{bed.name}</Text>
+                </View>
+                {bed.locationLabel ? (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Lokalizacja</Text>
+                    <Text style={styles.infoValue}>{bed.locationLabel}</Text>
+                  </View>
+                ) : null}
+                {bed.description ? (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Opis</Text>
+                    <Text style={styles.infoValue}>{bed.description}</Text>
+                  </View>
+                ) : null}
+                <View style={styles.infoRowSwitch}>
+                  <View style={styles.infoRowSwitchText}>
+                    <Text style={styles.infoLabel}>Status grządki</Text>
+                    <Text style={styles.infoValueMuted}>
+                      {bed.isActive !== true ? "Nieaktywna" : "Aktywna"}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={bed.isActive === true}
+                    onValueChange={handleToggleBedActive}
+                    disabled={updateBed.isPending || isOffline}
+                  />
+                </View>
+              </View>
+
+              {dimensions ? (
+                <>
+                  <View style={styles.sectionDivider} />
+                  <Text style={styles.subsectionTitle}>Wymiary</Text>
+                  <Text style={styles.dimensionSummary}>{dimensions}</Text>
+                  <View style={styles.metricGrid}>
+                    {bed.lengthCm != null ? (
+                      <View style={styles.metricCard}>
+                        <Text style={styles.metricLabel}>Długość</Text>
+                        <Text style={styles.metricValue}>{bed.lengthCm}</Text>
+                        <Text style={styles.metricUnit}>cm</Text>
+                      </View>
+                    ) : null}
+                    {bed.widthCm != null ? (
+                      <View style={styles.metricCard}>
+                        <Text style={styles.metricLabel}>Szerokość</Text>
+                        <Text style={styles.metricValue}>{bed.widthCm}</Text>
+                        <Text style={styles.metricUnit}>cm</Text>
+                      </View>
+                    ) : null}
+                    {bed.depthCm != null ? (
+                      <View style={styles.metricCard}>
+                        <Text style={styles.metricLabel}>Głębokość</Text>
+                        <Text style={styles.metricValue}>{bed.depthCm}</Text>
+                        <Text style={styles.metricUnit}>cm</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </>
+              ) : null}
+
+              <View style={styles.sectionDivider} />
+              <Text style={styles.subsectionTitle}>Środowisko uprawy</Text>
+              <View style={styles.infoRows}>
+                {cultivationEnvironmentLabel ? (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Środowisko</Text>
+                    <Text style={styles.infoValue}>
+                      {cultivationEnvironmentLabel}
+                    </Text>
+                  </View>
+                ) : null}
+                {!cultivationEnvironmentLabel ? (
+                  <Text style={styles.valueText}>
+                    Brak danych o środowisku.
+                  </Text>
+                ) : null}
+              </View>
+
+              <View style={styles.sectionDivider} />
+              <Text style={styles.subsectionTitle}>Gleba</Text>
+              <View style={styles.infoRows}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Typ gleby</Text>
+                  <Text style={styles.infoValue}>
+                    {soilSlugLabel ?? getSoilLabel(bed)}
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Analiza gleby</Text>
+                  <Text style={styles.infoValue}>
+                    {bed.soilTestingEnabled ? "Włączona" : "Wyłączona"}
+                  </Text>
+                </View>
+              </View>
+
+              <Button
+                mode="contained"
+                onPress={() => setBedInfoModalVisible(false)}
+              >
+                Zamknij
+              </Button>
+            </ScrollView>
+          </Modal>
+
+          <Modal
             visible={!!taskInfoTask}
             onDismiss={() => setTaskInfoTask(null)}
             contentContainerStyle={styles.taskInfoModal}
@@ -1737,6 +1768,16 @@ const makeStyles = (theme: MD3Theme) => {
       alignItems: "center",
       justifyContent: "space-between",
     },
+    heroInfoButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: palette.innerBg,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+    },
     heroSettingsButton: {
       margin: 0,
     },
@@ -1808,6 +1849,9 @@ const makeStyles = (theme: MD3Theme) => {
       color: palette.secondary,
     },
     quickActionButton: {
+      marginBottom: 10,
+    },
+    addVegetableButton: {
       marginBottom: 14,
     },
     section: {
@@ -1876,8 +1920,6 @@ const makeStyles = (theme: MD3Theme) => {
     infoRow: {
       gap: 4,
       paddingBottom: 10,
-      borderBottomWidth: 1,
-      borderBottomColor: palette.cardBorder,
     },
     infoLabel: {
       fontSize: 13,
@@ -2186,6 +2228,18 @@ const makeStyles = (theme: MD3Theme) => {
       gap: 12,
       borderWidth: 1,
       borderColor: palette.cardBorder,
+    },
+    bedInfoModal: {
+      backgroundColor: palette.cardBg,
+      marginHorizontal: 16,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+      maxHeight: "85%",
+    },
+    bedInfoModalContent: {
+      padding: 18,
+      gap: 12,
     },
     taskInfoModalText: {
       fontSize: 14,

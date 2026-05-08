@@ -421,6 +421,48 @@ const getActionRescheduledTitle = (payload?: Record<string, unknown>) => {
     : "Przełożono termin zabiegu";
 };
 
+const getActionCompletedTitleFromPayload = (
+  payload?: Record<string, unknown>,
+) => {
+  const actionTitle = getStringPayloadValue(
+    payload,
+    "actionTitle",
+    "title",
+    "taskTitle",
+    "name",
+  );
+  return actionTitle ? `Wykonano zabieg: ${actionTitle}` : "Wykonano zabieg";
+};
+
+const getActionCompletedSubtitleFromPayload = (
+  payload?: Record<string, unknown>,
+) => {
+  const actionType = getStringPayloadValue(payload, "actionType", "type");
+  const actionTypePart = actionType ? mapActionTypeToLabel(actionType) : null;
+  const sourceLabel = getStringPayloadValue(payload, "sourceLabel", "source");
+
+  return [actionTypePart, sourceLabel].filter(Boolean).join(" • ") || undefined;
+};
+
+const getActionCompletedTitle = (
+  item: TimelineItem & { type: "ACTION_COMPLETED" },
+) => {
+  const actionTitle = item.title?.trim();
+  const label = item.label?.trim();
+
+  if (label && actionTitle) {
+    return /^wykonano zabieg$/i.test(label)
+      ? `Wykonano zabieg: ${actionTitle}`
+      : label;
+  }
+
+  if (label) {
+    return label;
+  }
+
+  return actionTitle ? `Wykonano zabieg: ${actionTitle}` : "Wykonano zabieg";
+};
+
 export const getTimelineItemPresentation = (
   item: TimelineItem,
 ): TimelineItemPresentation => {
@@ -491,6 +533,15 @@ export const getTimelineItemPresentation = (
         };
       }
 
+      if (item.eventType === "PLANTING_ACTION_COMPLETED") {
+        return {
+          icon: getPlantingEventTypeIcon(item.eventType),
+          iconColor: getPlantingEventTypeIconColor(item.eventType),
+          title: getActionCompletedTitleFromPayload(item.payload),
+          subtitle: getActionCompletedSubtitleFromPayload(item.payload),
+        };
+      }
+
       return {
         icon: getPlantingEventTypeIcon(item.eventType),
         iconColor: getPlantingEventTypeIconColor(item.eventType),
@@ -506,7 +557,7 @@ export const getTimelineItemPresentation = (
         : undefined;
       return {
         icon: getActionTypeIcon(item.actionType),
-        title: item.label?.trim() || `Wykonano zabieg ${item.title}`,
+        title: getActionCompletedTitle(item),
         subtitle,
       };
     }

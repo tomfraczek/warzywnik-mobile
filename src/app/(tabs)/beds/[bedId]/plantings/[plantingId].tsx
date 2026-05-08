@@ -176,6 +176,7 @@ function buildPalette(dark: boolean) {
     heading: dark ? "#F2F5F1" : "#1D2420",
     secondary: dark ? "#9AA59E" : "#6E7972",
     muted: dark ? "#7A8880" : "#97A29B",
+    secondaryCta: dark ? "#4C7FB1" : "#356FA5",
     accent: dark ? "#7AB88A" : "#4A7C59",
     accentBg: dark ? "#1A2E1F" : "#EBF5EE",
     accentBorder: dark ? "#2A4A32" : "#C5DFC9",
@@ -432,9 +433,21 @@ export default function PlantingDetailsScreen() {
     limit: 50,
     q: pestSearch.trim() || undefined,
   });
+  const commonPestsQuery = useGetPests({
+    page: 1,
+    limit: 20,
+  });
   const pestSearchItems = useMemo(
     () => pestDictionaryQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [pestDictionaryQuery.data?.pages],
+  );
+  const commonPests = useMemo(
+    () =>
+      commonPestsQuery.data?.pages
+        .flatMap((page) => page.items)
+        .filter((item) => !!item?.id && !!item?.name)
+        .slice(0, 12) ?? [],
+    [commonPestsQuery.data?.pages],
   );
 
   const diseaseOccurrencesQuery =
@@ -1215,22 +1228,24 @@ export default function PlantingDetailsScreen() {
           </Surface>
         </View>
 
-        <PrimaryActionButton
-          onPress={openStatusModal}
-          icon="swap-horizontal"
-          label="Zmień status"
-          color={palette.accent}
-          disabled={isOffline}
-        />
+        <View style={styles.actionButtonsGroup}>
+          <PrimaryActionButton
+            onPress={openStatusModal}
+            icon="swap-horizontal"
+            label="Zmień status"
+            color={palette.accent}
+            disabled={isOffline}
+          />
 
-        <PrimaryActionButton
-          onPress={openQuickActionModal}
-          icon="lightning-bolt-outline"
-          label="Dodaj akcję"
-          color={palette.accent}
-          disabled={isOffline || postPlantingQuickAction.isPending}
-          loading={postPlantingQuickAction.isPending}
-        />
+          <PrimaryActionButton
+            onPress={openQuickActionModal}
+            icon="lightning-bolt-outline"
+            label="Wykonaj akcję"
+            color={palette.secondaryCta}
+            disabled={isOffline || postPlantingQuickAction.isPending}
+            loading={postPlantingQuickAction.isPending}
+          />
+        </View>
 
         {warnings.length > 0 ? (
           <View style={styles.warningHighlightCard}>
@@ -2071,7 +2086,7 @@ export default function PlantingDetailsScreen() {
 
         {quickActionStep === "menu" ? (
           <View style={styles.modalActionsColumn}>
-            <Text style={styles.modalTitle}>Dodaj akcję</Text>
+            <Text style={styles.modalTitle}>Wykonaj akcję</Text>
             <Button
               mode="contained"
               onPress={() => {
@@ -2089,6 +2104,26 @@ export default function PlantingDetailsScreen() {
               disabled={postPlantingQuickAction.isPending || isOffline}
             >
               Notatka
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={() => {
+                closeQuickActionModal();
+                setDiseaseModalVisible(true);
+              }}
+              disabled={postPlantingQuickAction.isPending || isOffline}
+            >
+              Dodaj chorobę
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={() => {
+                closeQuickActionModal();
+                setPestModalVisible(true);
+              }}
+              disabled={postPlantingQuickAction.isPending || isOffline}
+            >
+              Dodaj szkodnika
             </Button>
             <Button
               mode="text"
@@ -2363,6 +2398,27 @@ export default function PlantingDetailsScreen() {
             </View>
           ) : null}
 
+          {!selectedPestId && commonPests.length > 0 ? (
+            <View style={styles.commonList}>
+              <Text style={styles.modalLabel}>Typowe szkodniki</Text>
+              <View style={styles.commonChips}>
+                {commonPests.map((pest) => (
+                  <Chip
+                    key={pest.id}
+                    mode={selectedPestId === pest.id ? "flat" : "outlined"}
+                    onPress={() => {
+                      setSelectedPestId(pest.id);
+                      setSelectedPestName(pest.name);
+                      setPestSearch("");
+                    }}
+                  >
+                    {pest.name}
+                  </Chip>
+                ))}
+              </View>
+            </View>
+          ) : null}
+
           {!selectedPestId ? (
             <TextInput
               mode="outlined"
@@ -2373,7 +2429,7 @@ export default function PlantingDetailsScreen() {
             />
           ) : null}
 
-          {!selectedPestId ? (
+          {!selectedPestId && pestSearch.trim().length >= 2 ? (
             <View style={styles.searchResults}>
               {pestDictionaryQuery.isLoading ? (
                 <ActivityIndicator />
@@ -2386,6 +2442,7 @@ export default function PlantingDetailsScreen() {
                     onPress={() => {
                       setSelectedPestId(item.id);
                       setSelectedPestName(item.name);
+                      setPestSearch("");
                     }}
                     style={styles.searchRow}
                   >
@@ -2568,6 +2625,9 @@ const makeStyles = (theme: MD3Theme) =>
       paddingBottom: 32,
       gap: 20,
       backgroundColor: buildPalette(theme.dark).background,
+    },
+    actionButtonsGroup: {
+      gap: 10,
     },
     heroStack: {
       marginHorizontal: -16,
