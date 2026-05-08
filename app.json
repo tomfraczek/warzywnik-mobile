@@ -12,6 +12,9 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Aplikacja potrzebuje dostępu do lokalizacji, aby ustawić region pogody."
+      },
+      "runtimeVersion": {
+        "policy": "appVersion"
       }
     },
     "android": {
@@ -25,10 +28,15 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "ACCESS_NETWORK_STATE",
+        "ACCESS_WIFI_STATE",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_NETWORK_STATE",
         "ACCESS_WIFI_STATE"
       ],
       "googleServicesFile": "./google-services.json",
-      "package": "com.tomfraczek.warzywnik.mobile"
+      "package": "com.tomfraczek.warzywnik.mobile",
+      "runtimeVersion": "1.0.0"
     },
     "web": {
       "bundler": "metro",
@@ -57,6 +65,9 @@
         "projectId": "3b663025-9d35-4d45-b07a-f6df30789049"
       }
     },
-    "owner": "tomfraczek"
+    "owner": "tomfraczek",
+    "updates": {
+      "url": "https://u.expo.dev/3b663025-9d35-4d45-b07a-f6df30789049"
+    }
   }
 }
