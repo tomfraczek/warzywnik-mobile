@@ -2,7 +2,13 @@ import { useGetBedSeasons } from "@/src/api/queries/beds/useGetBedSeasons";
 import type { SeasonSummary } from "@/src/api/queries/plantings/learningTypes";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { formatLocalDate, formatYield } from "@/src/utils/learningMappers";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Button, Icon, MD3Theme, useTheme } from "react-native-paper";
 
 // ─── Rotation badge helper ────────────────────────────────────────────────────
@@ -198,14 +204,26 @@ const cardStyles = (theme: MD3Theme) =>
 
 type Props = {
   bedId: string;
+  maxItems?: number;
+  showSeeAllLink?: boolean;
+  onPressSeeAll?: () => void;
 };
 
-export function BedSeasonHistorySection({ bedId }: Props) {
+export function BedSeasonHistorySection({
+  bedId,
+  maxItems,
+  showSeeAllLink = false,
+  onPressSeeAll,
+}: Props) {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
 
   const { data, isLoading, error, refetch } = useGetBedSeasons(bedId);
   const seasons = data?.items ?? [];
+  const visibleSeasons =
+    typeof maxItems === "number" ? seasons.slice(0, maxItems) : seasons;
+  const hasMoreSeasons =
+    typeof maxItems === "number" && seasons.length > maxItems;
 
   if (!isLoading && !error && seasons.length === 0) {
     return (
@@ -249,8 +267,8 @@ export function BedSeasonHistorySection({ bedId }: Props) {
         </View>
       ) : null}
 
-      {!isLoading && !error && seasons.length > 0
-        ? seasons.map((season, idx) => (
+      {!isLoading && !error && visibleSeasons.length > 0
+        ? visibleSeasons.map((season, idx) => (
             <BedSeasonCard
               key={season.id}
               season={season}
@@ -258,6 +276,12 @@ export function BedSeasonHistorySection({ bedId }: Props) {
             />
           ))
         : null}
+
+      {showSeeAllLink && hasMoreSeasons && onPressSeeAll ? (
+        <Pressable onPress={onPressSeeAll} style={styles.seeAllLinkButton}>
+          <Text style={styles.seeAllLinkText}>Zobacz pełną historię</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -312,5 +336,16 @@ const makeStyles = (theme: MD3Theme) =>
     },
     retryBtn: {
       alignSelf: "flex-start",
+    },
+    seeAllLinkButton: {
+      alignSelf: "flex-start",
+      marginTop: 8,
+      paddingVertical: 4,
+      paddingHorizontal: 2,
+    },
+    seeAllLinkText: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: theme.colors.primary,
     },
   });

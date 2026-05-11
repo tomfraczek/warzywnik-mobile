@@ -29,6 +29,7 @@ import { usePostBedQuickAction } from "@/src/api/queries/quickActions/usePostBed
 import { TaskItem as MyTaskItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
+import { BedSeasonHistorySection } from "@/src/app/(tabs)/beds/_components/BedSeasonHistorySection";
 import { HarvestConfirmationModal } from "@/src/app/(tabs)/beds/_components/HarvestConfirmationModal";
 import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostHarvestActionsModal";
 import { Screen } from "@/src/components/Screen";
@@ -1112,17 +1113,30 @@ export default function BedDetailsScreen() {
             </Text>
           ) : null}
 
-          {filteredPlantings.map((planting: Planting) => (
-            <PlantingRow
-              key={planting.id}
-              planting={planting}
-              hasAttention={attentionPlantingIds.has(planting.id)}
-              todayKey={todayKey}
-              onPress={() =>
-                router.push(`/(tabs)/beds/${bed.id}/plantings/${planting.id}`)
-              }
-            />
-          ))}
+          {filteredPlantings.length > 0 ? (
+            <View style={styles.plantingsListContainer}>
+              <ScrollView
+                nestedScrollEnabled
+                style={styles.plantingsListScroll}
+                contentContainerStyle={styles.plantingsListContent}
+                showsVerticalScrollIndicator
+              >
+                {filteredPlantings.map((planting: Planting) => (
+                  <PlantingRow
+                    key={planting.id}
+                    planting={planting}
+                    hasAttention={attentionPlantingIds.has(planting.id)}
+                    todayKey={todayKey}
+                    onPress={() =>
+                      router.push(
+                        `/(tabs)/beds/${bed.id}/plantings/${planting.id}`,
+                      )
+                    }
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
 
           {hasNextPage ? (
             <Pressable
@@ -1409,31 +1423,19 @@ export default function BedDetailsScreen() {
           ))}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Historia upraw</Text>
-          <View style={styles.historyEntryCard}>
-            <View style={styles.historyEntryIconWrap}>
-              <Icon source="history" size={20} color={palette.accent} />
-            </View>
-            <View style={styles.historyEntryContent}>
-              <Text style={styles.historyEntryTitle}>
-                Pełna historia sezonów
-              </Text>
-              <Text style={styles.historyEntrySubtitle}>
-                Przejdź do osobnego widoku z historią upraw i zabiegów.
-              </Text>
-            </View>
+        {resolvedBedId ? (
+          <BedSeasonHistorySection
+            bedId={resolvedBedId}
+            maxItems={3}
+            showSeeAllLink
+            onPressSeeAll={() => router.push(`/(tabs)/beds/${bed.id}/history`)}
+          />
+        ) : (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Historia upraw</Text>
+            <Text style={styles.valueText}>Brak danych grządki.</Text>
           </View>
-          <Button
-            mode="contained"
-            onPress={() => router.push(`/(tabs)/beds/${bed.id}/history`)}
-            style={styles.historyEntryButton}
-            buttonColor={palette.accent}
-            textColor="#FFFFFF"
-          >
-            Otwórz historię upraw
-          </Button>
-        </View>
+        )}
 
         <View style={styles.metaSection}>
           {formatMetaDate(bed.createdAt) ? (
@@ -2075,6 +2077,22 @@ const makeStyles = (theme: MD3Theme) => {
     inlineErrorBox: {
       marginTop: 8,
     },
+    plantingsListContainer: {
+      maxHeight: 360,
+      marginTop: 2,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+      borderRadius: 14,
+      overflow: "hidden",
+      backgroundColor: palette.cardBg,
+    },
+    plantingsListScroll: {
+      maxHeight: 360,
+    },
+    plantingsListContent: {
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+    },
     plantingRow: {
       borderTopWidth: 1,
       borderColor: palette.cardBorder,
@@ -2236,43 +2254,6 @@ const makeStyles = (theme: MD3Theme) => {
     historyTaskMain: {
       flex: 1,
       minWidth: 0,
-    },
-    historyEntryCard: {
-      borderWidth: 1,
-      borderColor: palette.accentBorder,
-      backgroundColor: palette.accentBg,
-      borderRadius: 16,
-      padding: 14,
-      flexDirection: "row",
-      alignItems: "flex-start",
-      gap: 12,
-      marginBottom: 12,
-    },
-    historyEntryIconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: palette.innerBg,
-    },
-    historyEntryContent: {
-      flex: 1,
-      gap: 4,
-    },
-    historyEntryTitle: {
-      fontSize: 15,
-      fontWeight: "700",
-      color: palette.heading,
-    },
-    historyEntrySubtitle: {
-      fontSize: 13,
-      lineHeight: 19,
-      color: palette.secondary,
-    },
-    historyEntryButton: {
-      alignSelf: "flex-start",
-      borderRadius: 12,
     },
     noteTimelineRow: {
       flexDirection: "row",
