@@ -34,6 +34,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
+import * as Updates from "expo-updates";
 import { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
@@ -364,6 +365,13 @@ export default function HomeScreen() {
       >
         <View style={styles.topBar}>
           <View style={styles.titleWrap}>
+            <Text>Channel: {Updates.channel ?? "null"}</Text>
+            <Text>Runtime: {Updates.runtimeVersion ?? "null"}</Text>
+            <Text>Update ID: {Updates.updateId ?? "null"}</Text>
+            <Text>
+              Created at: {Updates.createdAt?.toISOString() ?? "null"}
+            </Text>
+            <Text>Is embedded: {Updates.isEmbeddedLaunch ? "yes" : "no"}</Text>
             <Text style={styles.title}>
               Cześć{profile.name ? `, ${profile.name}` : ""}!
             </Text>
