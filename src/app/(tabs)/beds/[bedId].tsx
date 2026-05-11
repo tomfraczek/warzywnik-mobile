@@ -29,7 +29,6 @@ import { usePostBedQuickAction } from "@/src/api/queries/quickActions/usePostBed
 import { TaskItem as MyTaskItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
-import { BedSeasonHistorySection } from "@/src/app/(tabs)/beds/_components/BedSeasonHistorySection";
 import { HarvestConfirmationModal } from "@/src/app/(tabs)/beds/_components/HarvestConfirmationModal";
 import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostHarvestActionsModal";
 import { Screen } from "@/src/components/Screen";
@@ -326,12 +325,14 @@ type PlantingRowProps = {
   planting: Planting;
   onPress: () => void;
   hasAttention: boolean;
+  todayKey: string;
 };
 
 const PlantingRow = memo(function PlantingRow({
   planting,
   onPress,
   hasAttention,
+  todayKey,
 }: PlantingRowProps) {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
@@ -350,7 +351,12 @@ const PlantingRow = memo(function PlantingRow({
     : (vegetable?.name ?? (vegetableError ? "Brak nazwy" : "Brak nazwy"));
   const plantingStatusTone = getPlantingStatusTone(planting.status, theme.dark);
   const hasOwnPendingTasks = (plantingTasksResponse?.items ?? []).some(
-    (task) => task.status === "pending" && !task.suppressedAt,
+    (task) => {
+      if (task.status !== "pending" || task.suppressedAt) return false;
+      const dueDateKey = getDueDateKey(task.dueAt);
+      if (!dueDateKey) return true;
+      return dueDateKey >= todayKey;
+    },
   );
   const showAttention = hasAttention || hasOwnPendingTasks;
 
@@ -488,9 +494,6 @@ export default function BedDetailsScreen() {
   const [plantingsFilter, setPlantingsFilter] = useState<"active" | "ended">(
     "active",
   );
-  const [tasksFilter, setTasksFilter] = useState<"active" | "overdue">(
-    "active",
-  );
   const [promptQueue, setPromptQueue] = useState<HarvestPromptItem[]>([]);
   const [lastPromptSignature, setLastPromptSignature] = useState("");
   const [postHarvestModalVisible, setPostHarvestModalVisible] = useState(false);
@@ -611,15 +614,6 @@ export default function BedDetailsScreen() {
     [activePlantings, endedPlantings, plantingsFilter],
   );
 
-  const overdueTasks = useMemo(
-    () =>
-      pendingTasks.filter((task) => {
-        const dueDateKey = getDueDateKey(task.dueAt);
-        if (!dueDateKey) return false;
-        return dueDateKey < todayKey;
-      }),
-    [pendingTasks, todayKey],
-  );
   const activeTasks = useMemo(
     () =>
       pendingTasks.filter((task) => {
@@ -629,13 +623,8 @@ export default function BedDetailsScreen() {
       }),
     [pendingTasks, todayKey],
   );
-  const filteredTasks = useMemo(
-    () => (tasksFilter === "active" ? activeTasks : overdueTasks),
-    [activeTasks, overdueTasks, tasksFilter],
-  );
 
-  const hasAttentionItems =
-    harvestPrompts.length > 0 || pendingTasks.length > 0;
+  const hasAttentionItems = harvestPrompts.length > 0 || activeTasks.length > 0;
 
   const tasksError = bedTasksError ?? myTasksError;
   const isTasksLoading = isBedTasksLoading || isMyTasksLoading;
@@ -643,7 +632,7 @@ export default function BedDetailsScreen() {
   const attentionPlantingIds = useMemo(() => {
     const ids = new Set<string>();
     harvestPrompts.forEach((prompt) => ids.add(prompt.plantingId));
-    pendingTasks.forEach((task) => {
+    activeTasks.forEach((task) => {
       if (task.plantingId) {
         ids.add(task.plantingId);
       }
@@ -652,7 +641,7 @@ export default function BedDetailsScreen() {
       });
     });
     return ids;
-  }, [harvestPrompts, pendingTasks]);
+  }, [harvestPrompts, activeTasks]);
 
   const isOffline = useIsOffline();
 
@@ -1128,6 +1117,7 @@ export default function BedDetailsScreen() {
               key={planting.id}
               planting={planting}
               hasAttention={attentionPlantingIds.has(planting.id)}
+              todayKey={todayKey}
               onPress={() =>
                 router.push(`/(tabs)/beds/${bed.id}/plantings/${planting.id}`)
               }
@@ -1209,40 +1199,6 @@ export default function BedDetailsScreen() {
             ) : null}
           </View>
 
-          <SegmentedButtons
-            value={tasksFilter}
-            onValueChange={(value) =>
-              setTasksFilter(value as "active" | "overdue")
-            }
-            buttons={[
-              {
-                value: "overdue",
-                label: `Zaległe (${overdueTasks.length})`,
-                style: [
-                  styles.segmentedButtonItem,
-                  tasksFilter === "overdue"
-                    ? styles.segmentedButtonItemActive
-                    : null,
-                ],
-                checkedColor: palette.accent,
-                uncheckedColor: palette.secondary,
-              },
-              {
-                value: "active",
-                label: `Aktywne (${activeTasks.length})`,
-                style: [
-                  styles.segmentedButtonItem,
-                  tasksFilter === "active"
-                    ? styles.segmentedButtonItemActive
-                    : null,
-                ],
-                checkedColor: palette.accent,
-                uncheckedColor: palette.secondary,
-              },
-            ]}
-            style={styles.segmentedButtons}
-          />
-
           {isTasksLoading ? <ActivityIndicator /> : null}
 
           {tasksError ? (
@@ -1264,15 +1220,11 @@ export default function BedDetailsScreen() {
             </View>
           ) : null}
 
-          {!isTasksLoading && !tasksError && filteredTasks.length === 0 ? (
-            <Text style={styles.valueText}>
-              {tasksFilter === "active"
-                ? "Brak aktywnych zadań."
-                : "Brak zaległych zadań."}
-            </Text>
+          {!isTasksLoading && !tasksError && activeTasks.length === 0 ? (
+            <Text style={styles.valueText}>Brak aktywnych zadań.</Text>
           ) : null}
 
-          {filteredTasks.map((task) => {
+          {activeTasks.map((task) => {
             const isHighlighted = highlightedActionTaskId === task.id;
             const taskTargetType = resolveActionTaskTargetType(task);
             const aggregationScope = getActionTaskAggregationScope(task);
@@ -1457,14 +1409,31 @@ export default function BedDetailsScreen() {
           ))}
         </View>
 
-        {resolvedBedId ? (
-          <BedSeasonHistorySection bedId={resolvedBedId} />
-        ) : (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Historia upraw</Text>
-            <Text style={styles.valueText}>Brak zakończonych upraw.</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Historia upraw</Text>
+          <View style={styles.historyEntryCard}>
+            <View style={styles.historyEntryIconWrap}>
+              <Icon source="history" size={20} color={palette.accent} />
+            </View>
+            <View style={styles.historyEntryContent}>
+              <Text style={styles.historyEntryTitle}>
+                Pełna historia sezonów
+              </Text>
+              <Text style={styles.historyEntrySubtitle}>
+                Przejdź do osobnego widoku z historią upraw i zabiegów.
+              </Text>
+            </View>
           </View>
-        )}
+          <Button
+            mode="contained"
+            onPress={() => router.push(`/(tabs)/beds/${bed.id}/history`)}
+            style={styles.historyEntryButton}
+            buttonColor={palette.accent}
+            textColor="#FFFFFF"
+          >
+            Otwórz historię upraw
+          </Button>
+        </View>
 
         <View style={styles.metaSection}>
           {formatMetaDate(bed.createdAt) ? (
@@ -1514,6 +1483,8 @@ export default function BedDetailsScreen() {
                   handleSubmitBedQuickAction({ actionKind: "WATERING" })
                 }
                 disabled={postBedQuickAction.isPending || isOffline}
+                buttonColor="#2F7A4F"
+                textColor="#FFFFFF"
               >
                 Podlano
               </Button>
@@ -1523,6 +1494,8 @@ export default function BedDetailsScreen() {
                   handleSubmitBedQuickAction({ actionKind: "WEEDING" })
                 }
                 disabled={postBedQuickAction.isPending || isOffline}
+                buttonColor="#95652B"
+                textColor="#FFFFFF"
               >
                 Wypielono
               </Button>
@@ -1530,6 +1503,8 @@ export default function BedDetailsScreen() {
                 mode="contained"
                 onPress={() => setQuickActionStep("moisture")}
                 disabled={postBedQuickAction.isPending || isOffline}
+                buttonColor="#2E5D9F"
+                textColor="#FFFFFF"
               >
                 Kontrola wilgotności
               </Button>
@@ -1537,6 +1512,8 @@ export default function BedDetailsScreen() {
                 mode="contained"
                 onPress={() => setQuickActionStep("note")}
                 disabled={postBedQuickAction.isPending || isOffline}
+                buttonColor="#6A4F9B"
+                textColor="#FFFFFF"
               >
                 Notatka
               </Button>
@@ -1562,6 +1539,8 @@ export default function BedDetailsScreen() {
                   })
                 }
                 disabled={postBedQuickAction.isPending || isOffline}
+                buttonColor="#A65C3B"
+                textColor="#FFFFFF"
               >
                 Sucho
               </Button>
@@ -1574,6 +1553,8 @@ export default function BedDetailsScreen() {
                   })
                 }
                 disabled={postBedQuickAction.isPending || isOffline}
+                buttonColor="#2E7D57"
+                textColor="#FFFFFF"
               >
                 W porządku
               </Button>
@@ -1586,6 +1567,8 @@ export default function BedDetailsScreen() {
                   })
                 }
                 disabled={postBedQuickAction.isPending || isOffline}
+                buttonColor="#2F6FA6"
+                textColor="#FFFFFF"
               >
                 Mokro
               </Button>
@@ -2253,6 +2236,43 @@ const makeStyles = (theme: MD3Theme) => {
     historyTaskMain: {
       flex: 1,
       minWidth: 0,
+    },
+    historyEntryCard: {
+      borderWidth: 1,
+      borderColor: palette.accentBorder,
+      backgroundColor: palette.accentBg,
+      borderRadius: 16,
+      padding: 14,
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
+      marginBottom: 12,
+    },
+    historyEntryIconWrap: {
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: palette.innerBg,
+    },
+    historyEntryContent: {
+      flex: 1,
+      gap: 4,
+    },
+    historyEntryTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: palette.heading,
+    },
+    historyEntrySubtitle: {
+      fontSize: 13,
+      lineHeight: 19,
+      color: palette.secondary,
+    },
+    historyEntryButton: {
+      alignSelf: "flex-start",
+      borderRadius: 12,
     },
     noteTimelineRow: {
       flexDirection: "row",

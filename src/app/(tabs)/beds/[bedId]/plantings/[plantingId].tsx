@@ -370,9 +370,6 @@ export default function PlantingDetailsScreen() {
   );
   const [actionsVisible, setActionsVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
-  const [tasksFilter, setTasksFilter] = useState<"active" | "overdue">(
-    "active",
-  );
   const [taskIdsCompleting, setTaskIdsCompleting] = useState<string[]>([]);
   const [taskInfoTask, setTaskInfoTask] = useState<ActionTask | null>(null);
   const [harvestFormVisible, setHarvestFormVisible] = useState(false);
@@ -589,35 +586,23 @@ export default function PlantingDetailsScreen() {
 
     return sortTasksByDueAt(merged);
   }, [plantingTasksResponse?.items, weatherPlantingTasks]);
-  const groupedPlantingTasks = useMemo(() => {
-    const overdue: ActionTask[] = [];
-    const active: ActionTask[] = [];
-    let invalidDueAtCount = 0;
-
-    plantingTasks.forEach((task) => {
-      const dueDateKey = isoToDateOnly(task.dueAt);
-
-      if (!dueDateKey) {
-        invalidDueAtCount += 1;
-        active.push(task);
-        return;
-      }
-
-      if (dueDateKey < todayKey) {
-        overdue.push(task);
-        return;
-      }
-
-      active.push(task);
-    });
-
-    return {
-      overdue,
-      active,
-      invalidDueAtCount,
-      visibleCount: plantingTasks.length,
-    };
-  }, [plantingTasks, todayKey]);
+  const visiblePlantingTasks = useMemo(
+    () =>
+      plantingTasks.filter((task) => {
+        const dueDateKey = isoToDateOnly(task.dueAt);
+        if (!dueDateKey) return true;
+        return dueDateKey >= todayKey;
+      }),
+    [plantingTasks, todayKey],
+  );
+  const hiddenOverdueTasksCount = useMemo(
+    () =>
+      plantingTasks.filter((task) => {
+        const dueDateKey = isoToDateOnly(task.dueAt);
+        return Boolean(dueDateKey) && dueDateKey < todayKey;
+      }).length,
+    [plantingTasks, todayKey],
+  );
   const plantingQuickNotes = useMemo(
     () => plantingQuickNotesQuery.data?.items ?? [],
     [plantingQuickNotesQuery.data?.items],
@@ -626,10 +611,6 @@ export default function PlantingDetailsScreen() {
     () => plantingQuickNotes.slice(-5),
     [plantingQuickNotes],
   );
-  const filteredPlantingTasks = useMemo(() => {
-    if (tasksFilter === "overdue") return groupedPlantingTasks.overdue;
-    return groupedPlantingTasks.active;
-  }, [groupedPlantingTasks, tasksFilter]);
   const tasksError = plantingTasksError ?? myTasksError;
   const isTasksLoading = isPlantingTasksLoading || isMyTasksLoading;
 
@@ -736,13 +717,15 @@ export default function PlantingDetailsScreen() {
       hasTasks: plantingTasks.length > 0,
       count: plantingTasks.length,
       taskIds: plantingTasks.map((task) => task.id),
-      groups: {
-        active: groupedPlantingTasks.active.length,
-        overdue: groupedPlantingTasks.overdue.length,
-      },
-      invalidDueAtCount: groupedPlantingTasks.invalidDueAtCount,
+      visibleTasks: visiblePlantingTasks.length,
+      hiddenOverdueTasksCount,
     });
-  }, [resolvedPlantingId, plantingTasks, groupedPlantingTasks]);
+  }, [
+    resolvedPlantingId,
+    plantingTasks,
+    visiblePlantingTasks.length,
+    hiddenOverdueTasksCount,
+  ]);
 
   const growthTimelineSteps = useMemo<GrowthTimelineStep[]>(() => {
     if (!planting) return [];
@@ -1558,9 +1541,7 @@ export default function PlantingDetailsScreen() {
             </View>
           ) : null}
 
-          {!isTasksLoading &&
-          !tasksError &&
-          groupedPlantingTasks.visibleCount === 0 ? (
+          {!isTasksLoading && !tasksError && plantingTasks.length === 0 ? (
             <View style={styles.tasksCelebrationCard}>
               <View style={styles.tasksCelebrationConfettiLayer}>
                 <View style={styles.tasksConfettiA}>
@@ -1605,56 +1586,14 @@ export default function PlantingDetailsScreen() {
             </View>
           ) : null}
 
-          {groupedPlantingTasks.visibleCount > 0 ? (
-            <SegmentedButtons
-              value={tasksFilter}
-              onValueChange={(value) =>
-                setTasksFilter(value as "active" | "overdue")
-              }
-              buttons={[
-                {
-                  value: "overdue",
-                  label: `Zaległe (${groupedPlantingTasks.overdue.length})`,
-                  style: [
-                    styles.segmentedButtonItem,
-                    tasksFilter === "overdue"
-                      ? styles.segmentedButtonItemActive
-                      : null,
-                  ],
-                  checkedColor: palette.accent,
-                  uncheckedColor: palette.secondary,
-                },
-                {
-                  value: "active",
-                  label: `Aktywne (${groupedPlantingTasks.active.length})`,
-                  style: [
-                    styles.segmentedButtonItem,
-                    tasksFilter === "active"
-                      ? styles.segmentedButtonItemActive
-                      : null,
-                  ],
-                  checkedColor: palette.accent,
-                  uncheckedColor: palette.secondary,
-                },
-              ]}
-              style={styles.segmentedButtons}
-            />
-          ) : null}
-
-          {groupedPlantingTasks.visibleCount > 0 &&
-          filteredPlantingTasks.length === 0 ? (
+          {plantingTasks.length > 0 && visiblePlantingTasks.length === 0 ? (
             <Text style={styles.emptyText}>
-              {tasksFilter === "overdue"
-                ? "Brak zaległych zadań."
-                : "Brak aktywnych zadań."}
+              Brak aktywnych zadań. Zaległe zadania są ukryte.
             </Text>
           ) : null}
 
-          {filteredPlantingTasks.map((task) => {
+          {visiblePlantingTasks.map((task) => {
             const isHighlighted = highlightedActionTaskId === task.id;
-            const taskDueDateKey = isoToDateOnly(task.dueAt);
-            const isOverdueTask =
-              Boolean(taskDueDateKey) && taskDueDateKey < todayKey;
             const isTaskCompleting = taskIdsCompleting.includes(task.id);
 
             return (
@@ -1693,11 +1632,7 @@ export default function PlantingDetailsScreen() {
                     mode="outlined"
                     compact
                     onPress={() => handleCancelTask(task.id)}
-                    disabled={
-                      isOverdueTask ||
-                      updateActionTask.isPending ||
-                      isTaskCompleting
-                    }
+                    disabled={updateActionTask.isPending || isTaskCompleting}
                     style={styles.equalTaskButton}
                   >
                     Anuluj
@@ -1706,11 +1641,7 @@ export default function PlantingDetailsScreen() {
                     mode="contained"
                     compact
                     onPress={() => handleMarkTaskDone(task.id)}
-                    disabled={
-                      isOverdueTask ||
-                      updateActionTask.isPending ||
-                      isTaskCompleting
-                    }
+                    disabled={updateActionTask.isPending || isTaskCompleting}
                     style={styles.equalTaskButton}
                   >
                     Wykonane
@@ -2223,6 +2154,8 @@ export default function PlantingDetailsScreen() {
                 setHarvestFormVisible(true);
               }}
               disabled={postPlantingQuickAction.isPending || isOffline}
+              buttonColor="#2F7A4F"
+              textColor="#FFFFFF"
             >
               Zebrano plony
             </Button>
@@ -2230,6 +2163,8 @@ export default function PlantingDetailsScreen() {
               mode="contained"
               onPress={() => setQuickActionStep("note")}
               disabled={postPlantingQuickAction.isPending || isOffline}
+              buttonColor="#6A4F9B"
+              textColor="#FFFFFF"
             >
               Notatka
             </Button>
@@ -2240,6 +2175,8 @@ export default function PlantingDetailsScreen() {
                 setDiseaseModalVisible(true);
               }}
               disabled={postPlantingQuickAction.isPending || isOffline}
+              textColor="#9A5A2D"
+              style={styles.quickActionOutlinedDisease}
             >
               Dodaj chorobę
             </Button>
@@ -2250,6 +2187,8 @@ export default function PlantingDetailsScreen() {
                 setPestModalVisible(true);
               }}
               disabled={postPlantingQuickAction.isPending || isOffline}
+              textColor="#2F6FA6"
+              style={styles.quickActionOutlinedPest}
             >
               Dodaj szkodnika
             </Button>
@@ -3366,6 +3305,12 @@ const makeStyles = (theme: MD3Theme) =>
     },
     equalTaskButton: {
       flex: 1,
+    },
+    quickActionOutlinedDisease: {
+      borderColor: theme.dark ? "#B87845" : "#9A5A2D",
+    },
+    quickActionOutlinedPest: {
+      borderColor: theme.dark ? "#4E8BC4" : "#2F6FA6",
     },
     taskInfoModal: {
       backgroundColor: buildPalette(theme.dark).cardBg,
