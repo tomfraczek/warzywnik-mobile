@@ -17,7 +17,7 @@ export default function PlannerLayout() {
       <Stack.Screen
         name="tasks"
         options={{
-          title: "Lista zadań",
+          title: "Wszystkie zadania",
           header: ({ options }) => (
             <CustomHeader
               title={options.title?.toString()}
@@ -27,7 +27,7 @@ export default function PlannerLayout() {
           ),
         }}
       />
-      <Stack.Screen name="calendar" options={{ title: "Kalendarz" }} />
+      <Stack.Screen name="calendar" options={{ title: "Agenda" }} />
     </Stack>
   );
 }

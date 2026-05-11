@@ -1,0 +1,75 @@
+import { spacing } from "@/src/theme/ui";
+import { StyleSheet, View } from "react-native";
+import { MD3Theme, Text, useTheme } from "react-native-paper";
+
+type PlannerHeaderProps = {
+  subtitle: string;
+  dateLabel: string;
+  computedAtLabel?: string | null;
+};
+
+const capitalizeFirst = (value: string) => {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+};
+
+export function PlannerHeader({
+  subtitle,
+  dateLabel,
+  computedAtLabel,
+}: PlannerHeaderProps) {
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Kalendarz</Text>
+      <Text style={styles.subtitle}>{subtitle}</Text>
+      <View style={styles.datePill}>
+        <Text style={styles.dateText}>{capitalizeFirst(dateLabel)}</Text>
+      </View>
+      {computedAtLabel ? (
+        <Text style={styles.meta}>
+          Ostatnia aktualizacja: {computedAtLabel}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+const makeStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    container: {
+      paddingHorizontal: spacing.md,
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    title: {
+      fontSize: 30,
+      fontWeight: "700",
+      color: theme.colors.onBackground,
+    },
+    subtitle: {
+      fontSize: 15,
+      color: theme.colors.onSurfaceVariant,
+      lineHeight: 22,
+    },
+    datePill: {
+      alignSelf: "flex-start",
+      borderRadius: 999,
+      backgroundColor: theme.colors.surfaceVariant,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+    },
+    dateText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: theme.colors.onSurface,
+    },
+    meta: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+    },
+  });

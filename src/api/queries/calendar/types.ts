@@ -55,6 +55,20 @@ export type CalendarHarvestWindowItem = {
   start: string;
   end: string;
   bedId?: string | null;
+  bedName?: string | null;
+  harvestedAt?: string | null;
+  vegetable?: {
+    id?: string;
+    name?: string;
+  } | null;
+};
+
+export type CalendarReminderItem = {
+  id: string;
+  title: string;
+  date?: string | null;
+  dueAt?: string | null;
+  description?: string | null;
 };
 
 export type CalendarDayItem = {
@@ -65,9 +79,16 @@ export type CalendarDayItem = {
 
 export type CalendarResponse = {
   days: CalendarDayItem[];
+  tasks: CalendarTaskItem[];
+  harvestEvents: CalendarHarvestWindowItem[];
+  reminders: CalendarReminderItem[];
 };
 
-export const resolveCalendarDays = (payload: unknown): CalendarDayItem[] => {
+const asArray = <T>(value: unknown): T[] => {
+  return Array.isArray(value) ? (value as T[]) : [];
+};
+
+const coerceDays = (payload: unknown): CalendarDayItem[] => {
   if (Array.isArray(payload)) {
     return payload as CalendarDayItem[];
   }
@@ -90,4 +111,42 @@ export const resolveCalendarDays = (payload: unknown): CalendarDayItem[] => {
   }
 
   return [];
+};
+
+const coerceFlatResponse = (payload: unknown) => {
+  if (typeof payload !== "object" || payload === null) {
+    return {
+      tasks: [] as CalendarTaskItem[],
+      harvestEvents: [] as CalendarHarvestWindowItem[],
+      reminders: [] as CalendarReminderItem[],
+    };
+  }
+
+  const response = payload as {
+    tasks?: unknown;
+    harvestEvents?: unknown;
+    reminders?: unknown;
+  };
+
+  return {
+    tasks: asArray<CalendarTaskItem>(response.tasks),
+    harvestEvents: asArray<CalendarHarvestWindowItem>(response.harvestEvents),
+    reminders: asArray<CalendarReminderItem>(response.reminders),
+  };
+};
+
+export const resolveCalendarResponse = (payload: unknown): CalendarResponse => {
+  const days = coerceDays(payload);
+  const flat = coerceFlatResponse(payload);
+
+  const tasksFromDays = days.flatMap((day) => day.tasks ?? []);
+  const harvestFromDays = days.flatMap((day) => day.harvestWindows ?? []);
+
+  return {
+    days,
+    tasks: flat.tasks.length > 0 ? flat.tasks : tasksFromDays,
+    harvestEvents:
+      flat.harvestEvents.length > 0 ? flat.harvestEvents : harvestFromDays,
+    reminders: flat.reminders,
+  };
 };

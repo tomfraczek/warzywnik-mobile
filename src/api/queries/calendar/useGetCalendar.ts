@@ -1,6 +1,6 @@
 import { restClient } from "@/src/api/axios";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarResponse, resolveCalendarDays } from "./types";
+import { CalendarResponse, resolveCalendarResponse } from "./types";
 
 export type CalendarRange = {
   from: string;
@@ -29,9 +29,7 @@ const getCalendar = async (
     },
   });
 
-  return {
-    days: resolveCalendarDays(data),
-  };
+  return resolveCalendarResponse(data);
 };
 
 export const useGetCalendar = (range: CalendarRange) => {

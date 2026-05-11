@@ -356,7 +356,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <Screen>
+    <Screen safeAreaEdges={["top", "left", "right"]}>
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}

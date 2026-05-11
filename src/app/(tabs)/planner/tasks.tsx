@@ -1,258 +1,109 @@
-import { getResponseError } from "@/src/api/axios";
-import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
-import { TaskItem as MeTaskItem } from "@/src/api/queries/users/meTypes";
+import { TaskItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { Screen } from "@/src/components/Screen";
-import { StatusBadge } from "@/src/components/ui/StatusBadge";
-import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
+import { spacing } from "@/src/theme/ui";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useMemo, useState } from "react";
 import {
-  getTaskAffectedBedsCount,
-  getTaskAffectedVegetablesLabel,
-  getTaskAffectsAllBeds,
-  getTaskContextLabel,
-  getTaskLocationLabel,
-  getTaskMeta,
-  getTaskSourceTypeLabel,
-  getTaskWarningCode,
-  getTasksForLater,
-  getTasksForToday,
-  getTasksForTomorrow,
-  getTasksWithNoDueDate,
-  isTaskActive,
-  isWeatherWarningTask,
-  resolveTaskSourceType,
-  resolveTaskTargetType,
-} from "@/src/features/tasks/model";
-import { useIsOffline } from "@/src/hooks/useNetworkStatus";
-import { radius, spacing } from "@/src/theme/ui";
-import { formatIsoDateTime, isoToLocalDateKey } from "@/src/utils/date";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
-import { useMemo } from "react";
-import {
-  ActivityIndicator,
-  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  TouchableOpacity,
   View,
 } from "react-native";
-import { Button, MD3Theme, Surface, Text, useTheme } from "react-native-paper";
+import { Button, MD3Theme, Text, useTheme } from "react-native-paper";
+import { PlannerEmptyState } from "./_components/PlannerEmptyState";
+import { PlannerSection } from "./_components/PlannerSection";
+import { PlannerTaskCard } from "./_components/PlannerTaskCard";
+import { usePlannerActions } from "./_hooks/usePlannerActions";
 
-const asParam = (value: string | string[] | undefined) =>
-  Array.isArray(value) ? value[0] : value;
+type PlannerTasksFilter =
+  | "all"
+  | "pending"
+  | "done"
+  | "manual"
+  | "weather"
+  | "vegetable-rule";
 
-type TaskCardProps = {
-  task: MeTaskItem;
-  onDone?: (id: string) => void;
-  isDoneLoading?: boolean;
+const FILTER_LABELS: Record<PlannerTasksFilter, string> = {
+  all: "Wszystkie",
+  pending: "Do zrobienia",
+  done: "Wykonane",
+  manual: "Ręczne",
+  weather: "Pogoda",
+  "vegetable-rule": "Z upraw",
 };
 
-function WeatherTaskCard({ task, onDone, isDoneLoading }: TaskCardProps) {
-  const theme = useTheme<MD3Theme>();
-  const styles = makeCardStyles(theme);
+const normalizeStatus = (status: string | null | undefined) => {
+  const normalized = status?.trim().toLowerCase();
+  if (normalized === "done") return "done";
+  if (normalized === "canceled") return "canceled";
+  return "pending";
+};
 
-  const warningCode = getTaskWarningCode(task);
-  const affectsAllBeds = getTaskAffectsAllBeds(task);
-  const affectedBedsCount = getTaskAffectedBedsCount(task);
-  const locationLabel = getTaskLocationLabel(task);
-  const dueAt = getTaskMeta(task, "dueAt", "due_at");
-  const sourceTypeLabel = getTaskSourceTypeLabel(resolveTaskSourceType(task));
-  const targetType = resolveTaskTargetType(task);
-  const contextLabel = getTaskContextLabel(task);
-  const affectedVegetablesLabel = getTaskAffectedVegetablesLabel(task);
-
-  const targetLabel =
-    targetType === "planting"
-      ? "Uprawa"
-      : targetType === "bed"
-        ? "Grządka"
-        : targetType === "space"
-          ? "Przestrzeń"
-          : "Wszystkie grządki";
-
-  const scopeDetail = (() => {
-    if (affectsAllBeds) return locationLabel ?? "Cały ogród";
-    if (affectedBedsCount != null)
-      return String(affectedBedsCount) + " grządek";
-    if (locationLabel) return locationLabel;
-    if (targetType === "bed" && task.bedName) return task.bedName;
-    if (targetType === "planting" && task.vegetableName)
-      return task.vegetableName;
-    if (task.bedId) return "Grządka " + String(task.bedId).slice(0, 6);
-    if (task.plantingId) return "Uprawa " + String(task.plantingId).slice(0, 6);
-    return null;
-  })();
-
-  return (
-    <Surface style={styles.card} elevation={0}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{task.title}</Text>
-        <MaterialCommunityIcons
-          name="weather-partly-cloudy"
-          size={16}
-          color={theme.colors.primary}
-        />
-      </View>
-
-      {typeof task.description === "string" && task.description.trim() ? (
-        <Text style={styles.description}>{task.description}</Text>
-      ) : null}
-
-      <View style={styles.metaRow}>
-        {dueAt ? (
-          <Text style={styles.meta}>
-            <Text style={styles.metaLabel}>{"Termin: "}</Text>
-            {formatIsoDateTime(dueAt) ?? isoToLocalDateKey(dueAt) ?? dueAt}
-          </Text>
-        ) : null}
-        <Text style={styles.meta}>
-          <Text style={styles.metaLabel}>{"Zakres: "}</Text>
-          {targetLabel}
-          {scopeDetail ? " (" + scopeDetail + ")" : ""}
-        </Text>
-      </View>
-
-      {targetType === "bed" ? (
-        <Text style={styles.meta}>{contextLabel}</Text>
-      ) : null}
-
-      {targetType === "bed" && affectedVegetablesLabel ? (
-        <Text style={styles.meta}>{affectedVegetablesLabel}</Text>
-      ) : null}
-
-      {warningCode ? (
-        <StatusBadge label={warningCode.replace(/_/g, " ")} tone="info" />
-      ) : null}
-      {sourceTypeLabel ? (
-        <StatusBadge label={sourceTypeLabel} tone="neutral" />
-      ) : null}
-
-      <View style={styles.actions}>
-        {onDone ? (
-          <Button
-            mode="contained"
-            onPress={() => onDone(task.id)}
-            disabled={isDoneLoading}
-            compact
-          >
-            Wykonane
-          </Button>
-        ) : null}
-      </View>
-    </Surface>
-  );
-}
-
-function SectionHeader({ label, count }: { label: string; count: number }) {
-  const theme = useTheme<MD3Theme>();
-  const styles = makeSectionHeaderStyles(theme);
-  return (
-    <View style={styles.row}>
-      <View style={styles.dot} />
-      <Text style={styles.label}>{label}</Text>
-      {count > 0 ? (
-        <Text style={styles.count}>{"(" + String(count) + ")"}</Text>
-      ) : null}
-    </View>
-  );
-}
+const toInitialFilter = (
+  value: string | string[] | undefined,
+): PlannerTasksFilter => {
+  const param = Array.isArray(value) ? value[0] : value;
+  if (!param) return "all";
+  if (
+    param === "all" ||
+    param === "pending" ||
+    param === "done" ||
+    param === "manual" ||
+    param === "weather" ||
+    param === "vegetable-rule"
+  ) {
+    return param;
+  }
+  return "all";
+};
 
 export default function PlannerTasksScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
+  const router = useRouter();
+  const params = useLocalSearchParams<{ filter?: string | string[] }>();
 
-  const params = useLocalSearchParams<{ source?: string | string[] }>();
-  const sourceFilter = asParam(params.source)?.toUpperCase() ?? "";
-
-  const tasksQuery = useGetMyTasks("pending");
-  const updateActionTask = useUpdateActionTask();
-
-  const allTasks = useMemo(
-    () => (tasksQuery.data?.items ?? []).filter((task) => isTaskActive(task)),
-    [tasksQuery.data?.items],
+  const [filter, setFilter] = useState<PlannerTasksFilter>(
+    toInitialFilter(params.filter),
   );
+
+  const tasksQuery = useGetMyTasks("all");
+  const actions = usePlannerActions();
 
   const filteredTasks = useMemo(() => {
-    if (sourceFilter === "WEATHER_WARNING") {
-      return allTasks.filter(isWeatherWarningTask);
-    }
-    return allTasks;
-  }, [allTasks, sourceFilter]);
+    const items = tasksQuery.data?.items ?? [];
 
-  const todayTasks = useMemo(
-    () => getTasksForToday(filteredTasks),
-    [filteredTasks],
-  );
-  const tomorrowTasks = useMemo(
-    () => getTasksForTomorrow(filteredTasks),
-    [filteredTasks],
-  );
-  const laterTasks = useMemo(
-    () => getTasksForLater(filteredTasks),
-    [filteredTasks],
-  );
-  const noDueDateTasks = useMemo(
-    () => getTasksWithNoDueDate(filteredTasks),
-    [filteredTasks],
-  );
+    const sorted = [...items].sort((a, b) => {
+      const aDue = a.dueAt ? Date.parse(a.dueAt) : Number.MAX_SAFE_INTEGER;
+      const bDue = b.dueAt ? Date.parse(b.dueAt) : Number.MAX_SAFE_INTEGER;
+      return aDue - bDue;
+    });
 
-  const hasAny =
-    todayTasks.length > 0 ||
-    tomorrowTasks.length > 0 ||
-    laterTasks.length > 0 ||
-    noDueDateTasks.length > 0;
+    return sorted.filter((task) => {
+      const source = (task.source ?? "").toUpperCase();
+      const status = normalizeStatus(task.status);
 
-  const isOffline = useIsOffline();
+      if (filter === "pending") return status === "pending";
+      if (filter === "done") return status === "done";
+      if (filter === "manual") return source === "MANUAL";
+      if (filter === "weather") return source === "WEATHER_WARNING";
+      if (filter === "vegetable-rule") return source === "VEGETABLE_RULE";
 
-  const handleDone = (taskId: string) => {
-    if (isOffline) {
-      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return status !== "canceled";
+    });
+  }, [filter, tasksQuery.data?.items]);
+
+  const navigateToTaskContext = (task: TaskItem) => {
+    if (task.plantingId) {
+      router.push(`/plantings/${task.plantingId}`);
       return;
     }
-    updateActionTask
-      .mutateAsync({ id: taskId, payload: { status: "done" } })
-      .catch((error: unknown) => {
-        Alert.alert("Błąd", String(getResponseError(error)));
-      });
+    if (task.bedId) {
+      router.push(`/(tabs)/beds/${task.bedId}`);
+    }
   };
-
-  const screenTitle =
-    sourceFilter === "WEATHER_WARNING" ? "Zadania pogodowe" : "Lista zadań";
-  const screenSubtitle =
-    sourceFilter === "WEATHER_WARNING"
-      ? "Zadania wygenerowane na podstawie alertów pogodowych"
-      : "Wszystkie bieżące zadania do wykonania";
-
-  if (tasksQuery.isLoading) {
-    return (
-      <Screen safeAreaEdges={["top", "left", "right"]}>
-        <View style={styles.center}>
-          <ActivityIndicator />
-        </View>
-      </Screen>
-    );
-  }
-
-  if (tasksQuery.error) {
-    return (
-      <Screen safeAreaEdges={["top", "left", "right"]}>
-        <View style={styles.center}>
-          <MaterialCommunityIcons
-            name="alert-circle-outline"
-            size={40}
-            color={theme.colors.error}
-          />
-          <Text style={styles.errorText}>
-            {String(getResponseError(tasksQuery.error))}
-          </Text>
-          <Button mode="outlined" onPress={() => tasksQuery.refetch()}>
-            Spróbuj ponownie
-          </Button>
-        </View>
-      </Screen>
-    );
-  }
 
   return (
     <Screen safeAreaEdges={["top", "left", "right"]}>
@@ -262,98 +113,82 @@ export default function PlannerTasksScreen() {
         refreshControl={
           <RefreshControl
             refreshing={tasksQuery.isRefetching}
-            onRefresh={() => tasksQuery.refetch()}
+            onRefresh={() => void tasksQuery.refetch()}
           />
         }
       >
-        <View style={styles.pageHeader}>
-          <Text style={styles.pageTitle}>{screenTitle}</Text>
-          <Text style={styles.pageSubtitle}>{screenSubtitle}</Text>
+        <View style={styles.header}>
+          <Text style={styles.title}>Wszystkie zadania</Text>
+          <Text style={styles.subtitle}>
+            Filtruj i planuj bieżące działania
+          </Text>
         </View>
 
-        {!hasAny ? (
-          <View style={styles.emptyWrap}>
-            <MaterialCommunityIcons
-              name="check-circle-outline"
-              size={48}
-              color={theme.colors.primary}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersRow}
+        >
+          {(Object.keys(FILTER_LABELS) as PlannerTasksFilter[]).map((key) => (
+            <TouchableOpacity
+              key={key}
+              style={[
+                styles.filterChip,
+                filter === key ? styles.filterChipActive : null,
+              ]}
+              onPress={() => setFilter(key)}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  filter === key ? styles.filterChipTextActive : null,
+                ]}
+              >
+                {FILTER_LABELS[key]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <PlannerSection title={FILTER_LABELS[filter]}>
+          {filteredTasks.length === 0 ? (
+            <PlannerEmptyState
+              title="Brak zadań"
+              description="Dla wybranego filtra nie ma żadnych pozycji."
+              icon="check-circle-outline"
             />
-            <Text style={styles.emptyTitle}>Brak zadań</Text>
-            <Text style={styles.emptySubtitle}>
-              Nie masz żadnych oczekujących zadań. Sprawdź ponownie po kolejnym
-              pobraniu pogody.
-            </Text>
-          </View>
-        ) : (
-          <>
-            {todayTasks.length > 0 ? (
-              <View style={styles.section}>
-                <SectionHeader label="Na dziś" count={todayTasks.length} />
-                <View style={styles.list}>
-                  {todayTasks.map((task) => (
-                    <WeatherTaskCard
-                      key={task.id}
-                      task={task}
-                      onDone={handleDone}
-                      isDoneLoading={updateActionTask.isPending || isOffline}
-                    />
-                  ))}
-                </View>
-              </View>
-            ) : null}
+          ) : (
+            filteredTasks.map((task) => (
+              <PlannerTaskCard
+                key={task.id}
+                task={task}
+                onDone={
+                  normalizeStatus(task.status) === "pending"
+                    ? actions.completeTask
+                    : undefined
+                }
+                onNavigate={navigateToTaskContext}
+                onDelete={
+                  normalizeStatus(task.status) === "pending"
+                    ? actions.removeTask
+                    : undefined
+                }
+                showDelete={normalizeStatus(task.status) === "pending"}
+                disableActions={actions.isTaskBusy(task.id)}
+                isOverdue={false}
+              />
+            ))
+          )}
+        </PlannerSection>
 
-            {tomorrowTasks.length > 0 ? (
-              <View style={styles.section}>
-                <SectionHeader label="Na jutro" count={tomorrowTasks.length} />
-                <View style={styles.list}>
-                  {tomorrowTasks.map((task) => (
-                    <WeatherTaskCard
-                      key={task.id}
-                      task={task}
-                      onDone={handleDone}
-                      isDoneLoading={updateActionTask.isPending || isOffline}
-                    />
-                  ))}
-                </View>
-              </View>
-            ) : null}
-
-            {laterTasks.length > 0 ? (
-              <View style={styles.section}>
-                <SectionHeader label="Później" count={laterTasks.length} />
-                <View style={styles.list}>
-                  {laterTasks.map((task) => (
-                    <WeatherTaskCard
-                      key={task.id}
-                      task={task}
-                      onDone={handleDone}
-                      isDoneLoading={updateActionTask.isPending || isOffline}
-                    />
-                  ))}
-                </View>
-              </View>
-            ) : null}
-
-            {noDueDateTasks.length > 0 ? (
-              <View style={styles.section}>
-                <SectionHeader
-                  label="Bez terminu"
-                  count={noDueDateTasks.length}
-                />
-                <View style={styles.list}>
-                  {noDueDateTasks.map((task) => (
-                    <WeatherTaskCard
-                      key={task.id}
-                      task={task}
-                      onDone={handleDone}
-                      isDoneLoading={updateActionTask.isPending || isOffline}
-                    />
-                  ))}
-                </View>
-              </View>
-            ) : null}
-          </>
-        )}
+        <View style={styles.footerActions}>
+          <Button
+            mode="outlined"
+            onPress={() => router.push("/(tabs)/planner")}
+          >
+            Wróć do planu dnia
+          </Button>
+        </View>
       </ScrollView>
     </Screen>
   );
@@ -362,96 +197,51 @@ export default function PlannerTasksScreen() {
 const makeStyles = (theme: MD3Theme) =>
   StyleSheet.create({
     container: {
-      padding: spacing.md,
       paddingBottom: spacing.xl,
-      gap: spacing.lg,
+      paddingTop: spacing.sm,
+      gap: spacing.sm,
+      backgroundColor: theme.colors.background,
     },
-    center: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.md,
-      padding: spacing.lg,
+    header: {
+      paddingHorizontal: spacing.md,
+      gap: spacing.xs,
     },
-    errorText: {
-      color: theme.colors.error,
-      textAlign: "center",
-      fontSize: 14,
-    },
-    pageHeader: { gap: spacing.xs },
-    pageTitle: {
-      fontSize: 26,
+    title: {
+      fontSize: 30,
       fontWeight: "700",
       color: theme.colors.onBackground,
     },
-    pageSubtitle: { fontSize: 13, color: theme.colors.onSurfaceVariant },
-    emptyWrap: {
-      alignItems: "center",
-      gap: spacing.sm,
-      paddingVertical: spacing.xl,
-    },
-    emptyTitle: {
-      fontSize: 18,
-      fontWeight: "700",
-      color: theme.colors.onSurface,
-    },
-    emptySubtitle: {
-      fontSize: 13,
+    subtitle: {
+      fontSize: 14,
       color: theme.colors.onSurfaceVariant,
-      textAlign: "center",
-      paddingHorizontal: spacing.lg,
     },
-    section: { gap: spacing.sm },
-    list: { gap: spacing.sm },
-  });
-
-const makeSectionHeaderStyles = (theme: MD3Theme) =>
-  StyleSheet.create({
-    row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-    dot: {
-      width: 10,
-      height: 10,
-      borderRadius: radius.pill,
-      backgroundColor: theme.colors.primary,
+    filtersRow: {
+      paddingHorizontal: spacing.md,
+      gap: spacing.xs,
+      paddingVertical: spacing.sm,
     },
-    label: {
-      fontSize: 16,
-      fontWeight: "700",
-      color: theme.colors.onSurface,
-    },
-    count: { fontSize: 13, color: theme.colors.onSurfaceVariant },
-  });
-
-const makeCardStyles = (theme: MD3Theme) =>
-  StyleSheet.create({
-    card: {
-      borderRadius: radius.md,
+    filterChip: {
+      borderRadius: 999,
       borderWidth: 1,
       borderColor: theme.colors.outlineVariant,
       backgroundColor: theme.colors.surface,
-      padding: spacing.sm,
-      gap: spacing.xs,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
     },
-    header: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      gap: spacing.sm,
+    filterChipActive: {
+      backgroundColor: theme.colors.primaryContainer,
+      borderColor: theme.colors.primaryContainer,
     },
-    title: {
-      flex: 1,
-      fontSize: 15,
-      fontWeight: "700",
+    filterChipText: {
+      fontSize: 13,
       color: theme.colors.onSurface,
+      fontWeight: "600",
     },
-    description: { fontSize: 13, color: theme.colors.onSurface },
-    metaRow: { gap: 2 },
-    meta: { fontSize: 12, color: theme.colors.onSurfaceVariant },
-    metaLabel: { fontWeight: "700" },
-    actions: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: spacing.xs,
-      marginTop: spacing.xs,
+    filterChipTextActive: {
+      color: theme.colors.onPrimaryContainer,
+    },
+    footerActions: {
+      paddingHorizontal: spacing.md,
+      marginTop: spacing.md,
     },
   });
