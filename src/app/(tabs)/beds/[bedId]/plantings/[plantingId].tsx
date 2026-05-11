@@ -84,6 +84,7 @@ import {
   useTheme,
 } from "react-native-paper";
 import { DatePickerModal } from "react-native-paper-dates";
+import { TasksCelebrationCard } from "../../_components/TasksCelebrationCard";
 import { PlantingHarvestResultForm } from "./_components/PlantingHarvestResultForm";
 import { PlantingSeasonSection } from "./_components/PlantingSeasonSection";
 import { PlantingTimelineSection } from "./_components/PlantingTimelineSection";
@@ -1542,48 +1543,7 @@ export default function PlantingDetailsScreen() {
           ) : null}
 
           {!isTasksLoading && !tasksError && plantingTasks.length === 0 ? (
-            <View style={styles.tasksCelebrationCard}>
-              <View style={styles.tasksCelebrationConfettiLayer}>
-                <View style={styles.tasksConfettiA}>
-                  <Icon
-                    source="party-popper"
-                    size={18}
-                    color={buildPalette(theme.dark).accent}
-                  />
-                </View>
-                <View style={styles.tasksConfettiB}>
-                  <Icon
-                    source="party-popper"
-                    size={14}
-                    color={buildPalette(theme.dark).heroTagText}
-                  />
-                </View>
-                <View style={styles.tasksConfettiC}>
-                  <Icon
-                    source="star-four-points"
-                    size={14}
-                    color={buildPalette(theme.dark).accent}
-                  />
-                </View>
-                <View style={styles.tasksConfettiD}>
-                  <Icon
-                    source="star-four-points"
-                    size={12}
-                    color={buildPalette(theme.dark).secondary}
-                  />
-                </View>
-              </View>
-              <View style={styles.tasksCelebrationContent}>
-                <Icon
-                  source="party-popper"
-                  size={22}
-                  color={buildPalette(theme.dark).accent}
-                />
-                <Text style={styles.tasksCelebrationText}>
-                  Jesteś na bieżąco
-                </Text>
-              </View>
-            </View>
+            <TasksCelebrationCard />
           ) : null}
 
           {plantingTasks.length > 0 && visiblePlantingTasks.length === 0 ? (
@@ -2958,52 +2918,6 @@ const makeStyles = (theme: MD3Theme) =>
     emptyText: {
       fontSize: 14,
       color: buildPalette(theme.dark).secondary,
-    },
-    tasksCelebrationCard: {
-      position: "relative",
-      borderWidth: 1,
-      borderColor: buildPalette(theme.dark).accentBorder,
-      backgroundColor: buildPalette(theme.dark).accentBg,
-      borderRadius: 14,
-      overflow: "hidden",
-      marginTop: 4,
-      paddingHorizontal: 12,
-      paddingVertical: 14,
-    },
-    tasksCelebrationConfettiLayer: {
-      ...StyleSheet.absoluteFillObject,
-      opacity: 0.45,
-    },
-    tasksConfettiA: {
-      position: "absolute",
-      top: 8,
-      left: 10,
-    },
-    tasksConfettiB: {
-      position: "absolute",
-      top: 6,
-      right: 12,
-    },
-    tasksConfettiC: {
-      position: "absolute",
-      bottom: 8,
-      left: 26,
-    },
-    tasksConfettiD: {
-      position: "absolute",
-      bottom: 10,
-      right: 30,
-    },
-    tasksCelebrationContent: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8,
-    },
-    tasksCelebrationText: {
-      fontSize: 15,
-      fontWeight: "700",
-      color: buildPalette(theme.dark).accent,
     },
     segmentedButtons: {
       alignSelf: "flex-start",

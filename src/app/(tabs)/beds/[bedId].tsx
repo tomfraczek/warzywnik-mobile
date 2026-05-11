@@ -32,6 +32,7 @@ import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { BedSeasonHistorySection } from "@/src/app/(tabs)/beds/_components/BedSeasonHistorySection";
 import { HarvestConfirmationModal } from "@/src/app/(tabs)/beds/_components/HarvestConfirmationModal";
 import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostHarvestActionsModal";
+import { TasksCelebrationCard } from "@/src/app/(tabs)/beds/_components/TasksCelebrationCard";
 import { Screen } from "@/src/components/Screen";
 import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { BottomSheetModal } from "@/src/components/ui/BottomSheetModal";
@@ -1235,7 +1236,7 @@ export default function BedDetailsScreen() {
           ) : null}
 
           {!isTasksLoading && !tasksError && activeTasks.length === 0 ? (
-            <Text style={styles.valueText}>Brak aktywnych zadań.</Text>
+            <TasksCelebrationCard />
           ) : null}
 
           {activeTasks.map((task) => {
