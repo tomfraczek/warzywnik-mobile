@@ -11,16 +11,26 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Button, MD3Theme, Text, useTheme } from "react-native-paper";
+import { MD3Theme, Text, useTheme } from "react-native-paper";
 import { PlannerEmptyState } from "./_components/PlannerEmptyState";
 import { PlannerSection } from "./_components/PlannerSection";
 import { PlannerTaskCard } from "./_components/PlannerTaskCard";
 import { usePlannerActions } from "./_hooks/usePlannerActions";
+import {
+  getRecentCompletedTasks,
+  groupPlannerTasks,
+} from "./_utils/plannerGrouping";
+import { normalizeTaskStatus } from "./_utils/plannerPresentation";
 
 type PlannerTasksFilter =
   | "all"
   | "pending"
   | "done"
+  | "today"
+  | "overdue"
+  | "tomorrow"
+  | "week"
+  | "recent-completed"
   | "manual"
   | "weather"
   | "vegetable-rule";
@@ -29,16 +39,14 @@ const FILTER_LABELS: Record<PlannerTasksFilter, string> = {
   all: "Wszystkie",
   pending: "Do zrobienia",
   done: "Wykonane",
+  today: "Do zrobienia dzisiaj",
+  overdue: "Zaległe",
+  tomorrow: "Jutro",
+  week: "Ten tydzień",
+  "recent-completed": "Ostatnio wykonane",
   manual: "Ręczne",
   weather: "Pogoda",
   "vegetable-rule": "Z upraw",
-};
-
-const normalizeStatus = (status: string | null | undefined) => {
-  const normalized = status?.trim().toLowerCase();
-  if (normalized === "done") return "done";
-  if (normalized === "canceled") return "canceled";
-  return "pending";
 };
 
 const toInitialFilter = (
@@ -50,6 +58,11 @@ const toInitialFilter = (
     param === "all" ||
     param === "pending" ||
     param === "done" ||
+    param === "today" ||
+    param === "overdue" ||
+    param === "tomorrow" ||
+    param === "week" ||
+    param === "recent-completed" ||
     param === "manual" ||
     param === "weather" ||
     param === "vegetable-rule"
@@ -72,6 +85,20 @@ export default function PlannerTasksScreen() {
   const tasksQuery = useGetMyTasks("all");
   const actions = usePlannerActions();
 
+  const groupedTasks = useMemo(
+    () => groupPlannerTasks(tasksQuery.data?.items ?? []),
+    [tasksQuery.data?.items],
+  );
+
+  const recentCompletedTasks = useMemo(
+    () =>
+      getRecentCompletedTasks(
+        tasksQuery.data?.items ?? [],
+        Number.MAX_SAFE_INTEGER,
+      ),
+    [tasksQuery.data?.items],
+  );
+
   const filteredTasks = useMemo(() => {
     const items = tasksQuery.data?.items ?? [];
 
@@ -83,7 +110,7 @@ export default function PlannerTasksScreen() {
 
     return sorted.filter((task) => {
       const source = (task.source ?? "").toUpperCase();
-      const status = normalizeStatus(task.status);
+      const status = normalizeTaskStatus(task.status);
 
       if (filter === "pending") return status === "pending";
       if (filter === "done") return status === "done";
@@ -94,6 +121,17 @@ export default function PlannerTasksScreen() {
       return status !== "canceled";
     });
   }, [filter, tasksQuery.data?.items]);
+
+  const calendarFilteredTasks = useMemo(() => {
+    if (filter === "today") return groupedTasks.todayTasks;
+    if (filter === "overdue") return groupedTasks.overdueTasks;
+    if (filter === "tomorrow") return groupedTasks.tomorrowTasks;
+    if (filter === "week") return groupedTasks.weekTasks;
+    if (filter === "recent-completed") return recentCompletedTasks;
+    return null;
+  }, [filter, groupedTasks, recentCompletedTasks]);
+
+  const tasksToRender = calendarFilteredTasks ?? filteredTasks;
 
   const navigateToTaskContext = (task: TaskItem) => {
     if (task.plantingId) {
@@ -151,44 +189,35 @@ export default function PlannerTasksScreen() {
         </ScrollView>
 
         <PlannerSection title={FILTER_LABELS[filter]}>
-          {filteredTasks.length === 0 ? (
+          {tasksToRender.length === 0 ? (
             <PlannerEmptyState
               title="Brak zadań"
               description="Dla wybranego filtra nie ma żadnych pozycji."
               icon="check-circle-outline"
             />
           ) : (
-            filteredTasks.map((task) => (
+            tasksToRender.map((task) => (
               <PlannerTaskCard
                 key={task.id}
                 task={task}
                 onDone={
-                  normalizeStatus(task.status) === "pending"
+                  normalizeTaskStatus(task.status) === "pending"
                     ? actions.completeTask
                     : undefined
                 }
                 onNavigate={navigateToTaskContext}
                 onDelete={
-                  normalizeStatus(task.status) === "pending"
+                  normalizeTaskStatus(task.status) === "pending"
                     ? actions.removeTask
                     : undefined
                 }
-                showDelete={normalizeStatus(task.status) === "pending"}
+                showDelete={normalizeTaskStatus(task.status) === "pending"}
                 disableActions={actions.isTaskBusy(task.id)}
                 isOverdue={false}
               />
             ))
           )}
         </PlannerSection>
-
-        <View style={styles.footerActions}>
-          <Button
-            mode="outlined"
-            onPress={() => router.push("/(tabs)/planner")}
-          >
-            Wróć do planu dnia
-          </Button>
-        </View>
       </ScrollView>
     </Screen>
   );
@@ -239,9 +268,5 @@ const makeStyles = (theme: MD3Theme) =>
     },
     filterChipTextActive: {
       color: theme.colors.onPrimaryContainer,
-    },
-    footerActions: {
-      paddingHorizontal: spacing.md,
-      marginTop: spacing.md,
     },
   });

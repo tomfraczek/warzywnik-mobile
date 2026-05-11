@@ -34,7 +34,6 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import * as Updates from "expo-updates";
 import { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
@@ -365,13 +364,6 @@ export default function HomeScreen() {
       >
         <View style={styles.topBar}>
           <View style={styles.titleWrap}>
-            <Text>Channel: {Updates.channel ?? "null"}</Text>
-            <Text>Runtime: {Updates.runtimeVersion ?? "null"}</Text>
-            <Text>Update ID: {Updates.updateId ?? "null"}</Text>
-            <Text>
-              Created at: {Updates.createdAt?.toISOString() ?? "null"}
-            </Text>
-            <Text>Is embedded: {Updates.isEmbeddedLaunch ? "yes" : "no"}</Text>
             <Text style={styles.title}>
               Cześć{profile.name ? `, ${profile.name}` : ""}!
             </Text>
@@ -476,80 +468,6 @@ export default function HomeScreen() {
                 )}
               </Card>
             </Pressable>
-
-            <Card
-              title="Zadania pogodowe"
-              subtitle="Zaplanowane na dziś i jutro"
-              rightSlot={
-                <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: "/(tabs)/planner/tasks" as any,
-                      params: { source: "WEATHER_WARNING" },
-                    })
-                  }
-                >
-                  <Text style={styles.cardCta}>Wszystkie →</Text>
-                </Pressable>
-              }
-            >
-              <View style={styles.stack}>
-                {tasksLoading ? (
-                  <ActivityIndicator size="small" />
-                ) : weatherTasksToday.length === 0 &&
-                  weatherTasksTomorrow.length === 0 ? (
-                  <Text style={styles.placeholder}>
-                    Brak zadań pogodowych na najbliższe dni.
-                  </Text>
-                ) : (
-                  <>
-                    {weatherTasksToday.slice(0, 2).map((task) => {
-                      const taskContext = getWeatherTaskContext(task);
-
-                      return (
-                        <Pressable
-                          key={task.id}
-                          style={styles.taskRow}
-                          onPress={handleTaskPress}
-                        >
-                          <View style={styles.taskDayDot} />
-                          <View style={styles.taskContent}>
-                            <Text style={styles.taskTitle}>{task.title}</Text>
-                            <Text style={styles.taskMeta}>
-                              Dziś{taskContext ? " • " + taskContext : ""}
-                            </Text>
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                    {weatherTasksTomorrow.slice(0, 2).map((task) => {
-                      const taskContext = getWeatherTaskContext(task);
-
-                      return (
-                        <Pressable
-                          key={task.id}
-                          style={styles.taskRow}
-                          onPress={handleTaskPress}
-                        >
-                          <View
-                            style={[
-                              styles.taskDayDot,
-                              styles.taskDayDotTomorrow,
-                            ]}
-                          />
-                          <View style={styles.taskContent}>
-                            <Text style={styles.taskTitle}>{task.title}</Text>
-                            <Text style={styles.taskMeta}>
-                              Jutro{taskContext ? " • " + taskContext : ""}
-                            </Text>
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                  </>
-                )}
-              </View>
-            </Card>
 
             <Card
               title="Alerty pogodowe"

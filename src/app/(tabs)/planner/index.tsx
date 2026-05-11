@@ -53,6 +53,41 @@ export default function PlannerScreen() {
     }
   };
 
+  const weekItemsCount = overview.weekGroups.reduce(
+    (count, group) => count + group.tasks.length + group.harvestEvents.length,
+    0,
+  );
+
+  const weekPreviewGroups = (() => {
+    let remaining = PREVIEW_LIMIT;
+
+    return overview.weekGroups
+      .map((group) => {
+        if (remaining <= 0) {
+          return {
+            ...group,
+            tasks: [],
+            harvestEvents: [],
+          };
+        }
+
+        const tasks = group.tasks.slice(0, remaining);
+        remaining -= tasks.length;
+
+        const harvestEvents = group.harvestEvents.slice(0, remaining);
+        remaining -= harvestEvents.length;
+
+        return {
+          ...group,
+          tasks,
+          harvestEvents,
+        };
+      })
+      .filter(
+        (group) => group.tasks.length > 0 || group.harvestEvents.length > 0,
+      );
+  })();
+
   if (overview.isError) {
     return (
       <Screen safeAreaEdges={["top", "left", "right"]}>
@@ -117,7 +152,9 @@ export default function PlannerScreen() {
               {overview.todayTasks.length > PREVIEW_LIMIT ? (
                 <Button
                   mode="text"
-                  onPress={() => router.push("/(tabs)/planner/tasks")}
+                  onPress={() =>
+                    router.push("/(tabs)/planner/tasks?filter=today")
+                  }
                 >
                   Pokaż wszystkie
                 </Button>
@@ -134,12 +171,23 @@ export default function PlannerScreen() {
                 task={task}
                 isOverdue
                 onDone={actions.completeTask}
+                disableDoneAction
                 onNavigate={() => navigateToTaskContext(task)}
                 onDelete={actions.removeTask}
                 showDelete
                 disableActions={actions.isTaskBusy(task.id)}
               />
             ))}
+            {overview.overdueTasks.length > PREVIEW_LIMIT ? (
+              <Button
+                mode="text"
+                onPress={() =>
+                  router.push("/(tabs)/planner/tasks?filter=overdue")
+                }
+              >
+                Pokaż wszystkie
+              </Button>
+            ) : null}
           </PlannerSection>
         ) : null}
 
@@ -151,18 +199,30 @@ export default function PlannerScreen() {
               icon="weather-night"
             />
           ) : (
-            overview.tomorrowTasks.map((task) => (
-              <PlannerTaskCard
-                key={task.id}
-                task={task}
-                onDone={actions.completeTask}
-                onNavigate={() => navigateToTaskContext(task)}
-                onDelete={actions.removeTask}
-                showDelete
-                disableActions={actions.isTaskBusy(task.id)}
-              />
-            ))
+            overview.tomorrowTasks
+              .slice(0, PREVIEW_LIMIT)
+              .map((task) => (
+                <PlannerTaskCard
+                  key={task.id}
+                  task={task}
+                  onDone={actions.completeTask}
+                  onNavigate={() => navigateToTaskContext(task)}
+                  onDelete={actions.removeTask}
+                  showDelete
+                  disableActions={actions.isTaskBusy(task.id)}
+                />
+              ))
           )}
+          {overview.tomorrowTasks.length > PREVIEW_LIMIT ? (
+            <Button
+              mode="text"
+              onPress={() =>
+                router.push("/(tabs)/planner/tasks?filter=tomorrow")
+              }
+            >
+              Pokaż wszystkie
+            </Button>
+          ) : null}
         </PlannerSection>
 
         <PlannerSection title="Ten tydzień">
@@ -172,7 +232,7 @@ export default function PlannerScreen() {
               description="Na najbliższe dni nie ma zaplanowanych większych prac."
             />
           ) : (
-            overview.weekGroups.map((group) => (
+            weekPreviewGroups.map((group) => (
               <PlannerDayGroup
                 key={group.dateKey}
                 title={group.label}
@@ -188,6 +248,14 @@ export default function PlannerScreen() {
               />
             ))
           )}
+          {weekItemsCount > PREVIEW_LIMIT ? (
+            <Button
+              mode="text"
+              onPress={() => router.push("/(tabs)/planner/tasks?filter=week")}
+            >
+              Pokaż wszystkie
+            </Button>
+          ) : null}
         </PlannerSection>
 
         {overview.upcomingHarvestMoments.length > 0 ? (
@@ -207,18 +275,7 @@ export default function PlannerScreen() {
           </PlannerSection>
         ) : null}
 
-        <PlannerSection
-          title="Ostatnio wykonane"
-          rightSlot={
-            <Button
-              mode="text"
-              compact
-              onPress={() => router.push("/(tabs)/planner/tasks?filter=done")}
-            >
-              Pokaż historię
-            </Button>
-          }
-        >
+        <PlannerSection title="Ostatnio wykonane">
           {overview.recentCompletedTasks.length === 0 ? (
             <PlannerEmptyState
               title="Brak ostatnich wpisów"
@@ -226,14 +283,26 @@ export default function PlannerScreen() {
               icon="history"
             />
           ) : (
-            overview.recentCompletedTasks.map((task) => (
-              <PlannerTaskCard
-                key={task.id}
-                task={task}
-                onNavigate={() => navigateToTaskContext(task)}
-              />
-            ))
+            overview.recentCompletedTasks
+              .slice(0, PREVIEW_LIMIT)
+              .map((task) => (
+                <PlannerTaskCard
+                  key={task.id}
+                  task={task}
+                  onNavigate={() => navigateToTaskContext(task)}
+                />
+              ))
           )}
+          {overview.recentCompletedTasks.length > PREVIEW_LIMIT ? (
+            <Button
+              mode="text"
+              onPress={() =>
+                router.push("/(tabs)/planner/tasks?filter=recent-completed")
+              }
+            >
+              Pokaż wszystkie
+            </Button>
+          ) : null}
         </PlannerSection>
       </ScrollView>
     </Screen>

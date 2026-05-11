@@ -97,7 +97,7 @@ export function usePlannerOverview(rangeDays = 30): PlannerOverviewModel {
   );
 
   const recentCompletedTasks = useMemo(
-    () => getRecentCompletedTasks(doneTasks, 5),
+    () => getRecentCompletedTasks(doneTasks, Number.MAX_SAFE_INTEGER),
     [doneTasks],
   );
 

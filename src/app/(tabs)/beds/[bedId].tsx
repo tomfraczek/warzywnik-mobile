@@ -1289,20 +1289,20 @@ export default function BedDetailsScreen() {
 
                 <View style={styles.taskActions}>
                   <Button
+                    mode="contained"
+                    style={styles.taskActionButton}
+                    onPress={() => handleMarkTaskDone(task.id)}
+                    disabled={updateActionTask.isPending || isOffline}
+                  >
+                    Oznacz jako wykonane
+                  </Button>
+                  <Button
                     mode="outlined"
                     style={styles.taskActionButton}
                     onPress={() => handleDeleteTask(task.id)}
                     disabled={deleteActionTask.isPending || isOffline}
                   >
                     Anuluj
-                  </Button>
-                  <Button
-                    mode="contained"
-                    style={styles.taskActionButton}
-                    onPress={() => handleMarkTaskDone(task.id)}
-                    disabled={updateActionTask.isPending || isOffline}
-                  >
-                    Zrobione
                   </Button>
                 </View>
               </View>
@@ -2222,7 +2222,7 @@ const makeStyles = (theme: MD3Theme) => {
       color: palette.meta,
     },
     taskActions: {
-      flexDirection: "row",
+      flexDirection: "column",
       justifyContent: "space-between",
       gap: 8,
       width: "100%",

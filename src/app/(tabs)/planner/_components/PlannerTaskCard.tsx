@@ -16,6 +16,7 @@ type PlannerTaskCardProps = {
   onNavigate?: (task: TaskItem) => void;
   onDelete?: (task: TaskItem) => void;
   disableActions?: boolean;
+  disableDoneAction?: boolean;
   showDelete?: boolean;
   isOverdue?: boolean;
 };
@@ -46,6 +47,7 @@ export function PlannerTaskCard({
   onNavigate,
   onDelete,
   disableActions,
+  disableDoneAction = false,
   showDelete = false,
   isOverdue = false,
 }: PlannerTaskCardProps) {
@@ -94,9 +96,9 @@ export function PlannerTaskCard({
             mode="contained"
             compact
             onPress={() => onDone(task)}
-            disabled={disableActions}
+            disabled={disableActions || disableDoneAction}
           >
-            Wykonane
+            Oznacz jako wykonane
           </Button>
         ) : null}
 
@@ -179,8 +181,8 @@ const makeStyles = (theme: MD3Theme, isOverdue: boolean) =>
       color: theme.colors.onSurfaceVariant,
     },
     actions: {
-      flexDirection: "row",
-      flexWrap: "wrap",
+      flexDirection: "column",
+      alignItems: "stretch",
       gap: spacing.xs,
       marginTop: spacing.xs,
     },
