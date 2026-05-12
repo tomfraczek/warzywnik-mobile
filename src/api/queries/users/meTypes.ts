@@ -43,6 +43,17 @@ export type WeatherDayItem = {
   precipSum: number;
 };
 
+export type WeatherStatusLevel = "ok" | "watch" | "warning" | "critical";
+
+export type WeatherStatus = {
+  level: WeatherStatusLevel;
+  code: string;
+  title: string;
+  subtitle: string;
+  validTo: string | null;
+  sources: string[];
+};
+
 export type WeatherResponse = {
   fetchedAt: string;
   expiresAt: string;
@@ -58,6 +69,7 @@ export type WeatherResponse = {
     wind: "km/h";
     precipitation: "mm";
   };
+  status?: WeatherStatus;
   current: {
     time: string;
     temp: number;

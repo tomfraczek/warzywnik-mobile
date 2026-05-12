@@ -83,7 +83,7 @@ const makeStyles = (theme: MD3Theme, accentColor: string) =>
     header: {
       flexDirection: "row",
       justifyContent: "space-between",
-      alignItems: "center",
+      alignItems: "flex-start",
       gap: spacing.sm,
     },
     headerMain: {

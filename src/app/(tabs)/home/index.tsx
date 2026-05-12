@@ -1,6 +1,6 @@
 import { ArticleListItem } from "@/src/api/queries/articles/types";
 import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
-import { WarningItem } from "@/src/api/queries/users/meTypes";
+import { WarningItem, WeatherStatus } from "@/src/api/queries/users/meTypes";
 import { useGetMyWarnings } from "@/src/api/queries/users/useGetMyWarnings";
 import { useGetMyWeather } from "@/src/api/queries/users/useGetMyWeather";
 import { VegetableListItem } from "@/src/api/queries/vegetables/types";
@@ -48,6 +48,46 @@ const isWeatherMissingLocationError = (error: unknown) => {
 const isWeatherUnavailableError = (error: unknown) => {
   if (!isAxiosError(error)) return false;
   return error.response?.status === 503;
+};
+
+const getWeatherStatusLevelLabel = (level: WeatherStatus["level"]) => {
+  switch (level) {
+    case "critical":
+      return "Pilny alert";
+    case "warning":
+      return "Ostrzeżenie";
+    case "watch":
+      return "Obserwuj";
+    case "ok":
+    default:
+      return "Spokojnie";
+  }
+};
+
+const getWeatherStatusIcon = (level: WeatherStatus["level"]) => {
+  switch (level) {
+    case "critical":
+      return "alert-octagram" as const;
+    case "warning":
+      return "alert" as const;
+    case "watch":
+      return "eye-outline" as const;
+    case "ok":
+    default:
+      return "check-circle-outline" as const;
+  }
+};
+
+const formatWeatherStatusValidTo = (value: string | null) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Intl.DateTimeFormat("pl-PL", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed);
 };
 
 // ─── shared library-preview helpers ──────────────────────────────────────────
@@ -225,6 +265,10 @@ export default function HomeScreen() {
   const serverLocationLabel = weatherData?.location.label ?? null;
   const weatherSubtitle =
     serverLocationLabel ?? localLocationLabel ?? "Brak ustawionej lokalizacji";
+  const weatherStatus = weatherData?.status;
+  const weatherStatusValidTo = formatWeatherStatusValidTo(
+    weatherData?.status?.validTo ?? null,
+  );
   const { data: warningsData, isLoading: warningsLoading } = useGetMyWarnings();
   const { data: articlesData, isLoading: articlesLoading } = useGetArticles({
     limit: 3,
@@ -432,6 +476,75 @@ export default function HomeScreen() {
                 )}
               </Card>
             </Pressable>
+
+            {!isWeatherError && weatherStatus ? (
+              <Pressable onPress={() => router.push("/(tabs)/home/weather")}>
+                <View
+                  style={[
+                    styles.weatherStatusCard,
+                    styles[`weatherStatusCard_${weatherStatus.level}`],
+                  ]}
+                >
+                  <View style={styles.weatherStatusHeader}>
+                    <View
+                      style={[
+                        styles.weatherStatusPill,
+                        styles[`weatherStatusPill_${weatherStatus.level}`],
+                      ]}
+                    >
+                      <Text style={styles.weatherStatusPillText}>
+                        {getWeatherStatusLevelLabel(weatherStatus.level)}
+                      </Text>
+                    </View>
+                    <MaterialCommunityIcons
+                      name={getWeatherStatusIcon(weatherStatus.level)}
+                      size={20}
+                      color={
+                        styles[`weatherStatusText_${weatherStatus.level}`].color
+                      }
+                    />
+                  </View>
+
+                  <Text
+                    style={[
+                      styles.weatherStatusTitle,
+                      styles[`weatherStatusText_${weatherStatus.level}`],
+                    ]}
+                  >
+                    {weatherStatus.title}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.weatherStatusSubtitle,
+                      styles[`weatherStatusText_${weatherStatus.level}`],
+                    ]}
+                  >
+                    {weatherStatus.subtitle}
+                  </Text>
+
+                  {weatherStatusValidTo ? (
+                    <Text
+                      style={[
+                        styles.weatherStatusMeta,
+                        styles[`weatherStatusText_${weatherStatus.level}`],
+                      ]}
+                    >
+                      Ważne do: {weatherStatusValidTo}
+                    </Text>
+                  ) : null}
+                  {weatherStatus.sources.length ? (
+                    <Text
+                      style={[
+                        styles.weatherStatusMeta,
+                        styles[`weatherStatusText_${weatherStatus.level}`],
+                      ]}
+                    >
+                      Źródła: {weatherStatus.sources.join(", ")}
+                    </Text>
+                  ) : null}
+                </View>
+              </Pressable>
+            ) : null}
 
             <Card
               title="Alerty pogodowe"
@@ -645,6 +758,87 @@ const makeStyles = (theme: MD3Theme) =>
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.colors.primaryContainer,
+    },
+    weatherStatusCard: {
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      gap: 6,
+    },
+    weatherStatusCard_ok: {
+      backgroundColor: "#E9F7EF",
+      borderColor: "#BEE6CD",
+    },
+    weatherStatusCard_watch: {
+      backgroundColor: "#FFF7E8",
+      borderColor: "#F3DEB5",
+    },
+    weatherStatusCard_warning: {
+      backgroundColor: "#FFF0E8",
+      borderColor: "#F5D0BD",
+    },
+    weatherStatusCard_critical: {
+      backgroundColor: "#FDEBEC",
+      borderColor: "#F3B8BD",
+    },
+    weatherStatusHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+    },
+    weatherStatusPill: {
+      borderRadius: radius.pill,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderWidth: 1,
+      alignSelf: "flex-start",
+    },
+    weatherStatusPill_ok: {
+      backgroundColor: "#D4F0DF",
+      borderColor: "#A9DABD",
+    },
+    weatherStatusPill_watch: {
+      backgroundColor: "#FBEACA",
+      borderColor: "#EDD4A0",
+    },
+    weatherStatusPill_warning: {
+      backgroundColor: "#FADCCB",
+      borderColor: "#EFC2A8",
+    },
+    weatherStatusPill_critical: {
+      backgroundColor: "#F7D2D5",
+      borderColor: "#EAA9AF",
+    },
+    weatherStatusPillText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#27332D",
+    },
+    weatherStatusTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+    },
+    weatherStatusSubtitle: {
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    weatherStatusMeta: {
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    weatherStatusText_ok: {
+      color: "#204431",
+    },
+    weatherStatusText_watch: {
+      color: "#62460A",
+    },
+    weatherStatusText_warning: {
+      color: "#683118",
+    },
+    weatherStatusText_critical: {
+      color: "#6C2028",
     },
     stack: {
       gap: spacing.sm,
