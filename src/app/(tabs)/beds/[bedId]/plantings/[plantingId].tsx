@@ -2129,26 +2129,41 @@ export default function PlantingDetailsScreen() {
               Notatka
             </Button>
             <Button
-              mode="outlined"
+              mode="contained"
+              onPress={() => {
+                closeQuickActionModal();
+                if (!resolvedBedId || !resolvedPlantingId) return;
+                router.push(
+                  `/(tabs)/planner/create-task?target=planting&bedId=${resolvedBedId}&plantingId=${resolvedPlantingId}`,
+                );
+              }}
+              disabled={postPlantingQuickAction.isPending || isOffline}
+              buttonColor="#2F6B4F"
+              textColor="#FFFFFF"
+            >
+              Dodaj zadanie
+            </Button>
+            <Button
+              mode="contained"
               onPress={() => {
                 closeQuickActionModal();
                 setDiseaseModalVisible(true);
               }}
               disabled={postPlantingQuickAction.isPending || isOffline}
-              textColor="#9A5A2D"
-              style={styles.quickActionOutlinedDisease}
+              buttonColor="#9A5A2D"
+              textColor="#FFFFFF"
             >
               Dodaj chorobę
             </Button>
             <Button
-              mode="outlined"
+              mode="contained"
               onPress={() => {
                 closeQuickActionModal();
                 setPestModalVisible(true);
               }}
               disabled={postPlantingQuickAction.isPending || isOffline}
-              textColor="#2F6FA6"
-              style={styles.quickActionOutlinedPest}
+              buttonColor="#2F6FA6"
+              textColor="#FFFFFF"
             >
               Dodaj szkodnika
             </Button>

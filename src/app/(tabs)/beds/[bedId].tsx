@@ -383,9 +383,6 @@ const PlantingRow = memo(function PlantingRow({
       <View style={styles.plantingMain}>
         <View style={styles.plantingTitleRow}>
           <Text style={styles.plantingTitle}>{vegetableName}</Text>
-          {showAttention ? (
-            <Icon source="alert" size={15} color="#B6473D" />
-          ) : null}
         </View>
         <Text style={styles.plantingMeta}>
           Start: {formatDate(planting.plannedStartDate)}
@@ -409,6 +406,7 @@ const PlantingRow = memo(function PlantingRow({
           {getPlantingStatusLabel(planting.status)}
         </Text>
       </View>
+      {showAttention ? <Icon source="alert" size={15} color="#B6473D" /> : null}
     </Pressable>
   );
 });
@@ -1521,6 +1519,20 @@ export default function BedDetailsScreen() {
                 Notatka
               </Button>
               <Button
+                mode="contained"
+                onPress={() => {
+                  closeQuickActionModal();
+                  router.push(
+                    `/(tabs)/planner/create-task?target=bed&bedId=${bed.id}`,
+                  );
+                }}
+                disabled={postBedQuickAction.isPending || isOffline}
+                buttonColor="#2F6B4F"
+                textColor="#FFFFFF"
+              >
+                Dodaj zadanie do grządki
+              </Button>
+              <Button
                 mode="text"
                 onPress={closeQuickActionModal}
                 disabled={postBedQuickAction.isPending}
@@ -1791,6 +1803,18 @@ export default function BedDetailsScreen() {
               <>
                 <Text style={styles.modalTitle}>Akcje</Text>
                 <View style={styles.modalActionsColumn}>
+                  <Button
+                    mode="contained"
+                    onPress={() => {
+                      setActionsVisible(false);
+                      router.push(
+                        `/(tabs)/planner/create-task?target=bed&bedId=${bed.id}`,
+                      );
+                    }}
+                    disabled={deleteBed.isPending || isOffline}
+                  >
+                    Dodaj zadanie do grządki
+                  </Button>
                   <Button
                     mode="contained"
                     onPress={() => {

@@ -12,6 +12,7 @@ type WarningCardProps = {
   contextLabel?: string | null;
   ctaLabel?: string;
   onPress?: () => void;
+  onInfoPress?: () => void;
 };
 
 export function WarningCard({
@@ -22,6 +23,7 @@ export function WarningCard({
   contextLabel,
   ctaLabel = "Zobacz szczegóły",
   onPress,
+  onInfoPress,
 }: WarningCardProps) {
   const theme = useTheme<MD3Theme>();
   const tone = getSeverityTone(severity);
@@ -37,11 +39,17 @@ export function WarningCard({
             <Text style={styles.title}>{title}</Text>
             {scopeLabel ? <StatusBadge label={scopeLabel} tone="info" /> : null}
           </View>
-          <MaterialCommunityIcons
-            name="alert-circle-outline"
-            size={18}
-            color={tones[tone].text}
-          />
+          <Pressable
+            onPress={onInfoPress}
+            hitSlop={8}
+            style={styles.infoIconButton}
+          >
+            <MaterialCommunityIcons
+              name="information-outline"
+              size={18}
+              color={theme.colors.onSurfaceVariant}
+            />
+          </Pressable>
         </View>
         {contextLabel ? (
           <Text style={styles.context}>{contextLabel}</Text>
@@ -81,6 +89,16 @@ const makeStyles = (theme: MD3Theme, accentColor: string) =>
     headerMain: {
       flex: 1,
       gap: spacing.xs,
+    },
+    infoIconButton: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.surfaceVariant,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
     },
     title: {
       fontSize: 14,

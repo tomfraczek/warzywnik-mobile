@@ -1,4 +1,5 @@
 import { Screen } from "@/src/components/Screen";
+import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
 import { spacing } from "@/src/theme/ui";
 import { useRouter } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -121,6 +122,14 @@ export default function PlannerScreen() {
           todayCount={overview.summary.todayCount}
           overdueCount={overview.summary.overdueCount}
           harvestCount={overview.summary.harvestCount}
+        />
+
+        <PrimaryActionButton
+          onPress={() => router.push("/(tabs)/planner/create-task")}
+          icon="plus"
+          label="Dodaj własne zadanie"
+          color={theme.colors.primary}
+          style={styles.addOwnTaskButton}
         />
 
         <PlannerSection title="Do zrobienia dzisiaj">
@@ -328,5 +337,8 @@ const makeStyles = (theme: MD3Theme) =>
       fontSize: 16,
       color: theme.colors.onSurface,
       textAlign: "center",
+    },
+    addOwnTaskButton: {
+      marginHorizontal: spacing.md,
     },
   });

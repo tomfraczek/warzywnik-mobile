@@ -2,6 +2,26 @@ export type ActionTaskStatus = "pending" | "done" | "canceled";
 
 export type ActionTaskSourceType = "MANUAL" | "AUTOMATION" | "SUGGESTION";
 
+export type ManualActionTemplate = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  target: "bed" | "planting";
+  type: string;
+  generationMode: string;
+  priority: string;
+  defaultDueOffsetDays?: number | null;
+  requiresUserConfirmation: boolean;
+  isUserSelectable: boolean;
+};
+
+export type CreateManualActionTaskPayload = {
+  actionTemplateId: string;
+  dueAt: string;
+  description?: string;
+};
+
 export type TaskListStatusFilter = "pending" | "done" | "canceled" | "all";
 
 export type TaskEntityStatusLike = ActionTaskStatus | "canceled";

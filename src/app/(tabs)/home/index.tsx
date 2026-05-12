@@ -1,7 +1,6 @@
 import { ArticleListItem } from "@/src/api/queries/articles/types";
 import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
 import { WarningItem } from "@/src/api/queries/users/meTypes";
-import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { useGetMyWarnings } from "@/src/api/queries/users/useGetMyWarnings";
 import { useGetMyWeather } from "@/src/api/queries/users/useGetMyWeather";
 import { VegetableListItem } from "@/src/api/queries/vegetables/types";
@@ -12,19 +11,12 @@ import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { WarningCard } from "@/src/components/ui/WarningCard";
 import { useSettings } from "@/src/context/SettingsProvider";
 import {
-  getTaskContextLabel,
-  getTasksForToday,
-  getTasksForTomorrow,
-  isWeatherWarningTask,
-  resolveTaskTargetType,
-} from "@/src/features/tasks/model";
-import {
   getOperationalWarningsToday,
   getOperationalWarningsTomorrow,
   getRadarWarnings,
   resolveWarningPresentation,
 } from "@/src/features/warnings/model";
-import { getSeverityTone, radius, spacing } from "@/src/theme/ui";
+import { radius, spacing } from "@/src/theme/ui";
 import {
   formatTemperature,
   getWeatherIconName,
@@ -34,13 +26,15 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Button,
   Icon,
   MD3Theme,
+  Modal,
+  Portal,
   Text,
   useTheme,
 } from "react-native-paper";
@@ -217,6 +211,9 @@ export default function HomeScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const { profile, location } = useSettings();
+  const [warningInfoItem, setWarningInfoItem] = useState<WarningItem | null>(
+    null,
+  );
 
   const {
     data: weatherData,
@@ -228,7 +225,6 @@ export default function HomeScreen() {
   const serverLocationLabel = weatherData?.location.label ?? null;
   const weatherSubtitle =
     serverLocationLabel ?? localLocationLabel ?? "Brak ustawionej lokalizacji";
-  const { data: tasksData, isLoading: tasksLoading } = useGetMyTasks("pending");
   const { data: warningsData, isLoading: warningsLoading } = useGetMyWarnings();
   const { data: articlesData, isLoading: articlesLoading } = useGetArticles({
     limit: 3,
@@ -239,21 +235,6 @@ export default function HomeScreen() {
   const warnings = useMemo(
     () => warningsData?.items ?? [],
     [warningsData?.items],
-  );
-
-  const allPendingTasks = useMemo(
-    () => tasksData?.items ?? [],
-    [tasksData?.items],
-  );
-
-  // Weather-task grouping – based on dueAt local date
-  const weatherTasksToday = useMemo(
-    () => getTasksForToday(allPendingTasks.filter(isWeatherWarningTask)),
-    [allPendingTasks],
-  );
-  const weatherTasksTomorrow = useMemo(
-    () => getTasksForTomorrow(allPendingTasks.filter(isWeatherWarningTask)),
-    [allPendingTasks],
   );
 
   // Warning grouping – based on localDate + code
@@ -303,11 +284,7 @@ export default function HomeScreen() {
     vegetablesData?.pages.flatMap((page) => page.items).slice(0, 4) ?? [];
 
   const isLoading =
-    weatherLoading &&
-    tasksLoading &&
-    warningsLoading &&
-    articlesLoading &&
-    vegetablesLoading;
+    weatherLoading && warningsLoading && articlesLoading && vegetablesLoading;
 
   const handleWarningPress = (warning: WarningItem) => {
     const presentation = resolveWarningPresentation(warning);
@@ -340,19 +317,6 @@ export default function HomeScreen() {
         dayPart: presentation.dayPart ?? "",
       },
     });
-  };
-
-  const handleTaskPress = () => {
-    router.push({
-      pathname: "/(tabs)/planner/tasks" as any,
-      params: { source: "WEATHER_WARNING" },
-    });
-  };
-
-  const getWeatherTaskContext = (task: (typeof weatherTasksToday)[number]) => {
-    const targetType = resolveTaskTargetType(task);
-    if (targetType !== "bed" && targetType !== "planting") return null;
-    return getTaskContextLabel(task);
   };
 
   return (
@@ -493,7 +457,6 @@ export default function HomeScreen() {
                   previewGroups.map((group) =>
                     group.items.map((warning) => {
                       const presentation = resolveWarningPresentation(warning);
-                      const tone = getSeverityTone(warning.severity);
                       return (
                         <WarningCard
                           key={warning.dedupeKey}
@@ -508,6 +471,7 @@ export default function HomeScreen() {
                               : "Zobacz prognozę"
                           }
                           onPress={() => handleWarningPress(warning)}
+                          onInfoPress={() => setWarningInfoItem(warning)}
                         />
                       );
                     }),
@@ -577,6 +541,34 @@ export default function HomeScreen() {
             </View>
           </>
         )}
+
+        <Portal>
+          <Modal
+            visible={Boolean(warningInfoItem)}
+            onDismiss={() => setWarningInfoItem(null)}
+            contentContainerStyle={styles.warningInfoModal}
+          >
+            <Text style={styles.warningInfoTitle}>
+              {warningInfoItem
+                ? resolveWarningPresentation(warningInfoItem).title
+                : "Szczegóły alertu"}
+            </Text>
+            <Text style={styles.warningInfoText}>
+              {warningInfoItem
+                ? resolveWarningPresentation(warningInfoItem).message
+                : "Brak danych."}
+            </Text>
+            {warningInfoItem &&
+            resolveWarningPresentation(warningInfoItem).hint ? (
+              <Text style={styles.warningInfoHint}>
+                {resolveWarningPresentation(warningInfoItem!).hint}
+              </Text>
+            ) : null}
+            <Button mode="contained" onPress={() => setWarningInfoItem(null)}>
+              Zamknij
+            </Button>
+          </Modal>
+        </Portal>
       </ScrollView>
     </Screen>
   );
@@ -665,6 +657,30 @@ const makeStyles = (theme: MD3Theme) =>
       fontSize: 13,
       fontWeight: "700",
       color: theme.colors.primary,
+    },
+    warningInfoModal: {
+      backgroundColor: theme.colors.surface,
+      marginHorizontal: spacing.md,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+      padding: spacing.md,
+      gap: spacing.sm,
+    },
+    warningInfoTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: theme.colors.onSurface,
+    },
+    warningInfoText: {
+      fontSize: 14,
+      lineHeight: 21,
+      color: theme.colors.onSurface,
+    },
+    warningInfoHint: {
+      fontSize: 13,
+      lineHeight: 19,
+      color: theme.colors.onSurfaceVariant,
     },
     taskRow: {
       flexDirection: "row",

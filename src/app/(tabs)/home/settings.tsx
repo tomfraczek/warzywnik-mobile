@@ -5,11 +5,10 @@ import { GeoSearchItem } from "@/src/api/queries/geo/types";
 import { useGeoReverse } from "@/src/api/queries/geo/useGeoReverse";
 import { useGeoSearch } from "@/src/api/queries/geo/useGeoSearch";
 import { useUpdateUserLocation } from "@/src/api/queries/geo/useUpdateUserLocation";
+import { useMe, useUpdateMe } from "@/src/api/queries/users/useUpdateMe";
 import { clientPersister, queryClient } from "@/src/api/queryClient";
 import { Screen } from "@/src/components/Screen";
 import { getAvatarSource } from "@/src/constants/avatars";
-import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
-import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import {
   AreaUnit,
   LanguagePreference,
@@ -19,7 +18,9 @@ import {
   ThemeMode,
   useSettings,
 } from "@/src/context/SettingsProvider";
+import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import { getExpoToken, requestPermission } from "@/src/features/push/push";
+import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
@@ -92,9 +93,13 @@ export default function HomeSettingsScreen() {
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [isPushSaving, setIsPushSaving] = useState(false);
   const [pushPermissionDenied, setPushPermissionDenied] = useState(false);
+  const [isAutomaticTasksEnabled, setIsAutomaticTasksEnabled] = useState(true);
+  const [isAutomaticTasksSaving, setIsAutomaticTasksSaving] = useState(false);
   const registerDevice = useRegisterDevice();
   const disableDevice = useDisableDevice();
   const updateLocationPreference = useUpdateUserLocation();
+  const meQuery = useMe();
+  const updateMeMutation = useUpdateMe();
   const emailLabel =
     user?.primaryEmailAddress?.emailAddress ??
     user?.emailAddresses?.[0]?.emailAddress ??
@@ -152,6 +157,11 @@ export default function HomeSettingsScreen() {
     console.error("Location search failed", geoSearchQuery.error);
     setLocationError("Nie udało się wyszukać lokalizacji.");
   }, [geoSearchQuery.error, geoSearchQuery.isError]);
+
+  useEffect(() => {
+    if (typeof meQuery.data?.automaticTasksEnabled !== "boolean") return;
+    setIsAutomaticTasksEnabled(meQuery.data.automaticTasksEnabled);
+  }, [meQuery.data?.automaticTasksEnabled]);
 
   const isOffline = useIsOffline();
 
@@ -382,6 +392,39 @@ export default function HomeSettingsScreen() {
       pushNotifications.enabled,
       registerDevice,
       setPushNotifications,
+    ],
+  );
+
+  const handleToggleAutomaticTasks = useCallback(
+    async (nextValue: boolean) => {
+      if (isOffline) {
+        Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+        return;
+      }
+
+      if (isAutomaticTasksSaving) return;
+
+      const previousValue = isAutomaticTasksEnabled;
+      setIsAutomaticTasksEnabled(nextValue);
+      setIsAutomaticTasksSaving(true);
+
+      try {
+        await updateMeMutation.mutateAsync({
+          automaticTasksEnabled: nextValue,
+        });
+        setSnackbarMessage("Zapisano ustawienie automatycznych zadań.");
+      } catch (error) {
+        setIsAutomaticTasksEnabled(previousValue);
+        setSnackbarMessage("Nie udało się zapisać ustawienia.");
+      } finally {
+        setIsAutomaticTasksSaving(false);
+      }
+    },
+    [
+      isOffline,
+      isAutomaticTasksSaving,
+      isAutomaticTasksEnabled,
+      updateMeMutation,
     ],
   );
 
@@ -683,6 +726,31 @@ export default function HomeSettingsScreen() {
                 Otwórz ustawienia systemu
               </Button>
             ) : null}
+          </Surface>
+
+          <Surface style={styles.section} elevation={0}>
+            <Text style={styles.sectionTitle}>Zadania</Text>
+            <Text style={styles.sectionSubtitle}>
+              Gdy opcja jest włączona, aplikacja sama podpowiada zadania dla
+              Twoich grządek i upraw.
+            </Text>
+            <View
+              style={styles.row}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: isAutomaticTasksEnabled }}
+            >
+              <Text style={styles.rowLabel}>Automatyczne zadania</Text>
+              <Switch
+                value={isAutomaticTasksEnabled}
+                onValueChange={handleToggleAutomaticTasks}
+                disabled={
+                  isOffline ||
+                  isAutomaticTasksSaving ||
+                  meQuery.isLoading ||
+                  updateMeMutation.isPending
+                }
+              />
+            </View>
           </Surface>
 
           <Surface style={styles.section} elevation={0}>
