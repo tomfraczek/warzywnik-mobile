@@ -44,14 +44,20 @@ export type WeatherDayItem = {
 };
 
 export type WeatherStatusLevel = "ok" | "watch" | "warning" | "critical";
+export type WeatherStatusSeverity = "ok" | "info" | "warning" | "danger";
+export type WeatherStatusSource = "hourly_forecast" | "warnings";
 
 export type WeatherStatus = {
-  level: WeatherStatusLevel;
+  level?: WeatherStatusLevel;
+  severity?: WeatherStatusSeverity;
   code: string;
-  title: string;
-  subtitle: string;
-  validTo: string | null;
-  sources: string[];
+  title?: string;
+  subtitle?: string;
+  validTo?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  source?: WeatherStatusSource;
+  sources?: string[];
 };
 
 export type WeatherResponse = {
@@ -70,6 +76,7 @@ export type WeatherResponse = {
     precipitation: "mm";
   };
   status?: WeatherStatus;
+  gardenRiskStatus?: WeatherStatus | null;
   current: {
     time: string;
     temp: number;

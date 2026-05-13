@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Tabs, useRouter } from "expo-router";
+import { TouchableOpacity } from "react-native";
 import { MD3Theme, useTheme } from "react-native-paper";
 
 export default function TabsLayout() {
@@ -21,6 +22,11 @@ export default function TabsLayout() {
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.outline,
         },
+        tabBarButton: (props) => (
+          <TouchableOpacity {...props} activeOpacity={1} />
+        ),
+        tabBarPressColor: "transparent",
+        tabBarPressOpacity: 1,
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor:
           theme.colors.onSurfaceVariant ?? theme.colors.secondary,

@@ -202,7 +202,7 @@ export default function WarningsScreen() {
 
   if (isLoading) {
     return (
-      <Screen safeAreaEdges={["top", "left", "right"]}>
+      <Screen safeAreaEdges={["left", "right"]}>
         <View style={styles.center}>
           <ActivityIndicator />
         </View>
@@ -212,7 +212,7 @@ export default function WarningsScreen() {
 
   if (isError) {
     return (
-      <Screen safeAreaEdges={["top", "left", "right"]}>
+      <Screen safeAreaEdges={["left", "right"]}>
         <View style={styles.center}>
           <MaterialCommunityIcons
             name="alert-circle-outline"
@@ -220,7 +220,7 @@ export default function WarningsScreen() {
             color={theme.colors.error}
           />
           <Text style={styles.errorText}>
-            Nie udało się pobrać alertów pogodowych.
+            Nie udało się pobrać szczegółowych alertów.
           </Text>
           <Button mode="outlined" onPress={() => refetch()}>
             Spróbuj ponownie
@@ -231,7 +231,7 @@ export default function WarningsScreen() {
   }
 
   return (
-    <Screen safeAreaEdges={["top", "left", "right"]}>
+    <Screen safeAreaEdges={["left", "right"]}>
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
@@ -240,9 +240,9 @@ export default function WarningsScreen() {
         }
       >
         <View style={styles.pageHeader}>
-          <Text style={styles.pageTitle}>Alerty pogodowe</Text>
+          <Text style={styles.pageTitle}>Szczegółowe alerty</Text>
           <Text style={styles.pageSubtitle}>
-            Aktywne alerty dla Twojego ogrodu
+            Lista aktywnych alertów i ostrzeżeń dla ogrodu
           </Text>
         </View>
 
@@ -253,9 +253,9 @@ export default function WarningsScreen() {
               size={48}
               color={theme.colors.primary}
             />
-            <Text style={styles.emptyTitle}>Brak aktywnych alertów</Text>
+            <Text style={styles.emptyTitle}>Brak szczegółowych alertów</Text>
             <Text style={styles.emptySubtitle}>
-              Warunki pogodowe są obecnie korzystne. Sprawdź ponownie jutro.
+              Obecnie nie ma dodatkowych ostrzeżeń dla ogrodu.
             </Text>
           </View>
         ) : (

@@ -8,7 +8,7 @@ const getMyTasks = async (
   status: TaskStatusFilter = "pending",
 ): Promise<TasksResponse> => {
   const { data } = await restClient.get<TasksResponse>("/users/me/tasks", {
-    params: status && status !== "all" ? { status } : undefined,
+    params: { status },
   });
   return data;
 };

@@ -119,6 +119,7 @@ export function PlannerTaskCard({
             compact
             onPress={() => onDelete(task)}
             disabled={disableActions}
+            textColor={theme.colors.error}
           >
             Usuń
           </Button>

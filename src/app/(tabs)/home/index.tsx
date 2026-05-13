@@ -1,40 +1,33 @@
 import { ArticleListItem } from "@/src/api/queries/articles/types";
 import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
-import { WarningItem, WeatherStatus } from "@/src/api/queries/users/meTypes";
-import { useGetMyWarnings } from "@/src/api/queries/users/useGetMyWarnings";
+import { WeatherStatusLevel } from "@/src/api/queries/users/meTypes";
 import { useGetMyWeather } from "@/src/api/queries/users/useGetMyWeather";
 import { VegetableListItem } from "@/src/api/queries/vegetables/types";
 import { useGetVegetables } from "@/src/api/queries/vegetables/useGetVegetables";
 import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
-import { WarningCard } from "@/src/components/ui/WarningCard";
 import { useSettings } from "@/src/context/SettingsProvider";
-import {
-  getOperationalWarningsToday,
-  getOperationalWarningsTomorrow,
-  getRadarWarnings,
-  resolveWarningPresentation,
-} from "@/src/features/warnings/model";
 import { radius, spacing } from "@/src/theme/ui";
 import {
   formatTemperature,
   getWeatherIconName,
   resolveWeatherLabel,
 } from "@/src/utils/weather";
+import {
+  formatWeatherStatusTimeWindow,
+  normalizeWeatherStatus,
+} from "@/src/utils/weatherStatus";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Button,
   Icon,
   MD3Theme,
-  Modal,
-  Portal,
   Text,
   useTheme,
 } from "react-native-paper";
@@ -50,7 +43,7 @@ const isWeatherUnavailableError = (error: unknown) => {
   return error.response?.status === 503;
 };
 
-const getWeatherStatusLevelLabel = (level: WeatherStatus["level"]) => {
+const getWeatherStatusLevelLabel = (level: WeatherStatusLevel) => {
   switch (level) {
     case "critical":
       return "Pilny alert";
@@ -64,7 +57,7 @@ const getWeatherStatusLevelLabel = (level: WeatherStatus["level"]) => {
   }
 };
 
-const getWeatherStatusIcon = (level: WeatherStatus["level"]) => {
+const getWeatherStatusIcon = (level: WeatherStatusLevel) => {
   switch (level) {
     case "critical":
       return "alert-octagram" as const;
@@ -78,16 +71,37 @@ const getWeatherStatusIcon = (level: WeatherStatus["level"]) => {
   }
 };
 
-const formatWeatherStatusValidTo = (value: string | null) => {
-  if (!value) return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return new Intl.DateTimeFormat("pl-PL", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(parsed);
+const getWeatherStatusCardToneStyles = (
+  styles: ReturnType<typeof makeStyles>,
+  level: WeatherStatusLevel,
+) => {
+  switch (level) {
+    case "critical":
+      return {
+        card: styles.weatherStatusCard_critical,
+        pill: styles.weatherStatusPill_critical,
+        text: styles.weatherStatusText_critical,
+      };
+    case "warning":
+      return {
+        card: styles.weatherStatusCard_warning,
+        pill: styles.weatherStatusPill_warning,
+        text: styles.weatherStatusText_warning,
+      };
+    case "watch":
+      return {
+        card: styles.weatherStatusCard_watch,
+        pill: styles.weatherStatusPill_watch,
+        text: styles.weatherStatusText_watch,
+      };
+    case "ok":
+    default:
+      return {
+        card: styles.weatherStatusCard_ok,
+        pill: styles.weatherStatusPill_ok,
+        text: styles.weatherStatusText_ok,
+      };
+  }
 };
 
 // ─── shared library-preview helpers ──────────────────────────────────────────
@@ -251,9 +265,6 @@ export default function HomeScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const { profile, location } = useSettings();
-  const [warningInfoItem, setWarningInfoItem] = useState<WarningItem | null>(
-    null,
-  );
 
   const {
     data: weatherData,
@@ -265,61 +276,22 @@ export default function HomeScreen() {
   const serverLocationLabel = weatherData?.location.label ?? null;
   const weatherSubtitle =
     serverLocationLabel ?? localLocationLabel ?? "Brak ustawionej lokalizacji";
-  const weatherStatus = weatherData?.status;
-  const weatherStatusValidTo = formatWeatherStatusValidTo(
-    weatherData?.status?.validTo ?? null,
+  const weatherStatus = normalizeWeatherStatus(weatherData?.status, "weather");
+  const gardenRiskStatus = normalizeWeatherStatus(
+    weatherData?.gardenRiskStatus,
+    "garden",
   );
-  const { data: warningsData, isLoading: warningsLoading } = useGetMyWarnings();
+  const weatherStatusTimeWindow = weatherStatus
+    ? formatWeatherStatusTimeWindow(weatherStatus)
+    : null;
+  const gardenRiskStatusTimeWindow = gardenRiskStatus
+    ? formatWeatherStatusTimeWindow(gardenRiskStatus)
+    : null;
   const { data: articlesData, isLoading: articlesLoading } = useGetArticles({
     limit: 3,
   });
   const { data: vegetablesData, isLoading: vegetablesLoading } =
     useGetVegetables({ limit: 4 });
-
-  const warnings = useMemo(
-    () => warningsData?.items ?? [],
-    [warningsData?.items],
-  );
-
-  // Warning grouping – based on localDate + code
-  const operationalToday = useMemo(
-    () => getOperationalWarningsToday(warnings),
-    [warnings],
-  );
-  const operationalTomorrow = useMemo(
-    () => getOperationalWarningsTomorrow(warnings),
-    [warnings],
-  );
-  const radarWarnings = useMemo(() => getRadarWarnings(warnings), [warnings]);
-
-  const hasAnyWarnings =
-    operationalToday.length > 0 ||
-    operationalTomorrow.length > 0 ||
-    radarWarnings.length > 0;
-
-  /**
-   * Home-screen preview: today first, then tomorrow, then 1-2 radar.
-   * Priority: show today if available, otherwise tomorrow, otherwise radar.
-   */
-  const previewGroups = useMemo(() => {
-    const groups: { label: string; items: WarningItem[] }[] = [];
-    const todaySlice = operationalToday.slice(0, 2);
-    const tomorrowSlice = operationalTomorrow.slice(
-      0,
-      Math.max(0, 3 - todaySlice.length),
-    );
-    const radarSlice = radarWarnings.slice(
-      0,
-      Math.max(0, 2 - tomorrowSlice.length),
-    );
-
-    if (todaySlice.length) groups.push({ label: "Dziś", items: todaySlice });
-    if (tomorrowSlice.length)
-      groups.push({ label: "Jutro", items: tomorrowSlice });
-    if (radarSlice.length) groups.push({ label: "Radar", items: radarSlice });
-
-    return groups;
-  }, [operationalToday, operationalTomorrow, radarWarnings]);
 
   const tips: ArticleListItem[] =
     articlesData?.pages.flatMap((page) => page.items).slice(0, 3) ?? [];
@@ -327,41 +299,7 @@ export default function HomeScreen() {
   const popularVegetables =
     vegetablesData?.pages.flatMap((page) => page.items).slice(0, 4) ?? [];
 
-  const isLoading =
-    weatherLoading && warningsLoading && articlesLoading && vegetablesLoading;
-
-  const handleWarningPress = (warning: WarningItem) => {
-    const presentation = resolveWarningPresentation(warning);
-
-    if (presentation.scope === "PLANTING" && presentation.plantingId) {
-      router.push(`/plantings/${presentation.plantingId}`);
-      return;
-    }
-    if (presentation.scope === "BED" && presentation.bedId) {
-      router.push(`/(tabs)/beds/${presentation.bedId}`);
-      return;
-    }
-    if (presentation.scope === "USER") {
-      router.push("/(tabs)/home/warnings");
-      return;
-    }
-    router.push({
-      pathname: "/(tabs)/home/alert-details",
-      params: {
-        title: presentation.title,
-        message: presentation.message,
-        hint: presentation.hint ?? "",
-        scope: presentation.scope,
-        bedId: presentation.bedId ?? "",
-        bedName: presentation.bedName ?? "",
-        plantingId: presentation.plantingId ?? "",
-        vegetableName: presentation.vegetableName ?? "",
-        code: warning.code ?? "",
-        horizon: presentation.horizon ?? "",
-        dayPart: presentation.dayPart ?? "",
-      },
-    });
-  };
+  const isLoading = weatherLoading && articlesLoading && vegetablesLoading;
 
   return (
     <Screen safeAreaEdges={["top", "left", "right"]}>
@@ -409,15 +347,6 @@ export default function HomeScreen() {
                       </Text>
                     ) : null}
                     <View style={styles.weatherErrorActions}>
-                      {isWeatherMissingLocationError(weatherError) ? (
-                        <Button
-                          compact
-                          mode="text"
-                          onPress={() => router.push("/(tabs)/home/settings")}
-                        >
-                          Ustaw lokalizację
-                        </Button>
-                      ) : null}
                       <Button
                         compact
                         mode="text"
@@ -477,121 +406,126 @@ export default function HomeScreen() {
               </Card>
             </Pressable>
 
-            {!isWeatherError && weatherStatus ? (
-              <Pressable onPress={() => router.push("/(tabs)/home/weather")}>
-                <View
-                  style={[
-                    styles.weatherStatusCard,
-                    styles[`weatherStatusCard_${weatherStatus.level}`],
-                  ]}
-                >
-                  <View style={styles.weatherStatusHeader}>
+            {!isWeatherError && weatherStatus
+              ? (() => {
+                  const toneStyles = getWeatherStatusCardToneStyles(
+                    styles,
+                    weatherStatus.level,
+                  );
+
+                  return (
+                    <View style={[styles.weatherStatusCard, toneStyles.card]}>
+                      <Text style={styles.weatherStatusSectionTitle}>
+                        Status pogody
+                      </Text>
+                      <View style={styles.weatherStatusHeader}>
+                        <View
+                          style={[styles.weatherStatusPill, toneStyles.pill]}
+                        >
+                          <Text style={styles.weatherStatusPillText}>
+                            {getWeatherStatusLevelLabel(weatherStatus.level)}
+                          </Text>
+                        </View>
+                        <MaterialCommunityIcons
+                          name={getWeatherStatusIcon(weatherStatus.level)}
+                          size={20}
+                          color={toneStyles.text.color}
+                        />
+                      </View>
+
+                      <Text
+                        style={[styles.weatherStatusTitle, toneStyles.text]}
+                      >
+                        {weatherStatus.title}
+                      </Text>
+                      <Text
+                        style={[styles.weatherStatusSubtitle, toneStyles.text]}
+                      >
+                        {weatherStatus.subtitle}
+                      </Text>
+
+                      {weatherStatusTimeWindow ? (
+                        <Text
+                          style={[styles.weatherStatusMeta, toneStyles.text]}
+                        >
+                          {weatherStatusTimeWindow}
+                        </Text>
+                      ) : null}
+                      <Pressable
+                        onPress={() => router.push("/(tabs)/home/weather")}
+                        hitSlop={8}
+                      >
+                        <Text style={styles.weatherStatusLink}>
+                          Zobacz pełną pogodę
+                        </Text>
+                      </Pressable>
+                    </View>
+                  );
+                })()
+              : null}
+
+            {!isWeatherError && gardenRiskStatus
+              ? (() => {
+                  const toneStyles = getWeatherStatusCardToneStyles(
+                    styles,
+                    gardenRiskStatus.level,
+                  );
+
+                  return (
                     <View
                       style={[
-                        styles.weatherStatusPill,
-                        styles[`weatherStatusPill_${weatherStatus.level}`],
+                        styles.gardenRiskCard,
+                        styles.weatherStatusCard,
+                        toneStyles.card,
                       ]}
                     >
-                      <Text style={styles.weatherStatusPillText}>
-                        {getWeatherStatusLevelLabel(weatherStatus.level)}
+                      <Text style={styles.weatherStatusSectionTitle}>
+                        Ryzyko dla ogrodu
                       </Text>
-                    </View>
-                    <MaterialCommunityIcons
-                      name={getWeatherStatusIcon(weatherStatus.level)}
-                      size={20}
-                      color={
-                        styles[`weatherStatusText_${weatherStatus.level}`].color
-                      }
-                    />
-                  </View>
-
-                  <Text
-                    style={[
-                      styles.weatherStatusTitle,
-                      styles[`weatherStatusText_${weatherStatus.level}`],
-                    ]}
-                  >
-                    {weatherStatus.title}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.weatherStatusSubtitle,
-                      styles[`weatherStatusText_${weatherStatus.level}`],
-                    ]}
-                  >
-                    {weatherStatus.subtitle}
-                  </Text>
-
-                  {weatherStatusValidTo ? (
-                    <Text
-                      style={[
-                        styles.weatherStatusMeta,
-                        styles[`weatherStatusText_${weatherStatus.level}`],
-                      ]}
-                    >
-                      Ważne do: {weatherStatusValidTo}
-                    </Text>
-                  ) : null}
-                  {weatherStatus.sources.length ? (
-                    <Text
-                      style={[
-                        styles.weatherStatusMeta,
-                        styles[`weatherStatusText_${weatherStatus.level}`],
-                      ]}
-                    >
-                      Źródła: {weatherStatus.sources.join(", ")}
-                    </Text>
-                  ) : null}
-                </View>
-              </Pressable>
-            ) : null}
-
-            <Card
-              title="Alerty pogodowe"
-              subtitle="Aktywne alerty dla Twojego ogrodu"
-              rightSlot={
-                hasAnyWarnings ? (
-                  <Pressable
-                    onPress={() => router.push("/(tabs)/home/warnings")}
-                  >
-                    <Text style={styles.cardCta}>Wszystkie →</Text>
-                  </Pressable>
-                ) : undefined
-              }
-            >
-              <View style={styles.stack}>
-                {warningsLoading ? (
-                  <ActivityIndicator size="small" />
-                ) : !hasAnyWarnings ? (
-                  <Text style={styles.placeholder}>
-                    Brak aktywnych alertów pogodowych.
-                  </Text>
-                ) : (
-                  previewGroups.map((group) =>
-                    group.items.map((warning) => {
-                      const presentation = resolveWarningPresentation(warning);
-                      return (
-                        <WarningCard
-                          key={warning.dedupeKey}
-                          title={presentation.title}
-                          message={presentation.message}
-                          severity={warning.severity}
-                          scopeLabel={`${group.label} · ${presentation.scopeLabel}`}
-                          contextLabel={presentation.contextLabel}
-                          ctaLabel={
-                            presentation.isActionable
-                              ? "Przejdź do działania"
-                              : "Zobacz prognozę"
-                          }
-                          onPress={() => handleWarningPress(warning)}
-                          onInfoPress={() => setWarningInfoItem(warning)}
+                      <View style={styles.weatherStatusHeader}>
+                        <View
+                          style={[styles.weatherStatusPill, toneStyles.pill]}
+                        >
+                          <Text style={styles.weatherStatusPillText}>
+                            {getWeatherStatusLevelLabel(gardenRiskStatus.level)}
+                          </Text>
+                        </View>
+                        <MaterialCommunityIcons
+                          name={getWeatherStatusIcon(gardenRiskStatus.level)}
+                          size={18}
+                          color={toneStyles.text.color}
                         />
-                      );
-                    }),
-                  )
-                )}
-              </View>
-            </Card>
+                      </View>
+
+                      <Text style={[styles.gardenRiskTitle, toneStyles.text]}>
+                        {gardenRiskStatus.title}
+                      </Text>
+                      <Text
+                        style={[styles.weatherStatusSubtitle, toneStyles.text]}
+                      >
+                        {gardenRiskStatus.subtitle}
+                      </Text>
+
+                      {gardenRiskStatusTimeWindow ? (
+                        <Text
+                          style={[styles.weatherStatusMeta, toneStyles.text]}
+                        >
+                          {gardenRiskStatusTimeWindow}
+                        </Text>
+                      ) : null}
+
+                      <Pressable
+                        onPress={() => router.push("/(tabs)/home/warnings")}
+                        hitSlop={8}
+                      >
+                        <Text style={styles.weatherStatusLink}>
+                          Zobacz wszystkie alerty
+                        </Text>
+                      </Pressable>
+                    </View>
+                  );
+                })()
+              : null}
 
             {/* ── Popularne warzywa ── */}
             <View style={styles.libSection}>
@@ -654,34 +588,6 @@ export default function HomeScreen() {
             </View>
           </>
         )}
-
-        <Portal>
-          <Modal
-            visible={Boolean(warningInfoItem)}
-            onDismiss={() => setWarningInfoItem(null)}
-            contentContainerStyle={styles.warningInfoModal}
-          >
-            <Text style={styles.warningInfoTitle}>
-              {warningInfoItem
-                ? resolveWarningPresentation(warningInfoItem).title
-                : "Szczegóły alertu"}
-            </Text>
-            <Text style={styles.warningInfoText}>
-              {warningInfoItem
-                ? resolveWarningPresentation(warningInfoItem).message
-                : "Brak danych."}
-            </Text>
-            {warningInfoItem &&
-            resolveWarningPresentation(warningInfoItem).hint ? (
-              <Text style={styles.warningInfoHint}>
-                {resolveWarningPresentation(warningInfoItem!).hint}
-              </Text>
-            ) : null}
-            <Button mode="contained" onPress={() => setWarningInfoItem(null)}>
-              Zamknij
-            </Button>
-          </Modal>
-        </Portal>
       </ScrollView>
     </Screen>
   );
@@ -766,6 +672,17 @@ const makeStyles = (theme: MD3Theme) =>
       paddingVertical: spacing.md,
       gap: 6,
     },
+    gardenRiskCard: {
+      paddingVertical: spacing.sm,
+      gap: 4,
+    },
+    weatherStatusSectionTitle: {
+      fontSize: 12,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.35,
+      color: theme.colors.onSurfaceVariant,
+    },
     weatherStatusCard_ok: {
       backgroundColor: "#E9F7EF",
       borderColor: "#BEE6CD",
@@ -820,6 +737,10 @@ const makeStyles = (theme: MD3Theme) =>
       fontSize: 16,
       fontWeight: "700",
     },
+    gardenRiskTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+    },
     weatherStatusSubtitle: {
       fontSize: 14,
       lineHeight: 20,
@@ -827,6 +748,12 @@ const makeStyles = (theme: MD3Theme) =>
     weatherStatusMeta: {
       fontSize: 12,
       lineHeight: 17,
+    },
+    weatherStatusLink: {
+      marginTop: spacing.xs,
+      fontSize: 13,
+      fontWeight: "700",
+      color: theme.colors.primary,
     },
     weatherStatusText_ok: {
       color: "#204431",

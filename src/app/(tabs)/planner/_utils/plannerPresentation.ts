@@ -22,8 +22,17 @@ export type PlannerTaskContext = {
 
 export const normalizeTaskStatus = (status: string | null | undefined) => {
   const normalized = status?.trim().toLowerCase();
-  if (normalized === "done") return "done" as const;
-  if (normalized === "canceled") return "canceled" as const;
+  if (
+    normalized === "done" ||
+    normalized === "completed" ||
+    normalized === "complete" ||
+    normalized === "finished"
+  ) {
+    return "done" as const;
+  }
+  if (normalized === "canceled" || normalized === "cancelled") {
+    return "canceled" as const;
+  }
   return "pending" as const;
 };
 

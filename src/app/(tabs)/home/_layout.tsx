@@ -15,10 +15,6 @@ export default function HomeLayout() {
         options={{ headerShown: false, title: "Home" }}
       />
       <Stack.Screen
-        name="settings"
-        options={{ title: "Ustawienia", headerBackTitle: "Home" }}
-      />
-      <Stack.Screen
         name="weather"
         options={{ title: "Pogoda", headerBackTitle: "Home" }}
       />
@@ -28,7 +24,7 @@ export default function HomeLayout() {
       />
       <Stack.Screen
         name="warnings"
-        options={{ title: "Alerty pogodowe", headerBackTitle: "Home" }}
+        options={{ title: "Szczegółowe alerty", headerBackTitle: "Home" }}
       />
       <Stack.Screen
         name="profile-edit"

@@ -1,6 +1,11 @@
 import { TaskItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { Screen } from "@/src/components/Screen";
+import {
+  getTaskMeta,
+  isTaskActive,
+  isWeatherWarningTask,
+} from "@/src/features/tasks/model";
 import { spacing } from "@/src/theme/ui";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
@@ -16,10 +21,7 @@ import { PlannerEmptyState } from "./_components/PlannerEmptyState";
 import { PlannerSection } from "./_components/PlannerSection";
 import { PlannerTaskCard } from "./_components/PlannerTaskCard";
 import { usePlannerActions } from "./_hooks/usePlannerActions";
-import {
-  getRecentCompletedTasks,
-  groupPlannerTasks,
-} from "./_utils/plannerGrouping";
+import { groupPlannerTasks } from "./_utils/plannerGrouping";
 import { normalizeTaskStatus } from "./_utils/plannerPresentation";
 
 type PlannerTasksFilter =
@@ -30,10 +32,10 @@ type PlannerTasksFilter =
   | "overdue"
   | "tomorrow"
   | "week"
-  | "recent-completed"
   | "manual"
   | "weather"
-  | "vegetable-rule";
+  | "planting"
+  | "bed";
 
 const FILTER_LABELS: Record<PlannerTasksFilter, string> = {
   all: "Wszystkie",
@@ -43,10 +45,10 @@ const FILTER_LABELS: Record<PlannerTasksFilter, string> = {
   overdue: "Zaległe",
   tomorrow: "Jutro",
   week: "Ten tydzień",
-  "recent-completed": "Ostatnio wykonane",
   manual: "Ręczne",
   weather: "Pogoda",
-  "vegetable-rule": "Z upraw",
+  planting: "Z upraw",
+  bed: "Z grządek",
 };
 
 const toInitialFilter = (
@@ -62,10 +64,10 @@ const toInitialFilter = (
     param === "overdue" ||
     param === "tomorrow" ||
     param === "week" ||
-    param === "recent-completed" ||
     param === "manual" ||
     param === "weather" ||
-    param === "vegetable-rule"
+    param === "planting" ||
+    param === "bed"
   ) {
     return param;
   }
@@ -83,6 +85,7 @@ export default function PlannerTasksScreen() {
   );
 
   const tasksQuery = useGetMyTasks("all");
+  const doneTasksQuery = useGetMyTasks("done");
   const actions = usePlannerActions();
 
   const groupedTasks = useMemo(
@@ -90,48 +93,179 @@ export default function PlannerTasksScreen() {
     [tasksQuery.data?.items],
   );
 
-  const recentCompletedTasks = useMemo(
-    () =>
-      getRecentCompletedTasks(
-        tasksQuery.data?.items ?? [],
-        Number.MAX_SAFE_INTEGER,
-      ),
-    [tasksQuery.data?.items],
-  );
-
-  const filteredTasks = useMemo(() => {
+  const filterItemsMap = useMemo(() => {
     const items = tasksQuery.data?.items ?? [];
+    const doneItems = doneTasksQuery.data?.items ?? [];
+    const overdueTaskIdSet = new Set(
+      groupedTasks.overdueTasks.map((task) => task.id),
+    );
 
-    const sorted = [...items].sort((a, b) => {
+    const isDoneTask = (task: TaskItem) => {
+      const normalized = normalizeTaskStatus(task.status);
+      if (normalized === "done") return true;
+
+      const doneAt =
+        task.doneAt ??
+        getTaskMeta(
+          task,
+          "doneAt",
+          "done_at",
+          "completedAt",
+          "completed_at",
+          "finishedAt",
+          "finished_at",
+        );
+
+      return Boolean(doneAt);
+    };
+
+    const sortedByDue = [...items].sort((a, b) => {
       const aDue = a.dueAt ? Date.parse(a.dueAt) : Number.MAX_SAFE_INTEGER;
       const bDue = b.dueAt ? Date.parse(b.dueAt) : Number.MAX_SAFE_INTEGER;
       return aDue - bDue;
     });
 
-    return sorted.filter((task) => {
-      const source = (task.source ?? "").toUpperCase();
-      const status = normalizeTaskStatus(task.status);
+    const activeSorted = sortedByDue
+      .filter((task) => normalizeTaskStatus(task.status) !== "canceled")
+      .sort((a, b) => {
+        const statusA = normalizeTaskStatus(a.status);
+        const statusB = normalizeTaskStatus(b.status);
+        const overdueA = overdueTaskIdSet.has(a.id);
+        const overdueB = overdueTaskIdSet.has(b.id);
 
-      if (filter === "pending") return status === "pending";
-      if (filter === "done") return status === "done";
-      if (filter === "manual") return source === "MANUAL";
-      if (filter === "weather") return source === "WEATHER_WARNING";
-      if (filter === "vegetable-rule") return source === "VEGETABLE_RULE";
+        const rankA =
+          statusA === "pending" && !overdueA
+            ? 0
+            : statusA === "pending" && overdueA
+              ? 1
+              : 2;
+        const rankB =
+          statusB === "pending" && !overdueB
+            ? 0
+            : statusB === "pending" && overdueB
+              ? 1
+              : 2;
 
-      return status !== "canceled";
+        if (rankA !== rankB) return rankA - rankB;
+
+        const aDue = a.dueAt ? Date.parse(a.dueAt) : Number.MAX_SAFE_INTEGER;
+        const bDue = b.dueAt ? Date.parse(b.dueAt) : Number.MAX_SAFE_INTEGER;
+        return aDue - bDue;
+      });
+
+    const plantingTasks = sortedByDue.filter((task) => {
+      const targetType = (task.targetType ?? getTaskMeta(task, "targetType"))
+        ?.toString()
+        .toUpperCase();
+      return targetType === "PLANTING" || Boolean(task.plantingId);
     });
-  }, [filter, tasksQuery.data?.items]);
 
-  const calendarFilteredTasks = useMemo(() => {
-    if (filter === "today") return groupedTasks.todayTasks;
-    if (filter === "overdue") return groupedTasks.overdueTasks;
-    if (filter === "tomorrow") return groupedTasks.tomorrowTasks;
-    if (filter === "week") return groupedTasks.weekTasks;
-    if (filter === "recent-completed") return recentCompletedTasks;
-    return null;
-  }, [filter, groupedTasks, recentCompletedTasks]);
+    const bedTasks = sortedByDue.filter((task) => {
+      const targetType = (task.targetType ?? getTaskMeta(task, "targetType"))
+        ?.toString()
+        .toUpperCase();
+      return targetType === "BED" || Boolean(task.bedId);
+    });
 
-  const tasksToRender = calendarFilteredTasks ?? filteredTasks;
+    const weekWithNearHorizon = [
+      ...groupedTasks.todayTasks,
+      ...groupedTasks.tomorrowTasks,
+      ...groupedTasks.weekTasks,
+    ];
+
+    const uniqueById = (list: TaskItem[]) => {
+      const seen = new Set<string>();
+      return list.filter((task) => {
+        if (seen.has(task.id)) return false;
+        seen.add(task.id);
+        return true;
+      });
+    };
+
+    const doneTaskMap = new Map<string, TaskItem>();
+    for (const task of sortedByDue) {
+      if (isDoneTask(task)) doneTaskMap.set(task.id, task);
+    }
+    for (const task of doneItems) {
+      if (isDoneTask(task)) doneTaskMap.set(task.id, task);
+    }
+
+    const doneTasks = [...doneTaskMap.values()].sort((a, b) => {
+      const aDoneAt =
+        Date.parse(
+          (a.doneAt as string | undefined) ??
+            getTaskMeta(
+              a,
+              "doneAt",
+              "done_at",
+              "completedAt",
+              "completed_at",
+              "finishedAt",
+              "finished_at",
+            ) ??
+            (a.updatedAt as string | undefined) ??
+            "",
+        ) || 0;
+      const bDoneAt =
+        Date.parse(
+          (b.doneAt as string | undefined) ??
+            getTaskMeta(
+              b,
+              "doneAt",
+              "done_at",
+              "completedAt",
+              "completed_at",
+              "finishedAt",
+              "finished_at",
+            ) ??
+            (b.updatedAt as string | undefined) ??
+            "",
+        ) || 0;
+      return bDoneAt - aDoneAt;
+    });
+
+    return {
+      all: activeSorted,
+      pending: sortedByDue.filter(
+        (task) => isTaskActive(task) && !overdueTaskIdSet.has(task.id),
+      ),
+      done: doneTasks,
+      today: groupedTasks.todayTasks,
+      overdue: groupedTasks.overdueTasks,
+      tomorrow: groupedTasks.tomorrowTasks,
+      week: uniqueById(weekWithNearHorizon),
+      manual: sortedByDue.filter(
+        (task) => (task.source ?? "").toUpperCase() === "MANUAL",
+      ),
+      weather: sortedByDue.filter((task) => isWeatherWarningTask(task)),
+      planting: plantingTasks,
+      bed: bedTasks,
+    } satisfies Record<PlannerTasksFilter, TaskItem[]>;
+  }, [
+    doneTasksQuery.data?.items,
+    groupedTasks.overdueTasks,
+    groupedTasks.todayTasks,
+    groupedTasks.tomorrowTasks,
+    groupedTasks.weekTasks,
+    tasksQuery.data?.items,
+  ]);
+
+  const filterCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        (Object.keys(FILTER_LABELS) as PlannerTasksFilter[]).map((key) => [
+          key,
+          filterItemsMap[key].length,
+        ]),
+      ) as Record<PlannerTasksFilter, number>,
+    [filterItemsMap],
+  );
+
+  const tasksToRender = filterItemsMap[filter];
+  const overdueTaskIds = useMemo(
+    () => new Set(groupedTasks.overdueTasks.map((task) => task.id)),
+    [groupedTasks.overdueTasks],
+  );
 
   const navigateToTaskContext = (task: TaskItem) => {
     if (task.plantingId) {
@@ -144,14 +278,19 @@ export default function PlannerTasksScreen() {
   };
 
   return (
-    <Screen safeAreaEdges={["top", "left", "right"]}>
+    <Screen safeAreaEdges={["left", "right"]}>
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={tasksQuery.isRefetching}
-            onRefresh={() => void tasksQuery.refetch()}
+            onRefresh={() => {
+              void Promise.all([
+                tasksQuery.refetch(),
+                doneTasksQuery.refetch(),
+              ]);
+            }}
           />
         }
       >
@@ -182,13 +321,15 @@ export default function PlannerTasksScreen() {
                   filter === key ? styles.filterChipTextActive : null,
                 ]}
               >
-                {FILTER_LABELS[key]}
+                {FILTER_LABELS[key]} ({filterCounts[key]})
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        <PlannerSection title={FILTER_LABELS[filter]}>
+        <PlannerSection
+          title={`${FILTER_LABELS[filter]} (${tasksToRender.length})`}
+        >
           {tasksToRender.length === 0 ? (
             <PlannerEmptyState
               title="Brak zadań"
@@ -213,7 +354,8 @@ export default function PlannerTasksScreen() {
                 }
                 showDelete={normalizeTaskStatus(task.status) === "pending"}
                 disableActions={actions.isTaskBusy(task.id)}
-                isOverdue={false}
+                isOverdue={overdueTaskIds.has(task.id)}
+                disableDoneAction={overdueTaskIds.has(task.id)}
               />
             ))
           )}
@@ -227,7 +369,7 @@ const makeStyles = (theme: MD3Theme) =>
   StyleSheet.create({
     container: {
       paddingBottom: spacing.xl,
-      paddingTop: spacing.sm,
+      paddingTop: 0,
       gap: spacing.sm,
       backgroundColor: theme.colors.background,
     },

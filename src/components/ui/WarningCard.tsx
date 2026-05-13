@@ -1,4 +1,4 @@
-import { getSeverityTone, radius, spacing, statusColors } from "@/src/theme/ui";
+import { getSeverityTone, radius, spacing } from "@/src/theme/ui";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, View } from "react-native";
 import { MD3Theme, Text, useTheme } from "react-native-paper";
@@ -27,8 +27,7 @@ export function WarningCard({
 }: WarningCardProps) {
   const theme = useTheme<MD3Theme>();
   const tone = getSeverityTone(severity);
-  const tones = statusColors(theme);
-  const styles = makeStyles(theme, tones[tone].text);
+  const styles = makeStyles(theme, getAccentColor(theme, tone));
 
   return (
     <Pressable style={styles.card} onPress={onPress}>
@@ -47,7 +46,7 @@ export function WarningCard({
             <MaterialCommunityIcons
               name="information-outline"
               size={18}
-              color={theme.colors.onSurfaceVariant}
+              color="#3F6A52"
             />
           </Pressable>
         </View>
@@ -60,6 +59,25 @@ export function WarningCard({
     </Pressable>
   );
 }
+
+const getAccentColor = (
+  theme: MD3Theme,
+  tone: "success" | "warning" | "danger" | "info" | "neutral",
+) => {
+  switch (tone) {
+    case "danger":
+      return "#C95B52";
+    case "warning":
+      return "#5E8A70";
+    case "info":
+      return "#4F7FA1";
+    case "success":
+      return "#3F805D";
+    case "neutral":
+    default:
+      return theme.colors.primary;
+  }
+};
 
 const makeStyles = (theme: MD3Theme, accentColor: string) =>
   StyleSheet.create({
@@ -96,9 +114,9 @@ const makeStyles = (theme: MD3Theme, accentColor: string) =>
       borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.colors.surfaceVariant,
+      backgroundColor: "#ECF5EE",
       borderWidth: 1,
-      borderColor: theme.colors.outlineVariant,
+      borderColor: "#D7E8DB",
     },
     title: {
       fontSize: 14,
