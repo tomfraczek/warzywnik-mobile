@@ -1,8 +1,8 @@
 import {
-  WarningSeverity,
+  WarningDayPart,
   WarningItem,
   WarningScope,
-  WarningDayPart,
+  WarningSeverity,
 } from "@/src/api/queries/users/meTypes";
 import {
   formatDayPart,
@@ -139,9 +139,7 @@ export const getOperationalWarningsToday = (
   warnings: WarningItem[],
 ): WarningItem[] =>
   sortWarningsBySeverity(
-    warnings.filter(
-      (w) => !isRadarWarning(w) && isLocalDateToday(w.localDate),
-    ),
+    warnings.filter((w) => !isRadarWarning(w) && isLocalDateToday(w.localDate)),
   );
 
 /**
@@ -209,7 +207,9 @@ const resolveContextLabel = (
 
   if (warning.scope === "USER") {
     const locationLabel = "Dotyczy wszystkich grz\u0105dek";
-    return timingLabel ? `${locationLabel} \u2022 ${timingLabel}` : locationLabel;
+    return timingLabel
+      ? `${locationLabel} \u2022 ${timingLabel}`
+      : locationLabel;
   }
 
   if (warning.scope === "BED") {
@@ -363,13 +363,13 @@ export const findMatchingWeatherTask = (
   warning: WarningItem,
   _bedsById: unknown,
   _plantingsById: unknown,
-  tasks: Array<{
+  tasks: {
     id: string;
     source?: string;
     plantingId?: string | null;
     bedId?: string | null;
     status?: string;
-  }>,
+  }[],
 ) => {
   const isPending = (t: (typeof tasks)[number]) =>
     (t.status ?? "").toLowerCase() === "pending";
@@ -391,4 +391,4 @@ export const findMatchingWeatherTask = (
   return null;
 };
 
-export { formatLocalDate, formatDayPart, getLocalDayLabel };
+export { formatDayPart, formatLocalDate, getLocalDayLabel };

@@ -67,6 +67,8 @@ export type CreatePlantingDto = {
   bedId: string;
   vegetableId: string;
   startMethod: PlantingStartMethod;
+  /** Optional alias accepted by backend for planned start datetime (ISO). */
+  date?: string | null;
   sowedAt?: string | null;
   transplantedAt?: string | null;
   plannedStartDate?: string | null;

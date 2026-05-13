@@ -299,7 +299,7 @@ function BedFormComponent({
         {values.soilId && onClearSoil ? (
           <Pressable style={s.clearSoilBtn} onPress={onClearSoil}>
             <Text style={[s.clearSoilText, { color: palette.errorText }]}>
-              Usuń wybór gleby
+              Usuń wybraną glebę
             </Text>
           </Pressable>
         ) : null}

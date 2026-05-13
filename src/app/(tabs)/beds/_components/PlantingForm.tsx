@@ -21,6 +21,7 @@ type PlantingFormProps = {
   submitLabel: string;
   isSubmitting?: boolean;
   showSowedAt?: boolean;
+  sowedAtHint?: string;
   onPickVegetable: () => void;
   onClearVegetable?: () => void;
   showHeaderIntro?: boolean;
@@ -83,6 +84,7 @@ function PlantingFormComponent({
   submitLabel,
   isSubmitting,
   showSowedAt = true,
+  sowedAtHint,
   onPickVegetable,
   onClearVegetable,
   showHeaderIntro = false,
@@ -411,6 +413,14 @@ function PlantingFormComponent({
                 onChange({ sowedAt: date.toISOString() });
               }}
             />
+
+            {sowedAtHint ? (
+              <Text
+                style={[styles.dateFieldHint, { color: palette.secondary }]}
+              >
+                {sowedAtHint}
+              </Text>
+            ) : null}
           </>
         ) : null}
       </View>
@@ -672,6 +682,11 @@ const styles = StyleSheet.create({
   },
   dateInputText: {
     fontSize: 15,
+  },
+  dateFieldHint: {
+    marginTop: -2,
+    fontSize: 12,
+    lineHeight: 17,
   },
   notesInput: {
     minHeight: 126,

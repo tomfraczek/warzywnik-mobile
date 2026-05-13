@@ -122,7 +122,8 @@ export default function PlantingCreateScreen() {
         onSubmit={handleSubmit}
         submitLabel="Dodaj uprawę"
         isSubmitting={createPlanting.isPending}
-        showSowedAt={false}
+        showSowedAt
+        sowedAtHint="Po podaniu tej daty system wyliczy okno zbioru, ostrzeżenia i harmonogram od wskazanego dnia. Jeśli zostawisz puste, obliczenia zaczną się od dnia dzisiejszego."
         showHeaderIntro
         screenTitle="Nowa uprawa"
         screenSubtitle="Dodaj nową uprawę do swojej grządki."

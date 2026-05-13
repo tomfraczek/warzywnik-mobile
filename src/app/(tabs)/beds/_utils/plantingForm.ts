@@ -46,12 +46,21 @@ export const buildCreatePlantingPayload = (
   bedId: string,
   values: PlantingFormValues,
 ): CreatePlantingDto => {
+  const startDate = normalizeNullableString(values.sowedAt);
+
   return {
     bedId,
     vegetableId: values.vegetableId as string,
     startMethod: values.startMethod,
     status: "NEW",
     notes: normalizeNullableString(values.notes),
+    ...(startDate
+      ? {
+          sowedAt: startDate,
+          plannedStartDate: startDate,
+          date: startDate,
+        }
+      : {}),
   };
 };
 

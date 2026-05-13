@@ -1,15 +1,11 @@
-import { ArticleListItem } from "@/src/api/queries/articles/types";
 import { useGetArticle } from "@/src/api/queries/articles/useGetArticle";
-import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
 import {
   FavoriteItem,
   FavoriteTargetType,
 } from "@/src/api/queries/favorites/types";
 import { useGetFavoritesGrouped } from "@/src/api/queries/favorites/useGetFavoritesGrouped";
 import { getFavoriteDetailParam } from "@/src/api/queries/favorites/utils";
-import { VegetableListItem } from "@/src/api/queries/vegetables/types";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
-import { useGetVegetables } from "@/src/api/queries/vegetables/useGetVegetables";
 import { Screen } from "@/src/components/Screen";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -41,17 +37,6 @@ type SectionHeaderProps = {
 type CategoryCardProps = {
   item: CategoryTile;
   onPress: () => void;
-};
-
-type VegetableCardProps = {
-  item: VegetableListItem;
-  onPress: () => void;
-};
-
-type ArticleCardProps = {
-  item: ArticleListItem;
-  onPress: () => void;
-  onPressIn?: () => void;
 };
 
 // ─── favorites config ────────────────────────────────────────────────────────
@@ -176,56 +161,6 @@ const CATEGORY_TILES: CategoryTile[] = [
   },
 ];
 
-const CONTEXT_LABELS: Record<string, string> = {
-  BALCONY: "Balkon",
-  BED: "Grządka",
-  GREENHOUSE: "Szklarnia",
-};
-
-const SEASON_LABELS: Record<string, string> = {
-  SPRING: "Wiosna",
-  SUMMER: "Lato",
-  AUTUMN: "Jesień",
-  WINTER: "Zima",
-};
-
-const getVegetableEmoji = (name: string) => {
-  const normalized = name.toLowerCase();
-
-  if (normalized.includes("pomidor")) return "🍅";
-  if (normalized.includes("marchew")) return "🥕";
-  if (normalized.includes("ogórek")) return "🥒";
-  if (normalized.includes("sałat")) return "🥬";
-  if (normalized.includes("cebula")) return "🧅";
-  if (normalized.includes("ziemniak")) return "🥔";
-  if (normalized.includes("papryk")) return "🫑";
-  if (normalized.includes("dyni") || normalized.includes("cukini")) return "🎃";
-
-  return "🌱";
-};
-
-const getArticleEyebrow = (item: ArticleListItem) => {
-  const context = item.contexts[0];
-  const season = item.seasons[0];
-
-  if (context && CONTEXT_LABELS[context]) {
-    return CONTEXT_LABELS[context];
-  }
-
-  if (season && SEASON_LABELS[season]) {
-    return SEASON_LABELS[season];
-  }
-
-  return "Biblioteka";
-};
-
-const getArticleReadTime = (item: ArticleListItem) => {
-  if (item.readTimeMinutes) return `${item.readTimeMinutes} min czytania`;
-  const wordCount = `${item.title} ${item.excerpt}`.trim().split(/\s+/).length;
-  const minutes = Math.max(1, Math.round(wordCount / 200));
-  return `${minutes} min czytania`;
-};
-
 const prefetchArticleCover = (uri?: string | null) => {
   if (!uri) return;
   void Image.prefetch(uri, "memory-disk").catch(() => undefined);
@@ -262,71 +197,6 @@ function CategoryCard({ item, onPress }: CategoryCardProps) {
         </View>
         <Text style={sharedStyles.categoryTitle}>{item.title}</Text>
         <Text style={sharedStyles.categorySubtitle}>{item.subtitle}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function VegetableCard({ item, onPress }: VegetableCardProps) {
-  return (
-    <Pressable onPress={onPress} hitSlop={6}>
-      <View style={sharedStyles.vegetableCard}>
-        {item.imageUrl ? (
-          <Image
-            source={{ uri: item.imageUrl }}
-            style={sharedStyles.vegetableImage}
-            contentFit="cover"
-          />
-        ) : (
-          <Text style={sharedStyles.vegetableEmoji}>
-            {getVegetableEmoji(item.name)}
-          </Text>
-        )}
-        <Text style={sharedStyles.vegetableTitle} numberOfLines={2}>
-          {item.name}
-        </Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function ArticleCard({ item, onPress, onPressIn }: ArticleCardProps) {
-  return (
-    <Pressable onPress={onPress} onPressIn={onPressIn} hitSlop={6}>
-      <View style={sharedStyles.articleCard}>
-        {item.coverImageUrl ? (
-          <Image
-            source={{
-              uri: item.coverImageUrl,
-            }}
-            style={sharedStyles.articleImage}
-            contentFit="cover"
-            recyclingKey={item.slug}
-          />
-        ) : (
-          <View style={sharedStyles.articleImageFallback}>
-            <Icon
-              source="book-open-page-variant-outline"
-              size={36}
-              color="#5B7B6C"
-            />
-          </View>
-        )}
-
-        <View style={sharedStyles.articleBody}>
-          <Text style={sharedStyles.articleEyebrow}>
-            {getArticleEyebrow(item)}
-          </Text>
-          <Text style={sharedStyles.articleTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text style={sharedStyles.articleExcerpt} numberOfLines={3}>
-            {item.excerpt}
-          </Text>
-          <Text style={sharedStyles.articleMeta}>
-            {getArticleReadTime(item)}
-          </Text>
-        </View>
       </View>
     </Pressable>
   );
@@ -492,18 +362,6 @@ export default function EducationScreen() {
     !isFavoritesLoading &&
     Object.values(favoritesData ?? {}).some((arr) => arr.length > 0);
 
-  const {
-    data: vegetablesData,
-    isLoading: isVegetablesLoading,
-    error: vegetablesError,
-  } = useGetVegetables({ limit: 4 });
-
-  const {
-    data: articlesData,
-    isLoading: isArticlesLoading,
-    error: articlesError,
-  } = useGetArticles({ limit: 3 });
-
   const filteredSections = useMemo(() => {
     if (!needle) return CATEGORY_TILES;
 
@@ -513,34 +371,6 @@ export default function EducationScreen() {
         section.subtitle.toLowerCase().includes(needle),
     );
   }, [needle]);
-
-  const popularVegetables = useMemo(() => {
-    const items = vegetablesData?.pages.flatMap((page) => page.items) ?? [];
-    const featured = items.slice(0, 4);
-
-    if (!needle) return featured;
-
-    return featured.filter((item) => {
-      const description = item.description ?? "";
-      return (
-        item.name.toLowerCase().includes(needle) ||
-        description.toLowerCase().includes(needle)
-      );
-    });
-  }, [needle, vegetablesData?.pages]);
-
-  const recommendedArticles = useMemo(() => {
-    const items = articlesData?.pages.flatMap((page) => page.items) ?? [];
-    const featured = items.slice(0, 3);
-
-    if (!needle) return featured;
-
-    return featured.filter(
-      (item) =>
-        item.title.toLowerCase().includes(needle) ||
-        item.excerpt.toLowerCase().includes(needle),
-    );
-  }, [articlesData?.pages, needle]);
 
   return (
     <Screen safeAreaEdges={["top", "left", "right"]} style={styles.screen}>

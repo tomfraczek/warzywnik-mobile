@@ -111,13 +111,6 @@ const skeletonStyles = StyleSheet.create({
 
 // ─── soil card ───────────────────────────────────────────────────────────────
 
-function slugToSubtitle(slug: string): string {
-  return slug
-    .split(/[-_]/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
 function SoilCard({
   item,
   onPress,

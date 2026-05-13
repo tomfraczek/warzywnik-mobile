@@ -1,21 +1,14 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Tabs, useRouter } from "expo-router";
+import { Tabs } from "expo-router";
 import { TouchableOpacity } from "react-native";
 import { MD3Theme, useTheme } from "react-native-paper";
 
 export default function TabsLayout() {
   const theme = useTheme<MD3Theme>();
-  const router = useRouter();
-
-  const makeTabListener = (root: Parameters<typeof router.replace>[0]) => ({
-    tabPress: (event: { preventDefault: () => void }) => {
-      event.preventDefault();
-      router.replace(root);
-    },
-  });
 
   return (
     <Tabs
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -34,7 +27,6 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="home"
-        listeners={makeTabListener("/(tabs)/home")}
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => (
@@ -44,7 +36,6 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="beds"
-        listeners={makeTabListener("/(tabs)/beds")}
         options={{
           title: "Grządki",
           tabBarIcon: ({ color, size }) => (
@@ -54,7 +45,6 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="planner"
-        listeners={makeTabListener("/(tabs)/planner")}
         options={{
           title: "Kalendarz",
           tabBarIcon: ({ color, size }) => (
@@ -64,7 +54,6 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="education"
-        listeners={makeTabListener("/(tabs)/education")}
         options={{
           title: "Biblioteka",
           tabBarIcon: ({ color, size }) => (
@@ -78,7 +67,6 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="profile"
-        listeners={makeTabListener("/(tabs)/profile")}
         options={{
           title: "Konto",
           tabBarIcon: ({ color, size }) => (
