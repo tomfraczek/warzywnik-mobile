@@ -1257,7 +1257,6 @@ export default function PlantingDetailsScreen() {
             <CustomHeader
               overlay
               showBack
-              backRoute="/(tabs)/beds"
               actions={[
                 {
                   icon: "pencil",
