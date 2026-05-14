@@ -6,6 +6,7 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
 const DEVICE_ID_KEY = "pushDeviceId";
+const LAST_PUSH_TOKEN_KEY = "pushLastExpoToken";
 
 export const requestPermission = async () => {
   const existing = await Notifications.getPermissionsAsync();
@@ -47,12 +48,24 @@ export const getStoredDeviceId = async () => {
   return SecureStore.getItemAsync(DEVICE_ID_KEY);
 };
 
+export const getStoredPushToken = async () => {
+  return SecureStore.getItemAsync(LAST_PUSH_TOKEN_KEY);
+};
+
 const setStoredDeviceId = async (deviceId: string) => {
   await SecureStore.setItemAsync(DEVICE_ID_KEY, deviceId);
 };
 
+const setStoredPushToken = async (expoPushToken: string) => {
+  await SecureStore.setItemAsync(LAST_PUSH_TOKEN_KEY, expoPushToken);
+};
+
 const clearStoredDeviceId = async () => {
   await SecureStore.deleteItemAsync(DEVICE_ID_KEY);
+};
+
+const clearStoredPushToken = async () => {
+  await SecureStore.deleteItemAsync(LAST_PUSH_TOKEN_KEY);
 };
 
 export const registerDevice = async (
@@ -67,6 +80,7 @@ export const registerDevice = async (
   if (data?.id) {
     await setStoredDeviceId(data.id);
   }
+  await setStoredPushToken(expoPushToken);
   return data;
 };
 
@@ -80,6 +94,6 @@ export const disableDevice = async (
   const { data } = await restClient.patch(`/devices/${resolvedDeviceId}`, {
     isEnabled: false,
   });
-  await clearStoredDeviceId();
+  await Promise.all([clearStoredDeviceId(), clearStoredPushToken()]);
   return data;
 };

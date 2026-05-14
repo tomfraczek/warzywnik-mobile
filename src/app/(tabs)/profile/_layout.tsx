@@ -18,6 +18,10 @@ export default function ProfileLayout() {
         name="profile-edit"
         options={{ title: "Edycja profilu", headerShown: false }}
       />
+      <Stack.Screen
+        name="notifications"
+        options={{ title: "Centrum powiadomień" }}
+      />
     </Stack>
   );
 }

@@ -1,6 +1,12 @@
+import { useUpdateNotificationPreferences } from "@/src/api/mutations/notifications/useUpdateNotificationPreferences";
 import { GeoSearchItem } from "@/src/api/queries/geo/types";
 import { useGeoSearch } from "@/src/api/queries/geo/useGeoSearch";
 import { useUpdateUserLocation } from "@/src/api/queries/geo/useUpdateUserLocation";
+import {
+  NotificationPreferencesIntensity,
+  UpdateNotificationPreferencesDto,
+} from "@/src/api/queries/notifications/types";
+import { useGetNotificationPreferences } from "@/src/api/queries/notifications/useGetNotificationPreferences";
 import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
@@ -53,8 +59,6 @@ export default function ProfileScreen() {
     setLanguagePreference,
     location,
     setLocationPreference,
-    pushNotifications,
-    setPushNotifications,
   } = useSettings();
   const updateLocation = useUpdateUserLocation();
   const [snackbar, setSnackbar] = useState<string | null>(null);
@@ -65,6 +69,8 @@ export default function ProfileScreen() {
   const [selectedLocationLabel, setSelectedLocationLabel] = useState<
     string | null
   >(location?.label ?? null);
+  const preferencesQuery = useGetNotificationPreferences();
+  const updatePreferences = useUpdateNotificationPreferences();
 
   const email =
     user?.primaryEmailAddress?.emailAddress ??
@@ -72,10 +78,9 @@ export default function ProfileScreen() {
     "Brak emaila";
   const avatarSource = getAvatarSource(profile.avatarId);
 
-  const planTone = useMemo(
-    () => (pushNotifications.enabled ? "success" : "neutral"),
-    [pushNotifications.enabled],
-  );
+  const preferences = preferencesQuery.data;
+  const notificationsEnabled = preferences?.notificationsEnabled ?? false;
+  const planTone = useMemo(() => "neutral" as const, []);
 
   const geoLanguage =
     languagePreference === "system" ? undefined : languagePreference;
@@ -202,6 +207,29 @@ export default function ProfileScreen() {
       Alert.alert("Błąd", "Nie udało się wylogować.");
     }
   }, [router, signOut]);
+
+  const updateNotificationPreference = useCallback(
+    async (patch: UpdateNotificationPreferencesDto) => {
+      try {
+        await updatePreferences.mutateAsync(patch);
+      } catch {
+        setSnackbar("Nie udało się zapisać preferencji powiadomień.");
+      }
+    },
+    [updatePreferences],
+  );
+
+  const incrementNotificationHour = useCallback(() => {
+    if (!preferences) return;
+    const nextHour = Math.min(23, preferences.notificationHour + 1);
+    void updateNotificationPreference({ notificationHour: nextHour });
+  }, [preferences, updateNotificationPreference]);
+
+  const decrementNotificationHour = useCallback(() => {
+    if (!preferences) return;
+    const nextHour = Math.max(0, preferences.notificationHour - 1);
+    void updateNotificationPreference({ notificationHour: nextHour });
+  }, [preferences, updateNotificationPreference]);
 
   return (
     <Screen safeAreaEdges={["top", "left", "right"]}>
@@ -364,16 +392,169 @@ export default function ProfileScreen() {
           </Button>
         </Card>
 
-        <Card title="Dane">
+        <Card title="Powiadomienia">
+          <Button
+            mode="outlined"
+            onPress={() => router.push("/(tabs)/profile/notifications")}
+          >
+            Centrum powiadomień
+          </Button>
+
           <View style={styles.switchRow}>
-            <Text style={styles.label}>Powiadomienia</Text>
+            <Text style={styles.label}>Powiadomienia globalnie</Text>
             <Switch
-              value={pushNotifications.enabled}
-              onValueChange={(value) =>
-                setPushNotifications({ enabled: value })
+              value={notificationsEnabled}
+              onValueChange={(value) => {
+                void updateNotificationPreference({
+                  notificationsEnabled: value,
+                });
+              }}
+              disabled={
+                updatePreferences.isPending || preferencesQuery.isLoading
               }
             />
           </View>
+
+          <View style={styles.switchRow}>
+            <Text style={styles.label}>Zadania w ogrodzie</Text>
+            <Switch
+              value={preferences?.tasksEnabled ?? false}
+              onValueChange={(value) => {
+                void updateNotificationPreference({ tasksEnabled: value });
+              }}
+              disabled={!notificationsEnabled || updatePreferences.isPending}
+            />
+          </View>
+
+          <View style={styles.switchRow}>
+            <Text style={styles.label}>Plan na dziś</Text>
+            <Switch
+              value={preferences?.dailySummaryEnabled ?? false}
+              onValueChange={(value) => {
+                void updateNotificationPreference({
+                  dailySummaryEnabled: value,
+                });
+              }}
+              disabled={!notificationsEnabled || updatePreferences.isPending}
+            />
+          </View>
+
+          <View style={styles.switchRow}>
+            <Text style={styles.label}>Status pogody</Text>
+            <Switch
+              value={preferences?.weatherStatusEnabled ?? false}
+              onValueChange={(value) => {
+                void updateNotificationPreference({
+                  weatherStatusEnabled: value,
+                });
+              }}
+              disabled={!notificationsEnabled || updatePreferences.isPending}
+            />
+          </View>
+
+          <View style={styles.switchRow}>
+            <Text style={styles.label}>Ryzyko dla ogrodu</Text>
+            <Switch
+              value={preferences?.gardenRiskEnabled ?? false}
+              onValueChange={(value) => {
+                void updateNotificationPreference({
+                  gardenRiskEnabled: value,
+                });
+              }}
+              disabled={!notificationsEnabled || updatePreferences.isPending}
+            />
+          </View>
+
+          <View style={styles.switchRow}>
+            <Text style={styles.label}>Alerty pogodowe</Text>
+            <Switch
+              value={preferences?.weatherAlertsEnabled ?? false}
+              onValueChange={(value) => {
+                void updateNotificationPreference({
+                  weatherAlertsEnabled: value,
+                });
+              }}
+              disabled={!notificationsEnabled || updatePreferences.isPending}
+            />
+          </View>
+
+          <View style={styles.switchRow}>
+            <Text style={styles.label}>Polecane artykuły</Text>
+            <Switch
+              value={preferences?.recommendedArticlesEnabled ?? false}
+              onValueChange={(value) => {
+                void updateNotificationPreference({
+                  recommendedArticlesEnabled: value,
+                });
+              }}
+              disabled={!notificationsEnabled || updatePreferences.isPending}
+            />
+          </View>
+
+          <View style={styles.switchRow}>
+            <Text style={styles.label}>Sugestie etapów uprawy</Text>
+            <Switch
+              value={preferences?.lifecycleSuggestionsEnabled ?? false}
+              onValueChange={(value) => {
+                void updateNotificationPreference({
+                  lifecycleSuggestionsEnabled: value,
+                });
+              }}
+              disabled={!notificationsEnabled || updatePreferences.isPending}
+            />
+          </View>
+
+          <View style={styles.switchRow}>
+            <Text style={styles.label}>Tygodniowe podsumowanie</Text>
+            <Switch
+              value={preferences?.weeklyDigestEnabled ?? false}
+              onValueChange={(value) => {
+                void updateNotificationPreference({
+                  weeklyDigestEnabled: value,
+                });
+              }}
+              disabled={!notificationsEnabled || updatePreferences.isPending}
+            />
+          </View>
+
+          <Text style={styles.label}>Intensywność</Text>
+          <SegmentedButtons
+            value={preferences?.intensity ?? "BALANCED"}
+            onValueChange={(value) => {
+              void updateNotificationPreference({
+                intensity: value as NotificationPreferencesIntensity,
+              });
+            }}
+            buttons={[
+              { value: "IMPORTANT_ONLY", label: "Tylko ważne" },
+              { value: "BALANCED", label: "Zbalansowane" },
+              { value: "ALL", label: "Wszystkie" },
+            ]}
+          />
+
+          <Text style={styles.label}>Godzina powiadomień</Text>
+          <View style={styles.hourRow}>
+            <Button
+              mode="outlined"
+              onPress={decrementNotificationHour}
+              disabled={!notificationsEnabled || updatePreferences.isPending}
+            >
+              -
+            </Button>
+            <Text style={styles.hourText}>
+              {String(preferences?.notificationHour ?? 8).padStart(2, "0")}:00
+            </Text>
+            <Button
+              mode="outlined"
+              onPress={incrementNotificationHour}
+              disabled={!notificationsEnabled || updatePreferences.isPending}
+            >
+              +
+            </Button>
+          </View>
+        </Card>
+
+        <Card title="Dane">
           <Divider />
           {/* <Button
             mode="contained"
@@ -492,5 +673,17 @@ const makeStyles = (theme: MD3Theme) =>
       justifyContent: "space-between",
       alignItems: "center",
       marginBottom: spacing.sm,
+    },
+    hourRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    hourText: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: theme.colors.onSurface,
+      minWidth: 64,
+      textAlign: "center",
     },
   });

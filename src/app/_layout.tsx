@@ -5,13 +5,14 @@ import { AuthFlowLoader } from "@/src/components/AuthFlowLoader";
 import { LocationSetupRequiredModal } from "@/src/components/location/LocationSetupRequiredModal";
 import { OfflineBanner } from "@/src/components/OfflineBanner";
 import { isSsoAuthInProgress } from "@/src/features/push/authFlowState";
+import { usePushNotificationListeners } from "@/src/features/push/usePushNotificationListeners";
+import { usePushNotificationsLifecycle } from "@/src/features/push/usePushNotificationsLifecycle";
 import { ClerkProvider, useAuth, useClerk } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import * as Notifications from "expo-notifications";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useColorScheme } from "react-native";
 import {
   MD3DarkTheme,
@@ -168,15 +169,15 @@ function AuthBootstrapGate() {
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
+function PushNotificationsLifecycleBridge() {
+  usePushNotificationsLifecycle();
+  return null;
+}
+
 function RootLayoutContent() {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettings();
-  const router = useRouter();
-  const [notificationBanner, setNotificationBanner] = useState<{
-    visible: boolean;
-    message: string;
-  }>({ visible: false, message: "" });
-  const lastHandledNotificationId = useRef<string | null>(null);
+  const { banner, dismissBanner, openBanner } = usePushNotificationListeners();
 
   const resolvedSystemScheme = systemColorScheme === "dark" ? "dark" : "light";
 
@@ -188,115 +189,6 @@ function RootLayoutContent() {
       : themeMode === "dark"
         ? darkTheme
         : lightTheme;
-
-  const handleNotificationNavigation = useCallback(
-    (data?: Record<string, unknown> | null, id?: string) => {
-      if (id && lastHandledNotificationId.current === id) return;
-
-      const kindRaw = data?.kind;
-      const kind = typeof kindRaw === "string" ? kindRaw : null;
-
-      const plantingRaw = data?.plantingId;
-      const plantingId =
-        typeof plantingRaw === "string"
-          ? plantingRaw
-          : typeof plantingRaw === "number"
-            ? String(plantingRaw)
-            : null;
-
-      const bedRaw = data?.bedId;
-      const bedId =
-        typeof bedRaw === "string"
-          ? bedRaw
-          : typeof bedRaw === "number"
-            ? String(bedRaw)
-            : null;
-
-      const actionTaskRaw = data?.actionTaskId;
-      const actionTaskId =
-        typeof actionTaskRaw === "string"
-          ? actionTaskRaw
-          : typeof actionTaskRaw === "number"
-            ? String(actionTaskRaw)
-            : null;
-
-      if (kind === "action") {
-        if (plantingId) {
-          const suffix = actionTaskId ? `?actionTaskId=${actionTaskId}` : "";
-          router.push(`/plantings/${plantingId}${suffix}`);
-          if (id) {
-            lastHandledNotificationId.current = id;
-          }
-          return;
-        }
-
-        if (bedId) {
-          const suffix = actionTaskId ? `?actionTaskId=${actionTaskId}` : "";
-          router.push(`/(tabs)/beds/${bedId}${suffix}`);
-          if (id) {
-            lastHandledNotificationId.current = id;
-          }
-          return;
-        }
-      }
-
-      if (!plantingId) return;
-      if (id) {
-        lastHandledNotificationId.current = id;
-      }
-      router.push(`/plantings/${plantingId}`);
-    },
-    [router],
-  );
-
-  useEffect(() => {
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: false,
-        shouldSetBadge: false,
-      }),
-    });
-
-    const receiveSub = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        const title = notification.request.content.title ?? "";
-        const body = notification.request.content.body ?? "";
-        const message = [title, body].filter(Boolean).join(" — ").trim();
-        if (message.length > 0) {
-          setNotificationBanner({ visible: true, message });
-        }
-      },
-    );
-
-    const responseSub = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const data = response.notification.request.content.data as Record<
-          string,
-          unknown
-        > | null;
-        const id = response.notification.request.identifier;
-        handleNotificationNavigation(data, id);
-      },
-    );
-
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (!response) return;
-      const data = response.notification.request.content.data as Record<
-        string,
-        unknown
-      > | null;
-      const id = response.notification.request.identifier;
-      handleNotificationNavigation(data, id);
-    });
-
-    return () => {
-      receiveSub.remove();
-      responseSub.remove();
-    };
-  }, [handleNotificationNavigation]);
 
   return (
     <SafeAreaProvider>
@@ -319,19 +211,28 @@ function RootLayoutContent() {
             publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
             tokenCache={tokenCache}
           >
+            <PushNotificationsLifecycleBridge />
             <AuthBootstrapGate />
             <LocationSetupRequiredModal />
           </ClerkProvider>
         </PersistQueryClientProvider>
         <OfflineBanner />
         <Snackbar
-          visible={notificationBanner.visible}
-          onDismiss={() =>
-            setNotificationBanner({ visible: false, message: "" })
-          }
+          visible={Boolean(banner)}
+          onDismiss={dismissBanner}
           duration={3000}
+          action={
+            banner
+              ? {
+                  label: "Otwórz",
+                  onPress: () => {
+                    void openBanner();
+                  },
+                }
+              : undefined
+          }
         >
-          {notificationBanner.message}
+          {banner ? `${banner.title} — ${banner.body}` : ""}
         </Snackbar>
       </PaperProvider>
     </SafeAreaProvider>

@@ -19,6 +19,10 @@ export default function HomeLayout() {
         options={{ title: "Pogoda", headerBackTitle: "Home" }}
       />
       <Stack.Screen
+        name="garden-risk"
+        options={{ title: "Ryzyko ogrodu", headerBackTitle: "Home" }}
+      />
+      <Stack.Screen
         name="alert-details"
         options={{ title: "Szczegóły alertu", headerBackTitle: "Home" }}
       />
