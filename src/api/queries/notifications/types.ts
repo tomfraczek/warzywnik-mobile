@@ -31,13 +31,27 @@ export type NotificationsListResponse = {
   hasNextPage: boolean;
 };
 
+export type NotificationsSummary = {
+  unreadCount: number;
+  hasUnread: boolean;
+  highestUnreadPriority: NotificationPriority | null;
+  hasHighPriorityUnread: boolean;
+  hasCriticalUnread: boolean;
+};
+
 export type NotificationPreferencesIntensity =
   | "IMPORTANT_ONLY"
   | "BALANCED"
   | "ALL";
 
-export type NotificationPreferences = {
-  notificationsEnabled: boolean;
+export type NotificationPreferenceGroups = {
+  tasksAndRemindersEnabled: boolean;
+  weatherAndRiskEnabled: boolean;
+  articlesAndTipsEnabled: boolean;
+  summariesEnabled: boolean;
+};
+
+export type NotificationPreferencesAdvanced = {
   tasksEnabled: boolean;
   dailySummaryEnabled: boolean;
   weatherStatusEnabled: boolean;
@@ -46,8 +60,21 @@ export type NotificationPreferences = {
   recommendedArticlesEnabled: boolean;
   lifecycleSuggestionsEnabled: boolean;
   weeklyDigestEnabled: boolean;
+};
+
+export type NotificationPreferencesUi = Record<string, unknown>;
+
+export type NotificationPreferences = {
+  notificationsEnabled: boolean;
+  groups: NotificationPreferenceGroups;
+  advanced: NotificationPreferencesAdvanced;
+  ui: NotificationPreferencesUi;
   intensity: NotificationPreferencesIntensity;
   notificationHour: number;
 };
 
-export type UpdateNotificationPreferencesDto = Partial<NotificationPreferences>;
+export type UpdateNotificationPreferencesDto = {
+  notificationsEnabled?: boolean;
+  groups?: Partial<NotificationPreferenceGroups>;
+  notificationHour?: number;
+};

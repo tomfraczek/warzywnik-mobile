@@ -3,7 +3,7 @@ import { NotificationsListResponse } from "@/src/api/queries/notifications/types
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const dismissNotification = async (notificationId: string): Promise<void> => {
-  await restClient.patch(`/v1/notifications/${notificationId}/dismiss`);
+  await restClient.patch(`/notifications/${notificationId}/dismiss`);
 };
 
 export const useDismissNotification = () => {
@@ -44,9 +44,14 @@ export const useDismissNotification = () => {
       });
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["notifications", "list"],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["notifications", "list"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["notifications", "summary"],
+        }),
+      ]);
     },
   });
 };

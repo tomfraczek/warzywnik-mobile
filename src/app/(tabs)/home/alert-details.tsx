@@ -22,7 +22,6 @@ export default function AlertDetailsScreen() {
     bedName?: string | string[];
     plantingId?: string | string[];
     vegetableName?: string | string[];
-    code?: string | string[];
     horizon?: string | string[];
     dayPart?: string | string[];
   }>();
@@ -35,7 +34,6 @@ export default function AlertDetailsScreen() {
   const bedName = asParam(params.bedName) ?? "";
   const plantingId = asParam(params.plantingId) ?? "";
   const vegetableName = asParam(params.vegetableName) ?? "";
-  const code = asParam(params.code) ?? "";
   const horizon = asParam(params.horizon) ?? "";
   const dayPart = asParam(params.dayPart) ?? "";
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
@@ -78,7 +76,6 @@ export default function AlertDetailsScreen() {
               </Button>
               {showTechnicalDetails ? (
                 <View style={styles.technicalContent}>
-                  <Text style={styles.technicalText}>code: {code || "-"}</Text>
                   <Text style={styles.technicalText}>
                     horizon: {horizon || "-"}
                   </Text>

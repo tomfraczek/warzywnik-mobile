@@ -68,6 +68,10 @@ const clearStoredPushToken = async () => {
   await SecureStore.deleteItemAsync(LAST_PUSH_TOKEN_KEY);
 };
 
+export const clearStoredPushRegistration = async () => {
+  await Promise.all([clearStoredDeviceId(), clearStoredPushToken()]);
+};
+
 export const registerDevice = async (
   payload?: Partial<RegisterDeviceDto>,
 ): Promise<Device> => {
@@ -91,9 +95,18 @@ export const disableDevice = async (
   if (!resolvedDeviceId) {
     throw new Error("Device id not found");
   }
-  const { data } = await restClient.patch(`/devices/${resolvedDeviceId}`, {
-    isEnabled: false,
-  });
-  await Promise.all([clearStoredDeviceId(), clearStoredPushToken()]);
-  return data;
+
+  try {
+    const { data } = await restClient.patch(`/devices/${resolvedDeviceId}`, {
+      isEnabled: false,
+    });
+    await clearStoredPushRegistration();
+    return data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+    if (status === 401 || status === 404) {
+      await clearStoredPushRegistration();
+    }
+    throw error;
+  }
 };

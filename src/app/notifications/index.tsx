@@ -8,10 +8,11 @@ import {
 } from "@/src/api/queries/notifications/types";
 import { useGetNotifications } from "@/src/api/queries/notifications/useGetNotifications";
 import { Screen } from "@/src/components/Screen";
+import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { Card } from "@/src/components/ui/Card";
 import { getPushNotificationRoute } from "@/src/features/push/getPushNotificationRoute";
 import { spacing } from "@/src/theme/ui";
-import { Redirect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -64,11 +65,9 @@ const formatDateTime = (value: string) => {
   }).format(date);
 };
 
-export default function ProfileNotificationsRouteRedirect() {
-  return <Redirect href="/notifications" />;
-}
+const USER_BODY_FALLBACK = "Sprawdź zalecenia dla ogrodu.";
 
-export function LegacyNotificationsScreen() {
+export default function NotificationsScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const router = useRouter();
@@ -112,18 +111,50 @@ export function LegacyNotificationsScreen() {
     [allItems],
   );
 
+  const updateItemAsReadLocally = (notificationId: string) => {
+    const now = new Date().toISOString();
+    setAllItems((prev) => {
+      if (status === "unread") {
+        return prev.filter((item) => item.id !== notificationId);
+      }
+
+      return prev.map((item) =>
+        item.id === notificationId
+          ? {
+              ...item,
+              status: "read",
+              readAt: item.readAt ?? now,
+            }
+          : item,
+      );
+    });
+  };
+
+  const handleMarkRead = async (item: NotificationItem) => {
+    updateItemAsReadLocally(item.id);
+
+    try {
+      await markRead.mutateAsync(item.id);
+    } catch {
+      void notificationsQuery.refetch();
+      Alert.alert("Powiadomienia", "Nie udało się oznaczyć jako przeczytane.");
+    }
+  };
+
   const handleOpen = async (item: NotificationItem) => {
     try {
-      await Promise.all([
-        markOpened.mutateAsync(item.id),
-        item.status === "unread"
-          ? markRead.mutateAsync(item.id)
-          : Promise.resolve(),
-      ]);
+      if (item.status === "unread") {
+        updateItemAsReadLocally(item.id);
+        await markRead.mutateAsync(item.id);
+      }
+
+      await markOpened.mutateAsync(item.id);
+
       const route = getPushNotificationRoute(item.payload);
       router.push(route);
     } catch (error) {
       console.warn("Failed to open notification", error);
+      void notificationsQuery.refetch();
       Alert.alert("Powiadomienia", "Nie udało się otworzyć powiadomienia.");
     }
   };
@@ -137,7 +168,8 @@ export function LegacyNotificationsScreen() {
   };
 
   return (
-    <Screen safeAreaEdges={["left", "right"]}>
+    <Screen safeAreaEdges={["left", "right", "bottom"]}>
+      <CustomHeader title="Powiadomienia" showBack />
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
@@ -154,8 +186,28 @@ export function LegacyNotificationsScreen() {
             <Text style={styles.helperText}>Nieprzeczytane: {unreadCount}</Text>
             <Button
               mode="text"
-              onPress={() => {
-                void markAllRead.mutateAsync();
+              onPress={async () => {
+                try {
+                  if (status === "unread") {
+                    setAllItems([]);
+                  } else {
+                    const now = new Date().toISOString();
+                    setAllItems((prev) =>
+                      prev.map((item) => ({
+                        ...item,
+                        status: "read",
+                        readAt: item.readAt ?? now,
+                      })),
+                    );
+                  }
+                  await markAllRead.mutateAsync();
+                } catch {
+                  void notificationsQuery.refetch();
+                  Alert.alert(
+                    "Powiadomienia",
+                    "Nie udało się oznaczyć wszystkich jako przeczytane.",
+                  );
+                }
               }}
               disabled={markAllRead.isPending}
             >
@@ -202,7 +254,9 @@ export function LegacyNotificationsScreen() {
                     <View style={styles.unreadDot} />
                   ) : null}
                 </View>
-                <Text style={styles.notificationBody}>{item.body}</Text>
+                <Text style={styles.notificationBody}>
+                  {item.body || USER_BODY_FALLBACK}
+                </Text>
                 <View style={styles.metaRow}>
                   <Text
                     style={[
@@ -224,7 +278,7 @@ export function LegacyNotificationsScreen() {
                     compact
                     mode="text"
                     onPress={() => {
-                      void markRead.mutateAsync(item.id);
+                      void handleMarkRead(item);
                     }}
                     disabled={markRead.isPending}
                   >

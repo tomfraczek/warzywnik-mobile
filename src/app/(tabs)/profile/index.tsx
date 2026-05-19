@@ -2,10 +2,7 @@ import { useUpdateNotificationPreferences } from "@/src/api/mutations/notificati
 import { GeoSearchItem } from "@/src/api/queries/geo/types";
 import { useGeoSearch } from "@/src/api/queries/geo/useGeoSearch";
 import { useUpdateUserLocation } from "@/src/api/queries/geo/useUpdateUserLocation";
-import {
-  NotificationPreferencesIntensity,
-  UpdateNotificationPreferencesDto,
-} from "@/src/api/queries/notifications/types";
+import { UpdateNotificationPreferencesDto } from "@/src/api/queries/notifications/types";
 import { useGetNotificationPreferences } from "@/src/api/queries/notifications/useGetNotificationPreferences";
 import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
@@ -392,16 +389,19 @@ export default function ProfileScreen() {
           </Button>
         </Card>
 
-        <Card title="Powiadomienia">
-          <Button
-            mode="outlined"
-            onPress={() => router.push("/(tabs)/profile/notifications")}
-          >
-            Centrum powiadomień
-          </Button>
-
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>Powiadomienia globalnie</Text>
+        <Card title="Powiadomienia Push">
+          <Text style={styles.preferenceDescription}>
+            Powiadomienia przychodzące na telefon pomogą Ci być na bieżąco z
+            ważnymi informacjami o Twoim ogrodzie, zadaniach i pogodzie. Możesz
+            dostosować, jakie alerty chcesz otrzymywać i o której godzinie.
+          </Text>
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Włącz powiadomienia</Text>
+              <Text style={styles.preferenceDescription}>
+                Otrzymuj ważne informacje o zadaniach, pogodzie i uprawach.
+              </Text>
+            </View>
             <Switch
               value={notificationsEnabled}
               onValueChange={(value) => {
@@ -415,124 +415,94 @@ export default function ProfileScreen() {
             />
           </View>
 
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>Zadania w ogrodzie</Text>
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>
+                Zadania i przypomnienia
+              </Text>
+              <Text style={styles.preferenceDescription}>
+                Informacje o nowych zadaniach, planie dnia i ważnych etapach
+                upraw.
+              </Text>
+            </View>
             <Switch
-              value={preferences?.tasksEnabled ?? false}
-              onValueChange={(value) => {
-                void updateNotificationPreference({ tasksEnabled: value });
-              }}
-              disabled={!notificationsEnabled || updatePreferences.isPending}
-            />
-          </View>
-
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>Plan na dziś</Text>
-            <Switch
-              value={preferences?.dailySummaryEnabled ?? false}
+              value={preferences?.groups.tasksAndRemindersEnabled ?? false}
               onValueChange={(value) => {
                 void updateNotificationPreference({
-                  dailySummaryEnabled: value,
+                  groups: {
+                    tasksAndRemindersEnabled: value,
+                  },
                 });
               }}
               disabled={!notificationsEnabled || updatePreferences.isPending}
             />
           </View>
 
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>Status pogody</Text>
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Pogoda i ryzyko</Text>
+              <Text style={styles.preferenceDescription}>
+                Alerty pogodowe, zmiany ryzyka ogrodu i ważne ostrzeżenia.
+              </Text>
+            </View>
             <Switch
-              value={preferences?.weatherStatusEnabled ?? false}
+              value={preferences?.groups.weatherAndRiskEnabled ?? false}
               onValueChange={(value) => {
                 void updateNotificationPreference({
-                  weatherStatusEnabled: value,
+                  groups: {
+                    weatherAndRiskEnabled: value,
+                  },
                 });
               }}
               disabled={!notificationsEnabled || updatePreferences.isPending}
             />
           </View>
 
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>Ryzyko dla ogrodu</Text>
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Porady i artykuły</Text>
+              <Text style={styles.preferenceDescription}>
+                Nowe treści dopasowane do Twoich upraw.
+              </Text>
+            </View>
             <Switch
-              value={preferences?.gardenRiskEnabled ?? false}
+              value={preferences?.groups.articlesAndTipsEnabled ?? false}
               onValueChange={(value) => {
                 void updateNotificationPreference({
-                  gardenRiskEnabled: value,
+                  groups: {
+                    articlesAndTipsEnabled: value,
+                  },
                 });
               }}
               disabled={!notificationsEnabled || updatePreferences.isPending}
             />
           </View>
 
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>Alerty pogodowe</Text>
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Podsumowania</Text>
+              <Text style={styles.preferenceDescription}>
+                Spokojne podsumowania ogrodu, np. tygodniowy przegląd.
+              </Text>
+            </View>
             <Switch
-              value={preferences?.weatherAlertsEnabled ?? false}
+              value={preferences?.groups.summariesEnabled ?? false}
               onValueChange={(value) => {
                 void updateNotificationPreference({
-                  weatherAlertsEnabled: value,
+                  groups: {
+                    summariesEnabled: value,
+                  },
                 });
               }}
               disabled={!notificationsEnabled || updatePreferences.isPending}
             />
           </View>
 
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>Polecane artykuły</Text>
-            <Switch
-              value={preferences?.recommendedArticlesEnabled ?? false}
-              onValueChange={(value) => {
-                void updateNotificationPreference({
-                  recommendedArticlesEnabled: value,
-                });
-              }}
-              disabled={!notificationsEnabled || updatePreferences.isPending}
-            />
-          </View>
-
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>Sugestie etapów uprawy</Text>
-            <Switch
-              value={preferences?.lifecycleSuggestionsEnabled ?? false}
-              onValueChange={(value) => {
-                void updateNotificationPreference({
-                  lifecycleSuggestionsEnabled: value,
-                });
-              }}
-              disabled={!notificationsEnabled || updatePreferences.isPending}
-            />
-          </View>
-
-          <View style={styles.switchRow}>
-            <Text style={styles.label}>Tygodniowe podsumowanie</Text>
-            <Switch
-              value={preferences?.weeklyDigestEnabled ?? false}
-              onValueChange={(value) => {
-                void updateNotificationPreference({
-                  weeklyDigestEnabled: value,
-                });
-              }}
-              disabled={!notificationsEnabled || updatePreferences.isPending}
-            />
-          </View>
-
-          <Text style={styles.label}>Intensywność</Text>
-          <SegmentedButtons
-            value={preferences?.intensity ?? "BALANCED"}
-            onValueChange={(value) => {
-              void updateNotificationPreference({
-                intensity: value as NotificationPreferencesIntensity,
-              });
-            }}
-            buttons={[
-              { value: "IMPORTANT_ONLY", label: "Tylko ważne" },
-              { value: "BALANCED", label: "Zbalansowane" },
-              { value: "ALL", label: "Wszystkie" },
-            ]}
-          />
-
-          <Text style={styles.label}>Godzina powiadomień</Text>
+          <Text style={styles.label}>Godzina codziennych przypomnień</Text>
+          <Text style={styles.helper}>
+            O tej godzinie wyślemy plan dnia i spokojne podsumowania. Ważne
+            alerty pogodowe mogą przyjść od razu.
+          </Text>
           <View style={styles.hourRow}>
             <Button
               mode="outlined"
@@ -668,11 +638,27 @@ const makeStyles = (theme: MD3Theme) =>
       alignItems: "center",
       marginBottom: spacing.sm,
     },
-    switchRow: {
+    preferenceRow: {
       flexDirection: "row",
       justifyContent: "space-between",
-      alignItems: "center",
+      alignItems: "flex-start",
       marginBottom: spacing.sm,
+      gap: spacing.sm,
+    },
+    preferenceTextWrap: {
+      flex: 1,
+      gap: 4,
+      paddingTop: 2,
+    },
+    preferenceTitle: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: theme.colors.onSurface,
+    },
+    preferenceDescription: {
+      fontSize: 12,
+      lineHeight: 17,
+      color: theme.colors.onSurfaceVariant,
     },
     hourRow: {
       flexDirection: "row",

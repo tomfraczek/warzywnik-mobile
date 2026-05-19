@@ -193,7 +193,6 @@ export default function WarningsScreen() {
         bedName: presentation.bedName ?? "",
         plantingId: presentation.plantingId ?? "",
         vegetableName: presentation.vegetableName ?? "",
-        code: warning.code ?? "",
         horizon: presentation.horizon ?? "",
         dayPart: presentation.dayPart ?? "",
       },

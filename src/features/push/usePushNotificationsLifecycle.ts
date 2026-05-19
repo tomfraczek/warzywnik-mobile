@@ -2,6 +2,7 @@ import { useDisableDevice } from "@/src/api/queries/devices/useDisableDevice";
 import { useRegisterDevice } from "@/src/api/queries/devices/useRegisterDevice";
 import { useGetNotificationPreferences } from "@/src/api/queries/notifications/useGetNotificationPreferences";
 import {
+  clearStoredPushRegistration,
   getExpoToken,
   getStoredDeviceId,
   getStoredPushToken,
@@ -84,7 +85,8 @@ export const usePushNotificationsLifecycle = () => {
     if (!isLoaded) return;
 
     if (!isSignedIn) {
-      void disableCurrentDevice();
+      void clearStoredPushRegistration();
+      lastRegisteredTokenRef.current = null;
       return;
     }
 

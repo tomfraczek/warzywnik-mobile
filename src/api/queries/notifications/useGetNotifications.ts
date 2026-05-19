@@ -36,6 +36,30 @@ const asBoolean = (value: unknown, fallback: boolean): boolean => {
   return fallback;
 };
 
+const USER_BODY_FALLBACK = "Sprawdź zalecenia dla ogrodu.";
+
+const isTechnicalCodeLike = (value: string): boolean =>
+  /^[A-Z0-9_]+$/.test(value);
+
+const normalizeUserBody = (
+  value: string,
+  technicalCandidates: (string | undefined)[],
+): string => {
+  const normalized = value.trim();
+  if (!normalized) return USER_BODY_FALLBACK;
+
+  const upperNormalized = normalized.toUpperCase();
+  const isTechnicalCandidateMatch = technicalCandidates
+    .filter((candidate): candidate is string => Boolean(candidate?.trim()))
+    .some((candidate) => candidate.trim().toUpperCase() === upperNormalized);
+
+  if (isTechnicalCandidateMatch || isTechnicalCodeLike(normalized)) {
+    return USER_BODY_FALLBACK;
+  }
+
+  return normalized;
+};
+
 const parseNotificationItem = (raw: unknown): NotificationItem | null => {
   if (!isRecord(raw)) return null;
 
@@ -54,6 +78,8 @@ const parseNotificationItem = (raw: unknown): NotificationItem | null => {
     createdAt: asString(raw.createdAt, new Date().toISOString()),
     bedId: asString(raw.bedId) || undefined,
     plantingId: asString(raw.plantingId) || undefined,
+    riskLevel: asString(raw.riskLevel) || undefined,
+    riskReason: asString(raw.riskReason) || undefined,
     warningCode: asString(raw.warningCode) || undefined,
     articleId: asString(raw.articleId) || undefined,
     articleSlug: asString(raw.articleSlug) || undefined,
@@ -72,16 +98,29 @@ const parseNotificationItem = (raw: unknown): NotificationItem | null => {
     return null;
   }
 
+  const readAt = asString(raw.readAt) || null;
+  const rawStatus = asString(raw.status, "unread");
+  const status = readAt ? "read" : rawStatus === "read" ? "read" : "unread";
+
+  const technicalRiskReason = asString(raw.riskReason) || payload.riskReason;
+  const technicalWarningCode = asString(raw.warningCode) || payload.warningCode;
+
+  const title = asString(raw.title, payload.title) || "Powiadomienie";
+  const body = normalizeUserBody(asString(raw.body, payload.body), [
+    technicalRiskReason,
+    technicalWarningCode,
+  ]);
+
   return {
     id,
-    title: asString(raw.title, payload.title),
-    body: asString(raw.body, payload.body),
+    title,
+    body,
     type: payload.type,
     routeTarget: payload.routeTarget,
     priority: payload.priority,
-    status: asString(raw.status, "unread") === "read" ? "read" : "unread",
+    status,
     createdAt: asString(raw.createdAt, payload.createdAt),
-    readAt: asString(raw.readAt) || null,
+    readAt,
     openedAt: asString(raw.openedAt) || null,
     dismissedAt: asString(raw.dismissedAt) || null,
     payload,
@@ -95,7 +134,7 @@ const getNotifications = async (
   const limit = params.limit ?? 20;
   const status = params.status ?? "all";
 
-  const { data } = await restClient.get<unknown>("/v1/notifications", {
+  const { data } = await restClient.get<unknown>("/notifications", {
     params: {
       status,
       page,

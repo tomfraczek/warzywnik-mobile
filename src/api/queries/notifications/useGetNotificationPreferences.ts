@@ -1,7 +1,9 @@
 import { restClient } from "@/src/api/axios";
 import { useQuery } from "@tanstack/react-query";
 import {
+  NotificationPreferenceGroups,
   NotificationPreferences,
+  NotificationPreferencesAdvanced,
   NotificationPreferencesIntensity,
 } from "./types";
 
@@ -27,28 +29,88 @@ const asIntensity = (value: unknown): NotificationPreferencesIntensity => {
   return "BALANCED";
 };
 
-const normalizePreferences = (raw: unknown): NotificationPreferences => {
-  const data = isRecord(raw) ? raw : {};
+const normalizeGroups = (
+  groupsRaw: unknown,
+  fallbackSource: Record<string, unknown>,
+): NotificationPreferenceGroups => {
+  const groups = isRecord(groupsRaw) ? groupsRaw : {};
   return {
-    notificationsEnabled: asBoolean(data.notificationsEnabled, true),
-    tasksEnabled: asBoolean(data.tasksEnabled, true),
-    dailySummaryEnabled: asBoolean(data.dailySummaryEnabled, true),
-    weatherStatusEnabled: asBoolean(data.weatherStatusEnabled, true),
-    gardenRiskEnabled: asBoolean(data.gardenRiskEnabled, true),
-    weatherAlertsEnabled: asBoolean(data.weatherAlertsEnabled, true),
+    tasksAndRemindersEnabled: asBoolean(
+      groups.tasksAndRemindersEnabled,
+      asBoolean(fallbackSource.tasksEnabled, true) ||
+        asBoolean(fallbackSource.dailySummaryEnabled, true),
+    ),
+    weatherAndRiskEnabled: asBoolean(
+      groups.weatherAndRiskEnabled,
+      asBoolean(fallbackSource.weatherStatusEnabled, true) ||
+        asBoolean(fallbackSource.gardenRiskEnabled, true) ||
+        asBoolean(fallbackSource.weatherAlertsEnabled, true),
+    ),
+    articlesAndTipsEnabled: asBoolean(
+      groups.articlesAndTipsEnabled,
+      asBoolean(fallbackSource.recommendedArticlesEnabled, true) ||
+        asBoolean(fallbackSource.lifecycleSuggestionsEnabled, true),
+    ),
+    summariesEnabled: asBoolean(
+      groups.summariesEnabled,
+      asBoolean(fallbackSource.weeklyDigestEnabled, true),
+    ),
+  };
+};
+
+const normalizeAdvanced = (
+  advancedRaw: unknown,
+  fallbackSource: Record<string, unknown>,
+): NotificationPreferencesAdvanced => {
+  const advanced = isRecord(advancedRaw) ? advancedRaw : {};
+  return {
+    tasksEnabled: asBoolean(
+      advanced.tasksEnabled,
+      asBoolean(fallbackSource.tasksEnabled, true),
+    ),
+    dailySummaryEnabled: asBoolean(
+      advanced.dailySummaryEnabled,
+      asBoolean(fallbackSource.dailySummaryEnabled, true),
+    ),
+    weatherStatusEnabled: asBoolean(
+      advanced.weatherStatusEnabled,
+      asBoolean(fallbackSource.weatherStatusEnabled, true),
+    ),
+    gardenRiskEnabled: asBoolean(
+      advanced.gardenRiskEnabled,
+      asBoolean(fallbackSource.gardenRiskEnabled, true),
+    ),
+    weatherAlertsEnabled: asBoolean(
+      advanced.weatherAlertsEnabled,
+      asBoolean(fallbackSource.weatherAlertsEnabled, true),
+    ),
     recommendedArticlesEnabled: asBoolean(
-      data.recommendedArticlesEnabled,
-      true,
+      advanced.recommendedArticlesEnabled,
+      asBoolean(fallbackSource.recommendedArticlesEnabled, true),
     ),
     lifecycleSuggestionsEnabled: asBoolean(
-      data.lifecycleSuggestionsEnabled,
-      true,
+      advanced.lifecycleSuggestionsEnabled,
+      asBoolean(fallbackSource.lifecycleSuggestionsEnabled, true),
     ),
-    weeklyDigestEnabled: asBoolean(data.weeklyDigestEnabled, true),
-    intensity: asIntensity(data.intensity),
+    weeklyDigestEnabled: asBoolean(
+      advanced.weeklyDigestEnabled,
+      asBoolean(fallbackSource.weeklyDigestEnabled, true),
+    ),
+  };
+};
+
+const normalizePreferences = (raw: unknown): NotificationPreferences => {
+  const data = isRecord(raw) ? raw : {};
+  const ui = isRecord(data.ui) ? data.ui : {};
+  return {
+    notificationsEnabled: asBoolean(data.notificationsEnabled, true),
+    groups: normalizeGroups(data.groups, data),
+    advanced: normalizeAdvanced(data.advanced, data),
+    ui,
+    intensity: asIntensity(ui.intensity ?? data.intensity),
     notificationHour: Math.min(
       23,
-      Math.max(0, asNumber(data.notificationHour, 8)),
+      Math.max(0, asNumber(data.notificationHour ?? ui.notificationHour, 8)),
     ),
   };
 };

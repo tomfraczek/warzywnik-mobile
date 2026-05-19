@@ -7,7 +7,7 @@ import { OfflineBanner } from "@/src/components/OfflineBanner";
 import { isSsoAuthInProgress } from "@/src/features/push/authFlowState";
 import { usePushNotificationListeners } from "@/src/features/push/usePushNotificationListeners";
 import { usePushNotificationsLifecycle } from "@/src/features/push/usePushNotificationsLifecycle";
-import { ClerkProvider, useAuth, useClerk } from "@clerk/clerk-expo";
+import { ClerkProvider, useAuth, useClerk, useUser } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
@@ -25,6 +25,22 @@ import { clientPersister, queryClient } from "../api/queryClient";
 import { SettingsProvider, useSettings } from "../context/SettingsProvider";
 
 const FORCE_AUTH_FLOW_LOADER_FOR_TESTS = false;
+
+const deriveNameFromEmail = (email: string): string => {
+  const localPart = email.split("@")[0] ?? "";
+  const spaced = localPart
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!spaced) return "";
+
+  return spaced
+    .split(" ")
+    .filter(Boolean)
+    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+    .join(" ");
+};
 
 export const lightTheme = {
   ...MD3LightTheme,
@@ -102,6 +118,8 @@ const darkTheme = {
 function AuthBootstrapGate() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
+  const { user, isLoaded: isUserLoaded } = useUser();
+  const { profile, setProfile, isReady: areSettingsReady } = useSettings();
   const router = useRouter();
   const segments = useSegments();
   const pathname = usePathname();
@@ -154,9 +172,42 @@ function AuthBootstrapGate() {
     }
 
     if (inAuthGroup || pathname === "/") {
-      router.replace("/(tabs)/home");
+      const shouldOpenProfileEdit = profile.name.trim().length === 0;
+      router.replace(
+        shouldOpenProfileEdit ? "/(tabs)/profile/profile-edit" : "/(tabs)/home",
+      );
     }
-  }, [isLoaded, isSignedIn, segments, router, pathname]);
+  }, [isLoaded, isSignedIn, segments, router, pathname, profile.name]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !isUserLoaded || !areSettingsReady) return;
+    if (profile.name.trim().length > 0) return;
+
+    const email =
+      user?.primaryEmailAddress?.emailAddress ??
+      user?.emailAddresses?.[0]?.emailAddress ??
+      "";
+
+    const candidate =
+      user?.firstName?.trim() ||
+      user?.fullName?.trim() ||
+      deriveNameFromEmail(email);
+
+    if (!candidate) return;
+
+    setProfile({ name: candidate });
+  }, [
+    areSettingsReady,
+    isLoaded,
+    isSignedIn,
+    isUserLoaded,
+    profile.name,
+    setProfile,
+    user?.emailAddresses,
+    user?.firstName,
+    user?.fullName,
+    user?.primaryEmailAddress?.emailAddress,
+  ]);
 
   if (FORCE_AUTH_FLOW_LOADER_FOR_TESTS) {
     return <AuthFlowLoader />;

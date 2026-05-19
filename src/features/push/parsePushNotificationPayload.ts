@@ -4,6 +4,7 @@ import {
   NotificationType,
   ParsedPushNotificationPayload,
   PushNotificationPayload,
+  PushRiskLevel,
 } from "./types";
 
 const NOTIFICATION_TYPES: NotificationType[] = [
@@ -36,6 +37,14 @@ const ROUTE_TARGETS: NotificationRouteTarget[] = [
 const PRIORITIES: NotificationPriority[] = [
   "LOW",
   "NORMAL",
+  "HIGH",
+  "CRITICAL",
+];
+
+const RISK_LEVELS: PushRiskLevel[] = [
+  "NONE",
+  "LOW",
+  "MEDIUM",
   "HIGH",
   "CRITICAL",
 ];
@@ -119,6 +128,8 @@ export const parsePushNotificationPayload = (
     bedIds: readStringArray(raw.bedIds),
     plantingIds: readStringArray(raw.plantingIds),
     warningIds: readStringArray(raw.warningIds),
+    riskLevel: readEnum(raw.riskLevel, RISK_LEVELS),
+    riskReason: readString(raw.riskReason),
     warningCode: readString(raw.warningCode),
     articleId: readString(raw.articleId),
     articleSlug: readString(raw.articleSlug),

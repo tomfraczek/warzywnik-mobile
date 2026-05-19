@@ -24,6 +24,7 @@ export type NotificationRouteTarget =
   | "NOTIFICATION_CENTER";
 
 export type NotificationPriority = "LOW" | "NORMAL" | "HIGH" | "CRITICAL";
+export type PushRiskLevel = "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export type PushNotificationPayload = {
   notificationId: string;
@@ -38,6 +39,8 @@ export type PushNotificationPayload = {
   bedIds?: string[];
   plantingIds?: string[];
   warningIds?: string[];
+  riskLevel?: PushRiskLevel;
+  riskReason?: string;
   warningCode?: string;
   articleId?: string;
   articleSlug?: string;

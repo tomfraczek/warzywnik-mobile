@@ -83,11 +83,11 @@ export const usePushNotificationListeners = () => {
         const title =
           notification.request.content.title ??
           parsed.payload?.title ??
-          "Powiadomienie";
+          "Powiadomienia";
         const body =
           notification.request.content.body ??
           parsed.payload?.body ??
-          "Masz nowe powiadomienie";
+          "Sprawdź zalecenia dla ogrodu.";
 
         enqueueBanner({
           title,

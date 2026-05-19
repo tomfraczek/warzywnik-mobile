@@ -72,7 +72,6 @@ export const getPushNotificationRoute = (
           title: payload.title,
           message: payload.body,
           warningId: warningId ?? "",
-          code: payload.warningCode ?? "",
         },
       };
     }
@@ -101,7 +100,7 @@ export const getPushNotificationRoute = (
       return "/(tabs)/education/articles";
 
     case "NOTIFICATION_CENTER":
-      return "/(tabs)/profile/notifications";
+      return "/notifications";
 
     default:
       return homeRoute();
