@@ -1,6 +1,7 @@
+import { NotificationsBellButton } from "@/src/components/navigation/NotificationsBellButton";
 import { OFFLINE_BANNER_EXTRA_HEIGHT } from "@/src/features/network/offline";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
-import { useRouter, useSegments } from "expo-router";
+import { usePathname, useRouter, useSegments } from "expo-router";
 import { ReactNode, useCallback } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon, MD3Theme, useTheme } from "react-native-paper";
@@ -44,6 +45,7 @@ export default function CustomHeader({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const segments = useSegments();
+  const pathname = usePathname();
   const isOffline = useIsOffline();
 
   type TabRootRoute =
@@ -86,6 +88,7 @@ export default function CustomHeader({
   const visibleActions = (actions ?? []).filter((action) => !action.hidden);
   const isOverlay = overlay ?? variant === "overlay";
   const actionIconColor = isOverlay ? "#FFFFFF" : theme.colors.onSurface;
+  const showNotificationsBell = pathname !== "/notifications";
   const dark = theme.dark;
 
   return (
@@ -145,6 +148,24 @@ export default function CustomHeader({
         </View>
 
         <View style={styles.rightGroup}>
+          {showNotificationsBell ? (
+            <NotificationsBellButton
+              size={42}
+              iconSize={20}
+              iconColor={actionIconColor}
+              borderColor={
+                isOverlay ? "rgba(255,255,255,0.28)" : theme.colors.outline
+              }
+              backgroundColor={
+                isOverlay ? "rgba(17, 24, 20, 0.52)" : theme.colors.surface
+              }
+              pressedBackgroundColor={
+                isOverlay
+                  ? "rgba(17, 24, 20, 0.72)"
+                  : theme.colors.surfaceVariant
+              }
+            />
+          ) : null}
           {visibleActions.map((action, index) => (
             <Pressable
               key={`${action.icon}-${index}`}

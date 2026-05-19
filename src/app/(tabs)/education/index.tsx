@@ -6,6 +6,7 @@ import {
 import { useGetFavoritesGrouped } from "@/src/api/queries/favorites/useGetFavoritesGrouped";
 import { getFavoriteDetailParam } from "@/src/api/queries/favorites/utils";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
+import { PrimaryScreenHeading } from "@/src/components/navigation/PrimaryScreenHeading";
 import { Screen } from "@/src/components/Screen";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -378,7 +379,10 @@ export default function EducationScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
       >
-        <Text style={styles.screenHeading}>Biblioteka</Text>
+        <PrimaryScreenHeading
+          title="Biblioteka"
+          subtitle="Kategorie, ulubione i poradniki dla Twojego ogrodu."
+        />
         <View style={styles.section}>
           <Text style={styles.sectionHeading}>Kategorie</Text>
           {filteredSections.length > 0 ? (

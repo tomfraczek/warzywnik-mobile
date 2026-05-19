@@ -1,10 +1,10 @@
 import { ArticleListItem } from "@/src/api/queries/articles/types";
 import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
-import { useGetNotificationsSummary } from "@/src/api/queries/notifications/useGetNotificationsSummary";
 import { WeatherStatusLevel } from "@/src/api/queries/users/meTypes";
 import { useGetMyWeather } from "@/src/api/queries/users/useGetMyWeather";
 import { VegetableListItem } from "@/src/api/queries/vegetables/types";
 import { useGetVegetables } from "@/src/api/queries/vegetables/useGetVegetables";
+import { NotificationsBellButton } from "@/src/components/navigation/NotificationsBellButton";
 import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
@@ -103,14 +103,6 @@ const getWeatherStatusCardToneStyles = (
         text: styles.weatherStatusText_ok,
       };
   }
-};
-
-const getNotificationsDotColor = (
-  priority: "LOW" | "NORMAL" | "HIGH" | "CRITICAL" | null,
-) => {
-  if (priority === "CRITICAL") return "#D32F2F";
-  if (priority === "HIGH") return "#E07A00";
-  return "#2E7D32";
 };
 
 // ─── shared library-preview helpers ──────────────────────────────────────────
@@ -301,13 +293,6 @@ export default function HomeScreen() {
   });
   const { data: vegetablesData, isLoading: vegetablesLoading } =
     useGetVegetables({ limit: 4 });
-  const notificationsSummaryQuery = useGetNotificationsSummary();
-  const notificationsSummary = notificationsSummaryQuery.data;
-  const hasUnreadNotifications = notificationsSummary?.hasUnread === true;
-  const notificationDotColor = getNotificationsDotColor(
-    notificationsSummary?.highestUnreadPriority ?? null,
-  );
-
   const tips: ArticleListItem[] =
     articlesData?.pages.flatMap((page) => page.items).slice(0, 3) ?? [];
 
@@ -330,27 +315,13 @@ export default function HomeScreen() {
                 Cześć{profile.name ? `, ${profile.name}` : ""}!
               </Text>
             </View>
-            <Pressable
-              onPress={() => router.push("/notifications")}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Powiadomienia"
+            <NotificationsBellButton
+              iconColor={theme.colors.onSurface}
+              borderColor={theme.colors.outlineVariant}
+              backgroundColor={theme.colors.surface}
+              pressedBackgroundColor={theme.colors.surfaceVariant}
               style={styles.notificationsBellButton}
-            >
-              <MaterialCommunityIcons
-                name="bell-outline"
-                size={22}
-                color={theme.colors.onSurface}
-              />
-              {hasUnreadNotifications ? (
-                <View
-                  style={[
-                    styles.notificationsDot,
-                    { backgroundColor: notificationDotColor },
-                  ]}
-                />
-              ) : null}
-            </Pressable>
+            />
           </View>
           <StatusBadge
             label={
@@ -655,23 +626,7 @@ const makeStyles = (theme: MD3Theme) =>
       gap: spacing.xs,
     },
     notificationsBellButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: theme.colors.outlineVariant,
-      backgroundColor: theme.colors.surface,
-      position: "relative",
-    },
-    notificationsDot: {
-      position: "absolute",
-      top: 7,
-      right: 8,
-      width: 9,
-      height: 9,
-      borderRadius: 5,
+      marginLeft: 4,
     },
     title: {
       fontSize: 26,

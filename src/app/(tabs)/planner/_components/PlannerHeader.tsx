@@ -1,3 +1,4 @@
+import { PrimaryScreenHeading } from "@/src/components/navigation/PrimaryScreenHeading";
 import { spacing } from "@/src/theme/ui";
 import { StyleSheet, View } from "react-native";
 import { MD3Theme, Text, useTheme } from "react-native-paper";
@@ -23,8 +24,7 @@ export function PlannerHeader({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Kalendarz</Text>
-      <Text style={styles.subtitle}>{subtitle}</Text>
+      <PrimaryScreenHeading title="Kalendarz" subtitle={subtitle} />
       <View style={styles.datePill}>
         <Text style={styles.dateText}>{capitalizeFirst(dateLabel)}</Text>
       </View>
@@ -43,16 +43,6 @@ const makeStyles = (theme: MD3Theme) =>
       paddingHorizontal: spacing.md,
       gap: spacing.sm,
       marginTop: spacing.sm,
-    },
-    title: {
-      fontSize: 30,
-      fontWeight: "700",
-      color: theme.colors.onBackground,
-    },
-    subtitle: {
-      fontSize: 15,
-      color: theme.colors.onSurfaceVariant,
-      lineHeight: 22,
     },
     datePill: {
       alignSelf: "flex-start",

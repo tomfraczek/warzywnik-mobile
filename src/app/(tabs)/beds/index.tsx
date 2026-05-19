@@ -2,6 +2,7 @@ import { useGetBedActionTasks } from "@/src/api/queries/actionTasks/useGetBedAct
 import { Bed, CultivationEnvironment } from "@/src/api/queries/beds/types";
 import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
+import { PrimaryScreenHeading } from "@/src/components/navigation/PrimaryScreenHeading";
 import { Screen } from "@/src/components/Screen";
 import { isPlantingActiveLifecycleStatus } from "@/src/features/plantings/status";
 import { getTodayKey } from "@/src/utils/date";
@@ -461,13 +462,10 @@ export default function BedsListScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
-            {/* title */}
-            <Text style={[s.screenTitle, { color: palette.heading }]}>
-              Grządki
-            </Text>
-            <Text style={[s.screenSubtitle, { color: palette.secondary }]}>
-              Zarządzaj swoimi grządkami i warunkami uprawy.
-            </Text>
+            <PrimaryScreenHeading
+              title="Grządki"
+              subtitle="Zarządzaj swoimi grządkami i warunkami uprawy."
+            />
 
             {/* search */}
             <View

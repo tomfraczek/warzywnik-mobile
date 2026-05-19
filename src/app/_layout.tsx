@@ -24,7 +24,6 @@ import {
   MD3DarkTheme,
   MD3LightTheme,
   Provider as PaperProvider,
-  Snackbar,
 } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { clientPersister, queryClient } from "../api/queryClient";
@@ -253,7 +252,7 @@ function PushNotificationsLifecycleBridge() {
 function RootLayoutContent() {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettings();
-  const { banner, dismissBanner, openBanner } = usePushNotificationListeners();
+  usePushNotificationListeners();
 
   const resolvedSystemScheme = systemColorScheme === "dark" ? "dark" : "light";
 
@@ -293,23 +292,6 @@ function RootLayoutContent() {
           </ClerkProvider>
         </PersistQueryClientProvider>
         <OfflineBanner />
-        <Snackbar
-          visible={Boolean(banner)}
-          onDismiss={dismissBanner}
-          duration={3000}
-          action={
-            banner
-              ? {
-                  label: "Otwórz",
-                  onPress: () => {
-                    void openBanner();
-                  },
-                }
-              : undefined
-          }
-        >
-          {banner ? `${banner.title} — ${banner.body}` : ""}
-        </Snackbar>
       </PaperProvider>
     </SafeAreaProvider>
   );
