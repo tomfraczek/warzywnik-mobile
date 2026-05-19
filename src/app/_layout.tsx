@@ -10,7 +10,13 @@ import { usePushNotificationsLifecycle } from "@/src/features/push/usePushNotifi
 import { ClerkProvider, useAuth, useClerk, useUser } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { Stack, usePathname, useRouter, useSegments } from "expo-router";
+import {
+  Stack,
+  usePathname,
+  useRootNavigationState,
+  useRouter,
+  useSegments,
+} from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import { useColorScheme } from "react-native";
@@ -123,6 +129,8 @@ function AuthBootstrapGate() {
   const router = useRouter();
   const segments = useSegments();
   const pathname = usePathname();
+  const rootNavigationState = useRootNavigationState();
+  const isRootNavigationMounted = Boolean(rootNavigationState?.key);
   const isHandlingAuthError = useRef(false);
   const [ready, setReady] = useState(false);
 
@@ -147,16 +155,25 @@ function AuthBootstrapGate() {
       } finally {
         queryClient.clear();
         await clientPersister.removeClient();
-        router.replace("/(auth)");
+        if (isRootNavigationMounted) {
+          router.replace("/(auth)");
+        }
         isHandlingAuthError.current = false;
       }
     });
 
     setReady(true);
-  }, [isLoaded, isSignedIn, getToken, router, signOut]);
+  }, [
+    getToken,
+    isLoaded,
+    isRootNavigationMounted,
+    isSignedIn,
+    router,
+    signOut,
+  ]);
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || !isRootNavigationMounted) return;
 
     const inAuthGroup = segments[0] === "(auth)";
     const ssoInProgress = isSsoAuthInProgress();
@@ -177,7 +194,15 @@ function AuthBootstrapGate() {
         shouldOpenProfileEdit ? "/(tabs)/profile/profile-edit" : "/(tabs)/home",
       );
     }
-  }, [isLoaded, isSignedIn, segments, router, pathname, profile.name]);
+  }, [
+    isLoaded,
+    isRootNavigationMounted,
+    isSignedIn,
+    pathname,
+    profile.name,
+    router,
+    segments,
+  ]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !isUserLoaded || !areSettingsReady) return;
