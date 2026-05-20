@@ -225,6 +225,15 @@ const getBaseStyle = (palette: ReturnType<typeof buildPalette>) => ({
 });
 
 const getTagsStyles = (palette: ReturnType<typeof buildPalette>) => ({
+  h1: {
+    fontSize: 22,
+    fontWeight: "700" as const,
+    color: palette.heading,
+    marginTop: 24,
+    marginBottom: 10,
+    lineHeight: 30,
+    letterSpacing: -0.3,
+  },
   h2: {
     fontSize: 22,
     fontWeight: "700" as const,

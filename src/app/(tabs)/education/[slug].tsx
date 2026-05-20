@@ -142,6 +142,15 @@ const getBaseStyle = (theme: MD3Theme) => ({
 });
 
 const getTagsStyles = (theme: MD3Theme) => ({
+  h1: {
+    fontSize: 24,
+    fontWeight: "700" as const,
+    color: theme.colors.onSurface,
+    marginTop: 20,
+    marginBottom: 10,
+    lineHeight: 32,
+    letterSpacing: -0.2,
+  },
   h2: {
     fontSize: 20,
     fontWeight: "600" as const,

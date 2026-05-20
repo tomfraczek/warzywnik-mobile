@@ -1,8 +1,7 @@
 import { getResponseError } from "@/src/api/axios";
-import { ArticleListItem } from "@/src/api/queries/articles/types";
 import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
 import { Screen } from "@/src/components/Screen";
-import { FavoriteButton } from "@/src/components/ui/FavoriteButton";
+import { ArticlePreviewCard } from "@/src/components/ui/ArticlePreviewCard";
 import { FlashList } from "@shopify/flash-list";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -26,22 +25,6 @@ import Animated, {
 import { useDebouncedValue } from "../_components/useDebouncedValue";
 
 // ─── label maps ──────────────────────────────────────────────────────────────
-
-const SEASON_LABELS: Record<string, string> = {
-  winter: "Zima",
-  spring: "Wiosna",
-  summer: "Lato",
-  autumn: "Jesień",
-};
-
-const CONTEXT_LABELS: Record<string, string> = {
-  planning: "Planowanie",
-  soil_preparation: "Przygotowanie gleby",
-  sowing: "Siew",
-  harvest: "Zbiory",
-  problem_solving: "Rozwiązywanie problemów",
-  learning: "Wiedza",
-};
 
 const MONTH_LABELS = [
   "Sty",
@@ -74,13 +57,7 @@ function buildPalette(dark: boolean) {
     cardBg: dark ? "#1A1F1C" : "#FFFFFF",
     cardBorder: dark ? "#252D29" : "#E8ECE7",
     coverBg: dark ? "#222B26" : "#EFF4EC",
-    coverIcon: dark ? "#4A5E52" : "#B8CCB4",
-    seasonBg: dark ? "#1E2E24" : "#E6F2E8",
     seasonText: dark ? "#7ABF90" : "#3A7050",
-    contextBg: dark ? "#1E2A38" : "#E5EEF8",
-    contextText: dark ? "#7AAAD8" : "#2E5A8C",
-    tagBg: dark ? "#222B26" : "#F0F4F1",
-    tagText: dark ? "#9AB8A2" : "#4E6E5A",
   };
 }
 
@@ -394,193 +371,6 @@ const prefetchArticleCover = (uri?: string | null) => {
   void Image.prefetch(uri, "memory-disk").catch(() => undefined);
 };
 
-// ─── article card ─────────────────────────────────────────────────────────────
-
-function ArticleCard({
-  item,
-  onPress,
-  onPressIn,
-  palette,
-}: {
-  item: ArticleListItem;
-  onPress: () => void;
-  onPressIn?: () => void;
-  palette: ReturnType<typeof buildPalette>;
-}) {
-  const firstSeason = item.seasons[0];
-  const firstContext = item.contexts[0];
-  const firstMonth = item.months[0];
-
-  const date = item.publishedAt
-    ? new Date(item.publishedAt).toLocaleDateString("pl-PL", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-    : null;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={onPressIn}
-      hitSlop={4}
-      android_ripple={null}
-      style={({ pressed }) => pressed && { opacity: 0.75 }}
-    >
-      <View
-        style={[
-          cardStyles.card,
-          { backgroundColor: palette.cardBg, borderColor: palette.cardBorder },
-        ]}
-      >
-        {/* cover */}
-        {item.coverImageUrl ? (
-          <View>
-            <Image
-              source={{
-                uri: item.coverImageUrl,
-              }}
-              style={cardStyles.cover}
-              contentFit="cover"
-              recyclingKey={item.slug}
-            />
-            <FavoriteButton targetType="ARTICLE" targetSlug={item.slug} />
-          </View>
-        ) : (
-          <View
-            style={[cardStyles.cover, { backgroundColor: palette.coverBg }]}
-          >
-            <Icon
-              source="book-open-page-variant-outline"
-              size={40}
-              color={palette.coverIcon}
-            />
-            <FavoriteButton targetType="ARTICLE" targetSlug={item.slug} />
-          </View>
-        )}
-
-        {/* body */}
-        <View style={cardStyles.body}>
-          {/* tag row */}
-          {firstSeason || firstContext || firstMonth ? (
-            <View style={cardStyles.tagRow}>
-              {firstSeason ? (
-                <View
-                  style={[
-                    cardStyles.tag,
-                    { backgroundColor: palette.seasonBg },
-                  ]}
-                >
-                  <Text
-                    style={[cardStyles.tagText, { color: palette.seasonText }]}
-                  >
-                    {SEASON_LABELS[firstSeason] ?? firstSeason}
-                  </Text>
-                </View>
-              ) : null}
-              {firstContext ? (
-                <View
-                  style={[
-                    cardStyles.tag,
-                    { backgroundColor: palette.contextBg },
-                  ]}
-                >
-                  <Text
-                    style={[cardStyles.tagText, { color: palette.contextText }]}
-                  >
-                    {CONTEXT_LABELS[firstContext] ?? firstContext}
-                  </Text>
-                </View>
-              ) : null}
-              {!firstSeason && !firstContext && firstMonth ? (
-                <View
-                  style={[cardStyles.tag, { backgroundColor: palette.tagBg }]}
-                >
-                  <Text
-                    style={[cardStyles.tagText, { color: palette.tagText }]}
-                  >
-                    {MONTH_LABELS[firstMonth - 1]}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-
-          {/* title */}
-          <Text
-            style={[cardStyles.title, { color: palette.heading }]}
-            numberOfLines={3}
-          >
-            {item.title}
-          </Text>
-
-          {/* excerpt */}
-          {item.excerpt ? (
-            <Text
-              style={[cardStyles.excerpt, { color: palette.secondary }]}
-              numberOfLines={3}
-            >
-              {item.excerpt}
-            </Text>
-          ) : null}
-
-          {/* date */}
-          {date ? (
-            <Text style={[cardStyles.date, { color: palette.meta }]}>
-              {date}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
-const cardStyles = StyleSheet.create({
-  card: {
-    borderRadius: 22,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  cover: {
-    width: "100%",
-    height: 210,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  body: {
-    padding: 18,
-    gap: 10,
-  },
-  tagRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  tag: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  tagText: {
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 27,
-  },
-  excerpt: {
-    fontSize: 15,
-    lineHeight: 23,
-  },
-  date: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-});
-
 // ─── empty state ──────────────────────────────────────────────────────────────
 
 function EmptyContent({
@@ -734,9 +524,8 @@ export default function ArticlesScreen() {
       <FlashList
         data={items}
         renderItem={({ item }) => (
-          <ArticleCard
+          <ArticlePreviewCard
             item={item}
-            palette={palette}
             onPressIn={() => prefetchArticleCover(item.coverImageUrl)}
             onPress={() =>
               router.push({

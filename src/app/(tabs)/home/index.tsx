@@ -6,6 +6,7 @@ import { VegetableListItem } from "@/src/api/queries/vegetables/types";
 import { useGetVegetables } from "@/src/api/queries/vegetables/useGetVegetables";
 import { NotificationsBellButton } from "@/src/components/navigation/NotificationsBellButton";
 import { Screen } from "@/src/components/Screen";
+import { ArticlePreviewCard } from "@/src/components/ui/ArticlePreviewCard";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { useSettings } from "@/src/context/SettingsProvider";
@@ -27,7 +28,6 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Button,
-  Icon,
   MD3Theme,
   Text,
   useTheme,
@@ -107,18 +107,6 @@ const getWeatherStatusCardToneStyles = (
 
 // ─── shared library-preview helpers ──────────────────────────────────────────
 
-const CONTEXT_LABELS: Record<string, string> = {
-  BALCONY: "Balkon",
-  BED: "Grządka",
-  GREENHOUSE: "Szklarnia",
-};
-const SEASON_LABELS_HOME: Record<string, string> = {
-  SPRING: "Wiosna",
-  SUMMER: "Lato",
-  AUTUMN: "Jesień",
-  WINTER: "Zima",
-};
-
 const getVegetableEmoji = (name: string) => {
   const n = name.toLowerCase();
   if (n.includes("pomidor")) return "🍅";
@@ -130,20 +118,6 @@ const getVegetableEmoji = (name: string) => {
   if (n.includes("papryk")) return "🫑";
   if (n.includes("dyni") || n.includes("cukini")) return "🎃";
   return "🌱";
-};
-
-const getArticleEyebrow = (item: ArticleListItem) => {
-  const context = item.contexts[0];
-  const season = item.seasons[0];
-  if (context && CONTEXT_LABELS[context]) return CONTEXT_LABELS[context];
-  if (season && SEASON_LABELS_HOME[season]) return SEASON_LABELS_HOME[season];
-  return "Biblioteka";
-};
-
-const getArticleReadTime = (item: ArticleListItem) => {
-  if (item.readTimeMinutes) return `${item.readTimeMinutes} min czytania`;
-  const words = `${item.title} ${item.excerpt}`.trim().split(/\s+/).length;
-  return `${Math.max(1, Math.round(words / 200))} min czytania`;
 };
 
 function HomeSectionHeader({
@@ -202,53 +176,6 @@ function HomeVegetableCard({
         <Text style={libStyles.vegetableTitle} numberOfLines={2}>
           {item.name}
         </Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function HomeArticleCard({
-  item,
-  onPress,
-  onPressIn,
-}: {
-  item: ArticleListItem;
-  onPress: () => void;
-  onPressIn?: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} onPressIn={onPressIn} hitSlop={6}>
-      <View style={libStyles.articleCard}>
-        {item.coverImageUrl ? (
-          <Image
-            source={{
-              uri: item.coverImageUrl,
-            }}
-            style={libStyles.articleImage}
-            contentFit="cover"
-            recyclingKey={item.slug}
-          />
-        ) : (
-          <View style={libStyles.articleImageFallback}>
-            <Icon
-              source="book-open-page-variant-outline"
-              size={36}
-              color="#5B7B6C"
-            />
-          </View>
-        )}
-        <View style={libStyles.articleBody}>
-          <Text style={libStyles.articleEyebrow}>
-            {getArticleEyebrow(item)}
-          </Text>
-          <Text style={libStyles.articleTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text style={libStyles.articleExcerpt} numberOfLines={3}>
-            {item.excerpt}
-          </Text>
-          <Text style={libStyles.articleMeta}>{getArticleReadTime(item)}</Text>
-        </View>
       </View>
     </Pressable>
   );
@@ -578,7 +505,7 @@ export default function HomeScreen() {
               ) : tips.length > 0 ? (
                 <View style={styles.articleList}>
                   {tips.map((article) => (
-                    <HomeArticleCard
+                    <ArticlePreviewCard
                       key={article.id}
                       item={article}
                       onPressIn={() =>
@@ -953,51 +880,5 @@ const libStyles = StyleSheet.create({
     lineHeight: 22,
     textAlign: "center",
     color: "#1D2420",
-  },
-  articleCard: {
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#E8ECE7",
-    backgroundColor: "#FFFFFF",
-    overflow: "hidden",
-  },
-  articleImage: {
-    width: "100%",
-    height: 224,
-    backgroundColor: "#EEF2EE",
-  },
-  articleImageFallback: {
-    width: "100%",
-    height: 224,
-    backgroundColor: "#EEF4F0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  articleBody: {
-    padding: 20,
-  },
-  articleEyebrow: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#5E8A70",
-    marginBottom: 10,
-  },
-  articleTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 27,
-    color: "#1D2420",
-    marginBottom: 10,
-  },
-  articleExcerpt: {
-    fontSize: 15,
-    lineHeight: 23,
-    color: "#6E7972",
-    marginBottom: 14,
-  },
-  articleMeta: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#97A29B",
   },
 });
