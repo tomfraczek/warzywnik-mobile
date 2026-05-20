@@ -8,6 +8,7 @@ import { useDeleteActionTask } from "@/src/api/queries/actionTasks/useDeleteActi
 import { useGetBedActionTasks } from "@/src/api/queries/actionTasks/useGetBedActionTasks";
 import { useGetPlantingActionTasks } from "@/src/api/queries/actionTasks/useGetPlantingActionTasks";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
+import { useGetBedPlan } from "@/src/api/queries/bedPlan/useGetBedPlan";
 import { bedKeys } from "@/src/api/queries/beds/bedKeys";
 import {
   CreateBedActionTaskItemDto,
@@ -29,6 +30,7 @@ import { usePostBedQuickAction } from "@/src/api/queries/quickActions/usePostBed
 import { TaskItem as MyTaskItem } from "@/src/api/queries/users/meTypes";
 import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
+import { BedPlanEntryCard } from "@/src/app/(tabs)/beds/_components/BedPlanEntryCard";
 import { BedSeasonHistorySection } from "@/src/app/(tabs)/beds/_components/BedSeasonHistorySection";
 import { HarvestConfirmationModal } from "@/src/app/(tabs)/beds/_components/HarvestConfirmationModal";
 import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostHarvestActionsModal";
@@ -43,6 +45,7 @@ import {
   getPlantingStatusLabel,
   getPlantingStatusTone,
   isPlantingActiveLifecycleStatus,
+  isPlantingPlannedStatus,
 } from "@/src/features/plantings/status";
 import { isTaskActive, isWeatherWarningTask } from "@/src/features/tasks/model";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
@@ -447,6 +450,9 @@ export default function BedDetailsScreen() {
     },
     { enabled: Boolean(resolvedBedId) && !isBedDeleted },
   );
+  const { data: bedPlan } = useGetBedPlan(
+    !isBedDeleted ? (resolvedBedId ?? null) : null,
+  );
   const {
     data: pendingBedTasksResponse,
     refetch: refetchPendingBedTasks,
@@ -491,9 +497,9 @@ export default function BedDetailsScreen() {
     [plantingPages?.pages],
   );
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
-  const [plantingsFilter, setPlantingsFilter] = useState<"active" | "ended">(
-    "active",
-  );
+  const [plantingsFilter, setPlantingsFilter] = useState<
+    "planned" | "active" | "ended"
+  >("active");
   const [promptQueue, setPromptQueue] = useState<HarvestPromptItem[]>([]);
   const [lastPromptSignature, setLastPromptSignature] = useState("");
   const [postHarvestModalVisible, setPostHarvestModalVisible] = useState(false);
@@ -602,6 +608,11 @@ export default function BedDetailsScreen() {
       ),
     [plantings],
   );
+  const plannedPlantings = useMemo(
+    () =>
+      plantings.filter((planting) => isPlantingPlannedStatus(planting.status)),
+    [plantings],
+  );
   const endedPlantings = useMemo(
     () =>
       plantings.filter(
@@ -610,8 +621,13 @@ export default function BedDetailsScreen() {
     [plantings],
   );
   const filteredPlantings = useMemo(
-    () => (plantingsFilter === "active" ? activePlantings : endedPlantings),
-    [activePlantings, endedPlantings, plantingsFilter],
+    () =>
+      plantingsFilter === "planned"
+        ? plannedPlantings
+        : plantingsFilter === "active"
+          ? activePlantings
+          : endedPlantings,
+    [plannedPlantings, activePlantings, endedPlantings, plantingsFilter],
   );
 
   const activeTasks = useMemo(
@@ -1047,15 +1063,47 @@ export default function BedDetailsScreen() {
           style={styles.addVegetableButton}
         />
 
+        <BedPlanEntryCard
+          plannedPlantingsCount={
+            bedPlan?.plannedPlantings.length ?? plannedPlantings.length
+          }
+          summary={bedPlan?.summary}
+          fallbackToPlanCopy={
+            (bedPlan?.plannedPlantings.length ?? plannedPlantings.length) === 0
+          }
+          onPress={() => {
+            const plannedCount =
+              bedPlan?.plannedPlantings.length ?? plannedPlantings.length;
+            if (plannedCount > 0) {
+              router.push(`/(tabs)/beds/${bed.id}/plan`);
+              return;
+            }
+            router.push(`/(tabs)/beds/${bed.id}/plantings/new`);
+          }}
+          disabled={isOffline}
+        />
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Twoje warzywa</Text>
 
           <SegmentedButtons
             value={plantingsFilter}
             onValueChange={(value) =>
-              setPlantingsFilter(value as "active" | "ended")
+              setPlantingsFilter(value as "planned" | "active" | "ended")
             }
             buttons={[
+              {
+                value: "planned",
+                label: `Planowane (${plannedPlantings.length})`,
+                style: [
+                  styles.segmentedButtonItem,
+                  plantingsFilter === "planned"
+                    ? styles.segmentedButtonItemActive
+                    : null,
+                ],
+                checkedColor: palette.accent,
+                uncheckedColor: palette.secondary,
+              },
               {
                 value: "ended",
                 label: `Zakończone (${endedPlantings.length})`,
@@ -1106,9 +1154,11 @@ export default function BedDetailsScreen() {
           !plantingsError &&
           filteredPlantings.length === 0 ? (
             <Text style={styles.valueText}>
-              {plantingsFilter === "active"
-                ? "Brak aktywnych upraw w tej grządce."
-                : "Brak zakończonych upraw w tej grządce."}
+              {plantingsFilter === "planned"
+                ? "Brak planowanych upraw w tej grządce."
+                : plantingsFilter === "active"
+                  ? "Brak aktywnych upraw w tej grządce."
+                  : "Brak zakończonych upraw w tej grządce."}
             </Text>
           ) : null}
 

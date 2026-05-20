@@ -119,7 +119,7 @@ const START_METHOD_LABELS: Record<PlantingStartMethod, string> = {
 };
 
 const PLANTING_STATUS_DESCRIPTIONS: Record<PlantingStatus, string> = {
-  NEW: "Uprawa została utworzona i czeka na start prac.",
+  NEW: "Ta uprawa jest zaplanowana i jeszcze nie została rozpoczęta.",
   SEEDLING_PREPARED: "Przygotowano rozsadę lub miejsce do rozpoczęcia uprawy.",
   SEEDLING_READY_FOR_TRANSPLANT:
     "Rozsada jest gotowa do przesadzenia na miejsce docelowe.",
@@ -143,7 +143,7 @@ type GrowthTimelineStep = GrowthStep & {
 };
 
 const DIRECT_SOW_GROWTH_STEPS: GrowthStep[] = [
-  { key: "NEW", label: "Nowa uprawa" },
+  { key: "NEW", label: "Planowana" },
   { key: "IN_GROUND", label: "Wsadzenie do gruntu" },
   { key: "READY_FOR_FINAL_HARVEST", label: "Gotowe do zbioru" },
   { key: "HARVESTED", label: "Zbiory" },
@@ -151,7 +151,7 @@ const DIRECT_SOW_GROWTH_STEPS: GrowthStep[] = [
 ];
 
 const TRANSPLANT_GROWTH_STEPS: GrowthStep[] = [
-  { key: "NEW", label: "Nowa uprawa" },
+  { key: "NEW", label: "Planowana" },
   { key: "SEEDLING_PREPARED", label: "Rozsada przygotowana" },
   {
     key: "SEEDLING_READY_FOR_TRANSPLANT",
@@ -630,6 +630,7 @@ export default function PlantingDetailsScreen() {
   const isOffline = useIsOffline();
 
   const statusLabel = planting ? getPlantingStatusLabel(planting.status) : "—";
+  const isPlannedPlanting = planting?.status === "NEW";
   const statusTone = planting
     ? getPlantingStatusTone(planting.status, theme.dark)
     : null;
@@ -872,7 +873,7 @@ export default function PlantingDetailsScreen() {
     }
   };
 
-  const handleSavePlantingStatus = async () => {
+  const executeSavePlantingStatus = async () => {
     if (!planting) return;
     if (isOffline) {
       Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
@@ -896,6 +897,35 @@ export default function PlantingDetailsScreen() {
     } catch (err) {
       setStatusErrorMessage(String(getResponseError(err)));
     }
+  };
+
+  const handleSavePlantingStatus = async () => {
+    if (!planting || !selectedStatus) {
+      await executeSavePlantingStatus();
+      return;
+    }
+
+    const shouldConfirmPlanArchive =
+      planting.status === "NEW" && selectedStatus !== "NEW";
+
+    if (!shouldConfirmPlanArchive) {
+      await executeSavePlantingStatus();
+      return;
+    }
+
+    Alert.alert(
+      "Rozpocząć uprawę?",
+      "Po rozpoczęciu uprawy checklista planu zostanie zarchiwizowana. Bieżące zadania będą generowane dla aktywnej uprawy.",
+      [
+        { text: "Anuluj", style: "cancel" },
+        {
+          text: "Rozpocznij",
+          onPress: () => {
+            void executeSavePlantingStatus();
+          },
+        },
+      ],
+    );
   };
 
   const handleMarkTaskDone = async (taskId: string) => {
@@ -1320,6 +1350,12 @@ export default function PlantingDetailsScreen() {
               </View>
             </View>
 
+            {isPlannedPlanting ? (
+              <Text style={styles.plannedDescription}>
+                Ta uprawa jest zaplanowana i jeszcze nie została rozpoczęta.
+              </Text>
+            ) : null}
+
             <View style={styles.heroHarvestWindowBlock}>
               <Text style={styles.heroHarvestWindowLabel}>
                 Oczekiwane okno zbioru
@@ -1332,6 +1368,16 @@ export default function PlantingDetailsScreen() {
         </View>
 
         <View style={styles.actionButtonsGroup}>
+          {isPlannedPlanting ? (
+            <PrimaryActionButton
+              onPress={openStatusModal}
+              icon="play-circle-outline"
+              label="Rozpocznij uprawę"
+              color={palette.accent}
+              disabled={isOffline}
+            />
+          ) : null}
+
           <PrimaryActionButton
             onPress={openStatusModal}
             icon="swap-horizontal"
@@ -1518,98 +1564,116 @@ export default function PlantingDetailsScreen() {
           </Surface>
         ) : null}
 
-        <Surface style={styles.section} elevation={0}>
-          <Text style={styles.sectionTitle}>Zadania</Text>
-          {isTasksLoading ? <ActivityIndicator /> : null}
-
-          {tasksError ? (
-            <View>
-              <Text style={styles.errorText}>
-                {String(getResponseError(tasksError))}
-              </Text>
-              <Button
-                mode="outlined"
-                onPress={() => {
-                  void Promise.allSettled([
-                    refetchPlantingTasks(),
-                    refetchMyTasks(),
-                  ]);
-                }}
-              >
-                Spróbuj ponownie
-              </Button>
-            </View>
-          ) : null}
-
-          {!isTasksLoading && !tasksError && plantingTasks.length === 0 ? (
-            <TasksCelebrationCard />
-          ) : null}
-
-          {plantingTasks.length > 0 && visiblePlantingTasks.length === 0 ? (
+        {isPlannedPlanting ? (
+          <Surface style={styles.section} elevation={0}>
+            <Text style={styles.sectionTitle}>Zadania</Text>
             <Text style={styles.emptyText}>
-              Brak aktywnych zadań. Zaległe zadania są ukryte.
+              Zadania pojawią się po rozpoczęciu uprawy.
             </Text>
-          ) : null}
+            <Button
+              mode="outlined"
+              onPress={() => {
+                if (!resolvedBedId) return;
+                router.push(`/(tabs)/beds/${resolvedBedId}/plan`);
+              }}
+            >
+              Zobacz checklistę przygotowania
+            </Button>
+          </Surface>
+        ) : (
+          <Surface style={styles.section} elevation={0}>
+            <Text style={styles.sectionTitle}>Zadania</Text>
+            {isTasksLoading ? <ActivityIndicator /> : null}
 
-          {visiblePlantingTasks.map((task) => {
-            const isHighlighted = highlightedActionTaskId === task.id;
-            const isTaskCompleting = taskIdsCompleting.includes(task.id);
-
-            return (
-              <View
-                key={task.id}
-                style={[
-                  styles.taskRow,
-                  isHighlighted ? styles.taskRowHighlighted : null,
-                ]}
-              >
-                <View style={styles.taskMain}>
-                  <View style={styles.taskTopRow}>
-                    <Text style={styles.taskTitle}>{task.title}</Text>
-                    {task.description ? (
-                      <IconButton
-                        icon="information-outline"
-                        size={18}
-                        onPress={() => setTaskInfoTask(task)}
-                        style={styles.taskInfoButton}
-                      />
-                    ) : null}
-                  </View>
-                  <Text style={styles.taskMeta}>
-                    Termin: {formatDate(task.dueAt)}
-                  </Text>
-                  <StatusBadge
-                    label={getActionTaskSourceLabel(
-                      resolveActionTaskSourceType(task),
-                    )}
-                    tone="neutral"
-                  />
-                </View>
-
-                <View style={styles.taskActions}>
-                  <Button
-                    mode="outlined"
-                    compact
-                    onPress={() => handleCancelTask(task.id)}
-                    disabled={updateActionTask.isPending || isTaskCompleting}
-                    style={styles.equalTaskButton}
-                  >
-                    Anuluj
-                  </Button>
-                  <Button
-                    mode="contained"
-                    compact
-                    onPress={() => handleMarkTaskDone(task.id)}
-                    disabled={updateActionTask.isPending || isTaskCompleting}
-                    style={styles.equalTaskButton}
-                  >
-                    Wykonane
-                  </Button>
-                </View>
+            {tasksError ? (
+              <View>
+                <Text style={styles.errorText}>
+                  {String(getResponseError(tasksError))}
+                </Text>
+                <Button
+                  mode="outlined"
+                  onPress={() => {
+                    void Promise.allSettled([
+                      refetchPlantingTasks(),
+                      refetchMyTasks(),
+                    ]);
+                  }}
+                >
+                  Spróbuj ponownie
+                </Button>
               </View>
-            );
-          })}
-        </Surface>
+            ) : null}
+
+            {!isTasksLoading && !tasksError && plantingTasks.length === 0 ? (
+              <TasksCelebrationCard />
+            ) : null}
+
+            {plantingTasks.length > 0 && visiblePlantingTasks.length === 0 ? (
+              <Text style={styles.emptyText}>
+                Brak aktywnych zadań. Zaległe zadania są ukryte.
+              </Text>
+            ) : null}
+
+            {visiblePlantingTasks.map((task) => {
+              const isHighlighted = highlightedActionTaskId === task.id;
+              const isTaskCompleting = taskIdsCompleting.includes(task.id);
+
+              return (
+                <View
+                  key={task.id}
+                  style={[
+                    styles.taskRow,
+                    isHighlighted ? styles.taskRowHighlighted : null,
+                  ]}
+                >
+                  <View style={styles.taskMain}>
+                    <View style={styles.taskTopRow}>
+                      <Text style={styles.taskTitle}>{task.title}</Text>
+                      {task.description ? (
+                        <IconButton
+                          icon="information-outline"
+                          size={18}
+                          onPress={() => setTaskInfoTask(task)}
+                          style={styles.taskInfoButton}
+                        />
+                      ) : null}
+                    </View>
+                    <Text style={styles.taskMeta}>
+                      Termin: {formatDate(task.dueAt)}
+                    </Text>
+                    <StatusBadge
+                      label={getActionTaskSourceLabel(
+                        resolveActionTaskSourceType(task),
+                      )}
+                      tone="neutral"
+                    />
+                  </View>
+
+                  <View style={styles.taskActions}>
+                    <Button
+                      mode="outlined"
+                      compact
+                      onPress={() => handleCancelTask(task.id)}
+                      disabled={updateActionTask.isPending || isTaskCompleting}
+                      style={styles.equalTaskButton}
+                    >
+                      Anuluj
+                    </Button>
+                    <Button
+                      mode="contained"
+                      compact
+                      onPress={() => handleMarkTaskDone(task.id)}
+                      disabled={updateActionTask.isPending || isTaskCompleting}
+                      style={styles.equalTaskButton}
+                    >
+                      Wykonane
+                    </Button>
+                  </View>
+                </View>
+              );
+            })}
+          </Surface>
+        )}
 
         <Surface style={styles.section} elevation={0}>
           <View style={styles.sectionHeaderRow}>
@@ -2826,6 +2890,12 @@ const makeStyles = (theme: MD3Theme) =>
       fontSize: 15,
       color: buildPalette(theme.dark).heading,
       fontWeight: "600",
+    },
+    plannedDescription: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: buildPalette(theme.dark).secondary,
+      marginTop: 2,
     },
     statusBadge: {
       borderRadius: 999,

@@ -1,5 +1,7 @@
 import { restClient } from "@/src/api/axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { bedPlanKeys } from "../bedPlan/bedPlanKeys";
+import { bedKeys } from "../beds/bedKeys";
 import { plantingKeys } from "./plantingKeys";
 import { CreatePlantingDto, Planting, PlantingMutationResponse } from "./types";
 
@@ -14,11 +16,19 @@ export const useCreatePlanting = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createPlanting,
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: plantingKeys.list({ bedId: variables.bedId }),
-      });
-      queryClient.invalidateQueries({ queryKey: plantingKeys.all });
+    onSuccess: async (_data, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: plantingKeys.list({ bedId: variables.bedId }),
+        }),
+        queryClient.invalidateQueries({ queryKey: plantingKeys.all }),
+        queryClient.invalidateQueries({
+          queryKey: bedKeys.detail(variables.bedId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: bedPlanKeys.byBed(variables.bedId),
+        }),
+      ]);
     },
   });
 };

@@ -1,7 +1,7 @@
 import { PlantingStatus } from "@/src/api/queries/plantings/types";
 
 export const PLANTING_STATUS_LABELS: Record<PlantingStatus, string> = {
-  NEW: "Nowa",
+  NEW: "Planowana",
   SEEDLING_PREPARED: "Rozsada przygotowana",
   SEEDLING_READY_FOR_TRANSPLANT: "Rozsada gotowa do przesadzenia",
   IN_GROUND: "W gruncie",
@@ -129,13 +129,14 @@ export const isPlantingActiveLifecycleStatus = (
   status: PlantingStatus,
 ): boolean =>
   [
-    "NEW",
     "SEEDLING_PREPARED",
     "SEEDLING_READY_FOR_TRANSPLANT",
     "IN_GROUND",
     "READY_FOR_FINAL_HARVEST",
-    "HARVESTED",
   ].includes(status);
+
+export const isPlantingPlannedStatus = (status: PlantingStatus): boolean =>
+  status === "NEW";
 
 export const isPlantingHarvestCompleted = (status: PlantingStatus): boolean =>
   status === "HARVESTED" || status === "CLEARED";

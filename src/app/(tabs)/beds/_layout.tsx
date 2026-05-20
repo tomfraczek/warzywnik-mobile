@@ -25,7 +25,11 @@ export default function BedsLayout() {
       <Stack.Screen name="[bedId]/edit" options={{ title: "Edytuj grządkę" }} />
       <Stack.Screen
         name="[bedId]/plantings/new"
-        options={{ title: "Nowa uprawa", headerShown: false }}
+        options={{ title: "Zaplanuj uprawę", headerShown: false }}
+      />
+      <Stack.Screen
+        name="[bedId]/plan"
+        options={{ title: "Plan grządki", headerShown: false }}
       />
       <Stack.Screen
         name="[bedId]/plantings/[plantingId]"

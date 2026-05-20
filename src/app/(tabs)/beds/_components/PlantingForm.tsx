@@ -88,11 +88,11 @@ function PlantingFormComponent({
   onPickVegetable,
   onClearVegetable,
   showHeaderIntro = false,
-  screenTitle = "Nowa uprawa",
-  screenSubtitle = "Dodaj nową uprawę do swojej grządki.",
-  heroPillLabel = "Nowa uprawa",
-  heroTitle = "Rozpocznij nową uprawę",
-  heroDescription = "Wybierz warzywo i sposób rozpoczęcia uprawy.",
+  screenTitle = "Zaplanuj uprawę",
+  screenSubtitle = "Dodaj warzywo do planu grządki.",
+  heroPillLabel = "Planowanie",
+  heroTitle = "Zaplanuj uprawę w grządce",
+  heroDescription = "Zadania pielęgnacyjne pojawią się po rozpoczęciu uprawy.",
   validationMessage,
   offlineMessage,
   blockingMessage,
@@ -182,7 +182,7 @@ function PlantingFormComponent({
           Podstawy
         </Text>
         <Text style={[styles.sectionDescription, { color: palette.tertiary }]}>
-          Zacznij od wyboru warzywa i sposobu rozpoczęcia uprawy.
+          Zacznij od wyboru warzywa i sposobu zaplanowania startu uprawy.
         </Text>
 
         <Text style={[styles.label, { color: palette.secondary }]}>

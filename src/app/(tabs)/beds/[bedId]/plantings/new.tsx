@@ -99,7 +99,7 @@ export default function PlantingCreateScreen() {
         setWarningsVisible(true);
         return;
       }
-      router.replace(`/(tabs)/beds/${resolvedBedId}`);
+      router.replace(`/(tabs)/beds/${resolvedBedId}/plan`);
     } catch (err) {
       if (__DEV__) {
         console.log("[Planting][create][error]", err);
@@ -110,7 +110,7 @@ export default function PlantingCreateScreen() {
 
   return (
     <Screen safeAreaEdges={["left", "right", "bottom"]}>
-      <CustomHeader title="Nowa uprawa" showBack />
+      <CustomHeader title="Zaplanuj uprawę" showBack />
       <PlantingForm
         values={values}
         onChange={(patch) => {
@@ -120,16 +120,16 @@ export default function PlantingCreateScreen() {
           }
         }}
         onSubmit={handleSubmit}
-        submitLabel="Dodaj uprawę"
+        submitLabel="Dodaj do planu"
         isSubmitting={createPlanting.isPending}
         showSowedAt
         sowedAtHint="Po podaniu tej daty system wyliczy okno zbioru, ostrzeżenia i harmonogram od wskazanego dnia. Jeśli zostawisz puste, obliczenia zaczną się od dnia dzisiejszego."
         showHeaderIntro
-        screenTitle="Nowa uprawa"
-        screenSubtitle="Dodaj nową uprawę do swojej grządki."
-        heroPillLabel="Nowa uprawa"
-        heroTitle="Rozpocznij nową uprawę"
-        heroDescription="Wybierz warzywo i sposób rozpoczęcia uprawy."
+        screenTitle="Zaplanuj uprawę"
+        screenSubtitle="Dodaj warzywo do planu grządki."
+        heroPillLabel="Planowanie"
+        heroTitle="Zaplanuj uprawę w grządce"
+        heroDescription="Zadania pielęgnacyjne pojawią się po rozpoczęciu uprawy."
         validationMessage={validationMessage}
         offlineMessage={isOffline ? OFFLINE_MUTATION_MESSAGE : null}
         blockingMessage={
@@ -152,7 +152,7 @@ export default function PlantingCreateScreen() {
         onIgnore={() => {
           setWarningsVisible(false);
           if (resolvedBedId) {
-            router.replace(`/(tabs)/beds/${resolvedBedId}`);
+            router.replace(`/(tabs)/beds/${resolvedBedId}/plan`);
           } else {
             router.back();
           }
