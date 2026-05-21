@@ -111,6 +111,5 @@ export const subscribePushDiagnosticsState = (listener: () => void) => {
 };
 
 export const isPushDiagnosticsVisible = () => {
-  const channel = Updates.channel;
-  return __DEV__ || channel === "development" || channel === "apk";
+  return true;
 };
