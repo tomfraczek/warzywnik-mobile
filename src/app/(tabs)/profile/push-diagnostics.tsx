@@ -1,5 +1,6 @@
 import { restClient } from "@/src/api/axios";
 import { useGetNotificationPreferences } from "@/src/api/queries/notifications/useGetNotificationPreferences";
+import { useMe } from "@/src/api/queries/users/useUpdateMe";
 import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import {
@@ -14,11 +15,16 @@ import {
   registerDevice,
   requestPermission,
 } from "@/src/features/push/push";
-import * as Clipboard from "expo-clipboard";
 import { Redirect } from "expo-router";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { Alert, Platform, ScrollView, StyleSheet, View } from "react-native";
-import { Button, MD3Theme, Text, useTheme } from "react-native-paper";
+import {
+  Button,
+  MD3Theme,
+  Text,
+  TextInput,
+  useTheme,
+} from "react-native-paper";
 
 const asJson = (value: unknown) => {
   if (value === null || value === undefined) return "-";
@@ -59,12 +65,27 @@ const buildDiagnosticsText = (
   ].join("\n");
 };
 
+const copyTextToClipboard = async (value: string) => {
+  try {
+    const clipboard = await import("expo-clipboard");
+    if (typeof clipboard.setStringAsync === "function") {
+      await clipboard.setStringAsync(value);
+      return true;
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+};
+
 export default function PushDiagnosticsScreen() {
   const isVisible = isPushDiagnosticsVisible();
 
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const preferencesQuery = useGetNotificationPreferences();
+  const meQuery = useMe();
   const appPushEnabled = preferencesQuery.data?.notificationsEnabled ?? false;
   const diagnostics = useSyncExternalStore(
     subscribePushDiagnosticsState,
@@ -73,6 +94,10 @@ export default function PushDiagnosticsScreen() {
   );
   const [isReRegistering, setIsReRegistering] = useState(false);
   const [isSendingTestPush, setIsSendingTestPush] = useState(false);
+  const [testPushTitle, setTestPushTitle] = useState("Push test - Warzywnik");
+  const [testPushBody, setTestPushBody] = useState(
+    "To jest testowe powiadomienie z panelu diagnostycznego.",
+  );
 
   const diagnosticsText = useMemo(
     () => buildDiagnosticsText(appPushEnabled, diagnostics),
@@ -84,7 +109,14 @@ export default function PushDiagnosticsScreen() {
   }
 
   const copyDiagnostics = async () => {
-    await Clipboard.setStringAsync(diagnosticsText);
+    const copied = await copyTextToClipboard(diagnosticsText);
+    if (!copied) {
+      Alert.alert(
+        "Push diagnostics",
+        "Kopiowanie niedostępne w tym buildzie (brak ExpoClipboard).",
+      );
+      return;
+    }
     Alert.alert("Push diagnostics", "Skopiowano dane diagnostyczne.");
   };
 
@@ -140,17 +172,33 @@ export default function PushDiagnosticsScreen() {
     setIsSendingTestPush(true);
 
     try {
-      const endpoint = process.env.EXPO_PUBLIC_PUSH_DEBUG_ENDPOINT;
-      if (!endpoint) {
+      const resolvedUserId =
+        typeof meQuery.data?.id === "string" ? meQuery.data.id.trim() : "";
+      const resolvedTitle = testPushTitle.trim();
+      const resolvedBody = testPushBody.trim();
+
+      if (!resolvedUserId) {
         Alert.alert(
           "Push diagnostics",
-          "Brak EXPO_PUBLIC_PUSH_DEBUG_ENDPOINT. Dodaj endpoint debugowy backendu, aby wysyłać testowy push.",
+          "Brak UUID użytkownika z /me. Odśwież ekran lub zaloguj się ponownie.",
         );
         return;
       }
 
-      await restClient.post(endpoint, {
-        expoPushToken: diagnostics.expoPushToken,
+      if (resolvedTitle.length < 1 || resolvedTitle.length > 180) {
+        Alert.alert("Push diagnostics", "Tytuł musi mieć od 1 do 180 znaków.");
+        return;
+      }
+
+      if (resolvedBody.length < 1 || resolvedBody.length > 1000) {
+        Alert.alert("Push diagnostics", "Treść musi mieć od 1 do 1000 znaków.");
+        return;
+      }
+
+      await restClient.post("/debug/push-test", {
+        userId: resolvedUserId,
+        title: resolvedTitle,
+        body: resolvedBody,
       });
 
       Alert.alert("Push diagnostics", "Wysłano żądanie test push.");
@@ -222,6 +270,24 @@ export default function PushDiagnosticsScreen() {
         </Card>
 
         <Card>
+          <Text style={styles.label}>Test push title</Text>
+          <TextInput
+            mode="outlined"
+            value={testPushTitle}
+            onChangeText={setTestPushTitle}
+            maxLength={180}
+          />
+
+          <Text style={styles.label}>Test push body</Text>
+          <TextInput
+            mode="outlined"
+            value={testPushBody}
+            onChangeText={setTestPushBody}
+            multiline
+            numberOfLines={4}
+            maxLength={1000}
+          />
+
           <Button mode="contained" onPress={() => void copyDiagnostics()}>
             Skopiuj dane diagnostyczne
           </Button>

@@ -1,6 +1,5 @@
 import * as Application from "expo-application";
 import Constants from "expo-constants";
-import * as Updates from "expo-updates";
 import { Platform } from "react-native";
 
 export type PushDiagnosticsState = {
@@ -40,7 +39,7 @@ const asString = (value: unknown, fallback = "unknown") => {
 };
 
 const getRuntimeVersion = () => {
-  const value = Updates.runtimeVersion;
+  const value = process.env.EXPO_PUBLIC_RUNTIME_VERSION;
   if (typeof value === "string" && value.trim().length > 0) return value;
 
   const fromConfig =
@@ -49,6 +48,16 @@ const getRuntimeVersion = () => {
     (Constants.expoConfig?.android?.runtimeVersion as string | undefined);
 
   return asString(fromConfig, "unknown");
+};
+
+const getAppOwnership = () => {
+  const environment = String(Constants.executionEnvironment);
+
+  if (environment === "storeClient") return "expo";
+  if (environment === "standalone") return "standalone";
+  if (environment === "bare") return "bare";
+
+  return "unknown";
 };
 
 const initialState: PushDiagnosticsState = {
@@ -72,8 +81,8 @@ const initialState: PushDiagnosticsState = {
         : undefined),
   ),
   runtimeVersion: getRuntimeVersion(),
-  easChannel: asString(Updates.channel),
-  appOwnership: asString(Constants.appOwnership),
+  easChannel: asString(process.env.EXPO_PUBLIC_EAS_CHANNEL),
+  appOwnership: getAppOwnership(),
   executionEnvironment: asString(String(Constants.executionEnvironment)),
   isPhysicalDevice: null,
   lastRegisterDevicePayload: null,

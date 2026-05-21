@@ -6,7 +6,6 @@ import Constants from "expo-constants";
 import * as DeviceInfo from "expo-device";
 import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
-import * as Updates from "expo-updates";
 import { Platform } from "react-native";
 
 const DEVICE_ID_KEY = "pushDeviceId";
@@ -135,11 +134,11 @@ export const registerDevice = async (
         : undefined),
     runtimeVersion:
       payload?.runtimeVersion ??
-      Updates.runtimeVersion ??
+      process.env.EXPO_PUBLIC_RUNTIME_VERSION ??
       (typeof Constants.expoConfig?.runtimeVersion === "string"
         ? Constants.expoConfig.runtimeVersion
         : undefined),
-    easChannel: payload?.easChannel ?? Updates.channel,
+    easChannel: payload?.easChannel ?? process.env.EXPO_PUBLIC_EAS_CHANNEL,
   };
 
   updatePushDiagnosticsState({

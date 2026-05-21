@@ -7,9 +7,28 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:334407033266:android:3c353dab4384049212c4ab",
+        "mobilesdk_app_id": "1:334407033266:android:52d4f04a62e5ac7c12c4ab",
         "android_client_info": {
           "package_name": "com.tomfraczek.warzywnik.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7ZueKSPAXKXY-1LNi8dwwPkQs1cLR3xI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:334407033266:android:3c353dab4384049212c4ab",
+        "android_client_info": {
+          "package_name": "com.tomfraczek.warzywnikmobile"
         }
       },
       "oauth_client": [],

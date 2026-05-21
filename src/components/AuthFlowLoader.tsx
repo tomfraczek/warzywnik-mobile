@@ -60,12 +60,9 @@ const makeStyles = (theme: MD3Theme) =>
     brand: {
       fontSize: 30,
       letterSpacing: 6,
-      color: theme.colors.primary,
+      color: "#2F6B4F",
       textAlign: "center",
       fontWeight: "700",
-      textShadowColor: `${theme.colors.primary}22`,
-      textShadowOffset: { width: 0, height: 6 },
-      textShadowRadius: 14,
     },
     brandLoaded: {
       fontFamily: "SpaceMono",
