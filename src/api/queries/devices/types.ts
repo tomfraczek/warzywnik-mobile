@@ -10,6 +10,10 @@ export type Device = {
 export type RegisterDeviceDto = {
   expoPushToken: string;
   platform: DevicePlatform;
+  appVersion?: string;
+  buildVersion?: string;
+  runtimeVersion?: string;
+  easChannel?: string;
 };
 
 export type DisableDeviceDto = {

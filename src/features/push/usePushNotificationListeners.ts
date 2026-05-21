@@ -1,4 +1,5 @@
 import { queryClient } from "@/src/api/queryClient";
+import { updatePushDiagnosticsState } from "@/src/features/push/diagnostics";
 import { handlePushNotificationResponse } from "@/src/features/push/handlePushNotificationResponse";
 import { parsePushNotificationPayload } from "@/src/features/push/parsePushNotificationPayload";
 import * as Haptics from "expo-haptics";
@@ -52,9 +53,9 @@ export const usePushNotificationListeners = () => {
   useEffect(() => {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
-        shouldShowAlert: false,
-        shouldShowBanner: false,
-        shouldShowList: false,
+        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
         shouldPlaySound: false,
         shouldSetBadge: false,
       }),
@@ -62,6 +63,17 @@ export const usePushNotificationListeners = () => {
 
     const receiveSubscription = Notifications.addNotificationReceivedListener(
       (notification) => {
+        updatePushDiagnosticsState({
+          lastNotificationReceivedAt: new Date().toISOString(),
+        });
+
+        if (__DEV__) {
+          console.log("[push] addNotificationReceivedListener", {
+            identifier: notification.request.identifier,
+            data: notification.request.content.data,
+          });
+        }
+
         const payload = asRecord(notification.request.content.data);
         const parsed = parsePushNotificationPayload(payload);
 
@@ -88,6 +100,17 @@ export const usePushNotificationListeners = () => {
       Notifications.addNotificationResponseReceivedListener((response) => {
         const responseId = response.notification.request.identifier;
         const payload = asRecord(response.notification.request.content.data);
+        updatePushDiagnosticsState({
+          lastNotificationOpenedAt: new Date().toISOString(),
+        });
+
+        if (__DEV__) {
+          console.log("[push] addNotificationResponseReceivedListener", {
+            responseId,
+            payload,
+          });
+        }
+
         handleNotificationResponse(responseId, payload);
       });
 
@@ -95,6 +118,9 @@ export const usePushNotificationListeners = () => {
       if (!response) return;
       const responseId = response.notification.request.identifier;
       const payload = asRecord(response.notification.request.content.data);
+      updatePushDiagnosticsState({
+        lastNotificationOpenedAt: new Date().toISOString(),
+      });
       handleNotificationResponse(responseId, payload);
     });
 

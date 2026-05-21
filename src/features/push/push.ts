@@ -1,8 +1,12 @@
 import { restClient } from "@/src/api/axios";
 import { Device, RegisterDeviceDto } from "@/src/api/queries/devices/types";
+import { updatePushDiagnosticsState } from "@/src/features/push/diagnostics";
+import * as Application from "expo-application";
 import Constants from "expo-constants";
+import * as DeviceInfo from "expo-device";
 import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
+import * as Updates from "expo-updates";
 import { Platform } from "react-native";
 
 const DEVICE_ID_KEY = "pushDeviceId";
@@ -10,8 +14,28 @@ const LAST_PUSH_TOKEN_KEY = "pushLastExpoToken";
 
 export const requestPermission = async () => {
   const existing = await Notifications.getPermissionsAsync();
+  updatePushDiagnosticsState({
+    lastGetPermissionsResult: existing,
+    systemPermissionGranted: Boolean(existing.granted),
+  });
+
+  if (__DEV__) {
+    console.log("[push] getPermissionsAsync", existing);
+  }
+
   if (existing.granted) return existing;
-  return Notifications.requestPermissionsAsync();
+
+  const requested = await Notifications.requestPermissionsAsync();
+  updatePushDiagnosticsState({
+    lastRequestPermissionsResult: requested,
+    systemPermissionGranted: Boolean(requested.granted),
+  });
+
+  if (__DEV__) {
+    console.log("[push] requestPermissionsAsync", requested);
+  }
+
+  return requested;
 };
 
 const ensureAndroidChannel = async () => {
@@ -32,6 +56,16 @@ const getExpoProjectId = () =>
 
 export const getExpoToken = async () => {
   await ensureAndroidChannel();
+  updatePushDiagnosticsState({
+    isPhysicalDevice: DeviceInfo.isDevice,
+  });
+
+  if (!DeviceInfo.isDevice) {
+    throw new Error(
+      "Expo push token can be generated only on a physical device.",
+    );
+  }
+
   const projectId = getExpoProjectId();
   if (!projectId) {
     throw new Error(
@@ -41,7 +75,14 @@ export const getExpoToken = async () => {
   const tokenResponse = await Notifications.getExpoPushTokenAsync({
     projectId,
   });
-  return tokenResponse.data;
+  const token = tokenResponse.data;
+  updatePushDiagnosticsState({ expoPushToken: token });
+
+  if (__DEV__) {
+    console.log("[push] getExpoPushTokenAsync token", token);
+  }
+
+  return token;
 };
 
 export const getStoredDeviceId = async () => {
@@ -77,10 +118,51 @@ export const registerDevice = async (
 ): Promise<Device> => {
   const expoPushToken = payload?.expoPushToken ?? (await getExpoToken());
   const platform = payload?.platform ?? Platform.OS;
-  const { data } = await restClient.post("/devices", {
+  const requestPayload = {
     expoPushToken,
     platform,
+    appVersion:
+      payload?.appVersion ??
+      Application.nativeApplicationVersion ??
+      Constants.nativeAppVersion ??
+      Constants.expoConfig?.version,
+    buildVersion:
+      payload?.buildVersion ??
+      Application.nativeBuildVersion ??
+      Constants.nativeBuildVersion ??
+      (typeof Constants.expoConfig?.android?.versionCode === "number"
+        ? String(Constants.expoConfig.android.versionCode)
+        : undefined),
+    runtimeVersion:
+      payload?.runtimeVersion ??
+      Updates.runtimeVersion ??
+      (typeof Constants.expoConfig?.runtimeVersion === "string"
+        ? Constants.expoConfig.runtimeVersion
+        : undefined),
+    easChannel: payload?.easChannel ?? Updates.channel,
+  };
+
+  updatePushDiagnosticsState({
+    expoPushToken,
+    lastRegisterDevicePayload: requestPayload,
+    lastRegisterDeviceError: null,
   });
+
+  if (__DEV__) {
+    console.log("[push] registerDevice payload", requestPayload);
+  }
+
+  const { data } = await restClient.post("/devices", requestPayload);
+
+  updatePushDiagnosticsState({
+    backendRegistrationStatus: "success",
+    lastRegisterDeviceResponse: data,
+  });
+
+  if (__DEV__) {
+    console.log("[push] registerDevice response", data);
+  }
+
   if (data?.id) {
     await setStoredDeviceId(data.id);
   }
@@ -97,13 +179,31 @@ export const disableDevice = async (
   }
 
   try {
+    if (__DEV__) {
+      console.log("[push] disableDevice", { deviceId: resolvedDeviceId });
+    }
+
     const { data } = await restClient.patch(`/devices/${resolvedDeviceId}`, {
       isEnabled: false,
     });
+    updatePushDiagnosticsState({
+      backendRegistrationStatus: "disabled",
+      lastDisableDeviceResponse: data,
+      lastDisableDeviceError: null,
+    });
+
     await clearStoredPushRegistration();
     return data;
   } catch (error: any) {
     const status = error?.response?.status;
+    const message =
+      typeof error?.message === "string"
+        ? error.message
+        : "Unknown disableDevice error";
+    updatePushDiagnosticsState({
+      lastDisableDeviceError: message,
+    });
+
     if (status === 401 || status === 404) {
       await clearStoredPushRegistration();
     }

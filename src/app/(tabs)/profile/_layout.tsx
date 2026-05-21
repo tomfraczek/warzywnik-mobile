@@ -18,6 +18,10 @@ export default function ProfileLayout() {
         name="profile-edit"
         options={{ title: "Edycja profilu", headerShown: false }}
       />
+      <Stack.Screen
+        name="push-diagnostics"
+        options={{ title: "Push diagnostics", headerShown: false }}
+      />
     </Stack>
   );
 }
