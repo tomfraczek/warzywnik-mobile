@@ -6,7 +6,6 @@ import { MD3Theme, Text, useTheme } from "react-native-paper";
 type PlannerHeaderProps = {
   subtitle: string;
   dateLabel: string;
-  computedAtLabel?: string | null;
 };
 
 const capitalizeFirst = (value: string) => {
@@ -14,11 +13,7 @@ const capitalizeFirst = (value: string) => {
   return value.charAt(0).toUpperCase() + value.slice(1);
 };
 
-export function PlannerHeader({
-  subtitle,
-  dateLabel,
-  computedAtLabel,
-}: PlannerHeaderProps) {
+export function PlannerHeader({ subtitle, dateLabel }: PlannerHeaderProps) {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
 
@@ -28,11 +23,6 @@ export function PlannerHeader({
       <View style={styles.datePill}>
         <Text style={styles.dateText}>{capitalizeFirst(dateLabel)}</Text>
       </View>
-      {computedAtLabel ? (
-        <Text style={styles.meta}>
-          Ostatnia aktualizacja: {computedAtLabel}
-        </Text>
-      ) : null}
     </View>
   );
 }

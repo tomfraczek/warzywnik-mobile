@@ -14,10 +14,7 @@ import { PlannerSummaryCard } from "./_components/PlannerSummaryCard";
 import { PlannerTaskCard } from "./_components/PlannerTaskCard";
 import { usePlannerActions } from "./_hooks/usePlannerActions";
 import { usePlannerOverview } from "./_hooks/usePlannerOverview";
-import {
-  formatPlannerDate,
-  formatPlannerTime,
-} from "./_utils/plannerDateUtils";
+import { formatPlannerDate } from "./_utils/plannerDateUtils";
 
 const PREVIEW_LIMIT = 5;
 
@@ -113,7 +110,6 @@ export default function PlannerScreen() {
         <PlannerHeader
           subtitle={headerSubtitle}
           dateLabel={formatPlannerDate(new Date())}
-          computedAtLabel={formatPlannerTime(overview.computedAt)}
         />
 
         {overview.isOffline ? <PlannerOfflineBanner /> : null}
@@ -173,7 +169,10 @@ export default function PlannerScreen() {
         </PlannerSection>
 
         {overview.overdueTasks.length > 0 ? (
-          <PlannerSection title="Zaległe">
+          <PlannerSection
+            title="Zaległe"
+            subtitle="Zadania zaległe są automatycznie usuwane następnego dnia."
+          >
             {overview.overdueTasks.slice(0, PREVIEW_LIMIT).map((task) => (
               <PlannerTaskCard
                 key={task.id}
