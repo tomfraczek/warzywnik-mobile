@@ -200,25 +200,45 @@ function VegetableCard({
 function PopularVegetablesSection({
   palette,
   onPressItem,
+  onOpenStats,
 }: {
   palette: ReturnType<typeof buildPalette>;
   onPressItem: (id: string) => void;
+  onOpenStats: () => void;
 }) {
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const windowDays = Math.min(
+    365,
+    Math.max(
+      1,
+      Math.floor((now.getTime() - startOfYear.getTime()) / dayMs) + 1,
+    ),
+  );
+
   const { data, isLoading } = useGetPopularVegetables({
     limit: 10,
     sort: "adds",
-    windowDays: 30,
+    windowDays,
   });
 
-  const items = data?.items ?? [];
+  const items = (data?.items ?? []).filter((item) => item.vegetable);
 
   if (!isLoading && items.length === 0) return null;
 
   return (
     <View style={popularStyles.wrap}>
-      <Text style={[popularStyles.title, { color: palette.heading }]}>
-        Popularne warzywa
-      </Text>
+      <View style={popularStyles.headerRow}>
+        <Text style={[popularStyles.title, { color: palette.heading }]}>
+          Popularne warzywa w tym sezonie
+        </Text>
+        <TouchableOpacity onPress={onOpenStats} activeOpacity={0.8}>
+          <Text style={[popularStyles.statsLink, { color: palette.accent }]}>
+            Zobacz statystyki
+          </Text>
+        </TouchableOpacity>
+      </View>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -250,10 +270,13 @@ function PopularVegetablesSection({
                 />
               </View>
             ))
-          : items.map((pop) => (
+          : items.map((pop, index) => (
               <TouchableOpacity
                 key={pop.vegetableSlug}
-                onPress={() => onPressItem(pop.vegetable.id)}
+                onPress={() => {
+                  if (!pop.vegetable) return;
+                  onPressItem(pop.vegetable.id);
+                }}
                 activeOpacity={0.75}
                 style={[
                   popularStyles.chip,
@@ -263,7 +286,24 @@ function PopularVegetablesSection({
                   },
                 ]}
               >
-                {pop.vegetable.imageUrl ? (
+                {index < 3 ? (
+                  <View style={popularStyles.rankBadge}>
+                    <Icon
+                      source={index === 0 ? "medal" : "medal-outline"}
+                      size={14}
+                      color={
+                        index === 0
+                          ? "#D9A200"
+                          : index === 1
+                            ? "#8F98A3"
+                            : "#B4743E"
+                      }
+                    />
+                    <Text style={popularStyles.rankText}>{index + 1}</Text>
+                  </View>
+                ) : null}
+
+                {pop.vegetable?.imageUrl ? (
                   <Image
                     source={{ uri: pop.vegetable.imageUrl }}
                     style={popularStyles.chipImg}
@@ -287,7 +327,7 @@ function PopularVegetablesSection({
                   style={[popularStyles.chipName, { color: palette.heading }]}
                   numberOfLines={2}
                 >
-                  {pop.vegetable.name}
+                  {pop.vegetable?.name ?? pop.vegetableSlug}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -298,14 +338,46 @@ function PopularVegetablesSection({
 
 const popularStyles = StyleSheet.create({
   wrap: { marginBottom: 20 },
-  title: { fontSize: 17, fontWeight: "700", marginBottom: 12 },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+    gap: 12,
+  },
+  title: { fontSize: 17, fontWeight: "700" },
+  statsLink: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
   row: { gap: 10, paddingBottom: 4 },
   chip: {
+    position: "relative",
     width: 100,
     borderRadius: 16,
     borderWidth: 1,
     overflow: "hidden",
     alignItems: "center",
+  },
+  rankBadge: {
+    position: "absolute",
+    right: 6,
+    top: 6,
+    zIndex: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.94)",
+    borderWidth: 1,
+    borderColor: "#E1E6E2",
+  },
+  rankText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#2F3932",
   },
   chipImg: {
     width: 100,
@@ -336,6 +408,7 @@ function ListHeader({
   isLoading,
   palette,
   onPopularPress,
+  onOpenPopularStats,
 }: {
   query: string;
   onQueryChange: (v: string) => void;
@@ -343,12 +416,14 @@ function ListHeader({
   isLoading: boolean;
   palette: ReturnType<typeof buildPalette>;
   onPopularPress: (id: string) => void;
+  onOpenPopularStats: () => void;
 }) {
   return (
     <View style={headerStyles.wrap}>
       <PopularVegetablesSection
         palette={palette}
         onPressItem={onPopularPress}
+        onOpenStats={onOpenPopularStats}
       />
       {/* search bar */}
       <View
@@ -459,6 +534,9 @@ export default function VegetablesIndexScreen() {
             onPopularPress={(id) =>
               router.push(`/(tabs)/education/vegetables/${id}`)
             }
+            onOpenPopularStats={() =>
+              router.push("/(tabs)/education/vegetables/statistics")
+            }
           />
           {[0, 1, 2, 3].map((i) => (
             <View key={i}>
@@ -515,6 +593,9 @@ export default function VegetablesIndexScreen() {
             palette={palette}
             onPopularPress={(id) =>
               router.push(`/(tabs)/education/vegetables/${id}`)
+            }
+            onOpenPopularStats={() =>
+              router.push("/(tabs)/education/vegetables/statistics")
             }
           />
         }

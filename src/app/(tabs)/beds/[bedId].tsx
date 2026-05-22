@@ -24,7 +24,6 @@ import { useUpdateBed } from "@/src/api/queries/beds/useUpdateBed";
 import { Planting } from "@/src/api/queries/plantings/types";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { usePostHarvestConfirmation } from "@/src/api/queries/plantings/usePostHarvestConfirmation";
-import { MoistureLevel } from "@/src/api/queries/quickActions/types";
 import { useGetBedQuickActionNotes } from "@/src/api/queries/quickActions/useGetBedQuickActionNotes";
 import { usePostBedQuickAction } from "@/src/api/queries/quickActions/usePostBedQuickAction";
 import { TaskItem as MyTaskItem } from "@/src/api/queries/users/meTypes";
@@ -507,9 +506,9 @@ export default function BedDetailsScreen() {
   const [taskInfoTask, setTaskInfoTask] = useState<ActionTask | null>(null);
   const [quickActionModalVisible, setQuickActionModalVisible] = useState(false);
   const [bedInfoModalVisible, setBedInfoModalVisible] = useState(false);
-  const [quickActionStep, setQuickActionStep] = useState<
-    "menu" | "moisture" | "note"
-  >("menu");
+  const [quickActionStep, setQuickActionStep] = useState<"menu" | "note">(
+    "menu",
+  );
   const [quickActionNote, setQuickActionNote] = useState("");
 
   const [postHarvestActions, setPostHarvestActions] = useState<
@@ -822,13 +821,10 @@ export default function BedDetailsScreen() {
     setQuickActionStep("menu");
   };
 
-  const handleSubmitBedQuickAction = async (
-    payload:
-      | { actionKind: "WATERING" }
-      | { actionKind: "WEEDING" }
-      | { actionKind: "MOISTURE_CHECK"; moistureLevel: MoistureLevel }
-      | { actionKind: "NOTE"; note: string },
-  ) => {
+  const handleSubmitBedQuickAction = async (payload: {
+    actionKind: "NOTE";
+    note: string;
+  }) => {
     if (isOffline) {
       Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
       return;
@@ -842,16 +838,7 @@ export default function BedDetailsScreen() {
         refetchPlantings(),
       ]);
       closeQuickActionModal();
-
-      if (payload.actionKind === "WATERING") {
-        setSnackbarMessage("Akcja zarejestrowana: podlewanie");
-      } else if (payload.actionKind === "WEEDING") {
-        setSnackbarMessage("Akcja zarejestrowana: pielenie");
-      } else if (payload.actionKind === "MOISTURE_CHECK") {
-        setSnackbarMessage("Akcja zarejestrowana: kontrola wilgotności");
-      } else {
-        setSnackbarMessage("Akcja zarejestrowana: notatka");
-      }
+      setSnackbarMessage("Akcja zarejestrowana: notatka");
     } catch (err) {
       setSnackbarMessage(String(getResponseError(err)));
     }
@@ -1530,37 +1517,6 @@ export default function BedDetailsScreen() {
               <Text style={styles.modalTitle}>Wykonaj akcję</Text>
               <Button
                 mode="contained"
-                onPress={() =>
-                  handleSubmitBedQuickAction({ actionKind: "WATERING" })
-                }
-                disabled={postBedQuickAction.isPending || isOffline}
-                buttonColor="#2F7A4F"
-                textColor="#FFFFFF"
-              >
-                Podlano
-              </Button>
-              <Button
-                mode="contained"
-                onPress={() =>
-                  handleSubmitBedQuickAction({ actionKind: "WEEDING" })
-                }
-                disabled={postBedQuickAction.isPending || isOffline}
-                buttonColor="#95652B"
-                textColor="#FFFFFF"
-              >
-                Wypielono
-              </Button>
-              <Button
-                mode="contained"
-                onPress={() => setQuickActionStep("moisture")}
-                disabled={postBedQuickAction.isPending || isOffline}
-                buttonColor="#2E5D9F"
-                textColor="#FFFFFF"
-              >
-                Kontrola wilgotności
-              </Button>
-              <Button
-                mode="contained"
                 onPress={() => setQuickActionStep("note")}
                 disabled={postBedQuickAction.isPending || isOffline}
                 buttonColor="#6A4F9B"
@@ -1588,61 +1544,6 @@ export default function BedDetailsScreen() {
                 disabled={postBedQuickAction.isPending}
               >
                 Zamknij
-              </Button>
-            </View>
-          ) : null}
-
-          {quickActionStep === "moisture" ? (
-            <View style={styles.modalActionsColumn}>
-              <Text style={styles.modalTitle}>Kontrola wilgotności</Text>
-              <Button
-                mode="contained"
-                onPress={() =>
-                  handleSubmitBedQuickAction({
-                    actionKind: "MOISTURE_CHECK",
-                    moistureLevel: "dry",
-                  })
-                }
-                disabled={postBedQuickAction.isPending || isOffline}
-                buttonColor="#A65C3B"
-                textColor="#FFFFFF"
-              >
-                Sucho
-              </Button>
-              <Button
-                mode="contained"
-                onPress={() =>
-                  handleSubmitBedQuickAction({
-                    actionKind: "MOISTURE_CHECK",
-                    moistureLevel: "ok",
-                  })
-                }
-                disabled={postBedQuickAction.isPending || isOffline}
-                buttonColor="#2E7D57"
-                textColor="#FFFFFF"
-              >
-                W porządku
-              </Button>
-              <Button
-                mode="contained"
-                onPress={() =>
-                  handleSubmitBedQuickAction({
-                    actionKind: "MOISTURE_CHECK",
-                    moistureLevel: "wet",
-                  })
-                }
-                disabled={postBedQuickAction.isPending || isOffline}
-                buttonColor="#2F6FA6"
-                textColor="#FFFFFF"
-              >
-                Mokro
-              </Button>
-              <Button
-                mode="outlined"
-                onPress={() => setQuickActionStep("menu")}
-                disabled={postBedQuickAction.isPending}
-              >
-                Wstecz
               </Button>
             </View>
           ) : null}

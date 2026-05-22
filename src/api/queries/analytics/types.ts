@@ -45,7 +45,7 @@ export type PopularVegetableItem = {
     id: string;
     name: string;
     imageUrl: string | null;
-  };
+  } | null;
 };
 
 export type PopularVegetablesResponse = {

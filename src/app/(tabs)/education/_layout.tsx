@@ -33,6 +33,10 @@ export default function EducationLayout() {
       <Stack.Screen name="[slug]" options={{ title: "Artykuł" }} />
       <Stack.Screen name="vegetables/index" options={{ title: "Warzywa" }} />
       <Stack.Screen
+        name="vegetables/statistics"
+        options={{ title: "Statystyki warzyw" }}
+      />
+      <Stack.Screen
         name="vegetables/[id]"
         options={{
           title: "Warzywo",

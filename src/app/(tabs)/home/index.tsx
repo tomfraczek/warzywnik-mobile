@@ -1,9 +1,8 @@
+import { useGetPopularVegetables } from "@/src/api/queries/analytics/useGetPopularVegetables";
 import { ArticleListItem } from "@/src/api/queries/articles/types";
 import { useGetArticles } from "@/src/api/queries/articles/useGetArticles";
 import { WeatherStatusLevel } from "@/src/api/queries/users/meTypes";
 import { useGetMyWeather } from "@/src/api/queries/users/useGetMyWeather";
-import { VegetableListItem } from "@/src/api/queries/vegetables/types";
-import { useGetVegetables } from "@/src/api/queries/vegetables/useGetVegetables";
 import { NotificationsBellButton } from "@/src/components/navigation/NotificationsBellButton";
 import { Screen } from "@/src/components/Screen";
 import { ArticlePreviewCard } from "@/src/components/ui/ArticlePreviewCard";
@@ -154,14 +153,36 @@ function TwoColumnGrid({ children }: { children: React.ReactElement[] }) {
 
 function HomeVegetableCard({
   item,
+  rank,
   onPress,
 }: {
-  item: VegetableListItem;
+  item: {
+    id: string;
+    name: string;
+    imageUrl: string | null;
+  };
+  rank: number;
   onPress: () => void;
 }) {
+  const medalIcon =
+    rank === 1 ? "medal" : rank === 2 ? "medal-outline" : "medal-outline";
+
+  const medalColor =
+    rank === 1 ? "#D9A200" : rank === 2 ? "#8F98A3" : "#B4743E";
+
   return (
     <Pressable onPress={onPress} hitSlop={6}>
       <View style={libStyles.vegetableCard}>
+        {rank <= 3 ? (
+          <View style={libStyles.rankBadge}>
+            <MaterialCommunityIcons
+              name={medalIcon}
+              size={14}
+              color={medalColor}
+            />
+            <Text style={libStyles.rankBadgeText}>{rank}</Text>
+          </View>
+        ) : null}
         {item.imageUrl ? (
           <Image
             source={{ uri: item.imageUrl }}
@@ -218,13 +239,29 @@ export default function HomeScreen() {
   const { data: articlesData, isLoading: articlesLoading } = useGetArticles({
     limit: 3,
   });
-  const { data: vegetablesData, isLoading: vegetablesLoading } =
-    useGetVegetables({ limit: 4 });
+
+  const getCurrentSeasonWindowDays = () => {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const diffMs = now.getTime() - startOfYear.getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    return Math.min(365, Math.max(1, Math.floor(diffMs / dayMs) + 1));
+  };
+
+  const seasonWindowDays = getCurrentSeasonWindowDays();
+
+  const { data: popularVegetablesData, isLoading: vegetablesLoading } =
+    useGetPopularVegetables({
+      limit: 4,
+      sort: "adds",
+      windowDays: seasonWindowDays,
+    });
   const tips: ArticleListItem[] =
     articlesData?.pages.flatMap((page) => page.items).slice(0, 3) ?? [];
 
-  const popularVegetables =
-    vegetablesData?.pages.flatMap((page) => page.items).slice(0, 4) ?? [];
+  const popularVegetables = (popularVegetablesData?.items ?? [])
+    .flatMap((item) => (item.vegetable ? [item.vegetable] : []))
+    .slice(0, 4);
 
   const isLoading = weatherLoading && articlesLoading && vegetablesLoading;
 
@@ -466,7 +503,7 @@ export default function HomeScreen() {
             {/* ── Popularne warzywa ── */}
             <View style={styles.libSection}>
               <HomeSectionHeader
-                title="Popularne warzywa"
+                title="Popularne warzywa w tym sezonie"
                 actionLabel="Zobacz wszystkie"
                 onActionPress={() =>
                   router.push("/(tabs)/education/vegetables")
@@ -478,10 +515,11 @@ export default function HomeScreen() {
                 </View>
               ) : popularVegetables.length > 0 ? (
                 <TwoColumnGrid>
-                  {popularVegetables.map((item) => (
+                  {popularVegetables.map((item, index) => (
                     <HomeVegetableCard
                       key={item.id}
                       item={item}
+                      rank={index + 1}
                       onPress={() =>
                         router.push(`/(tabs)/education/vegetables/${item.id}`)
                       }
@@ -853,6 +891,7 @@ const libStyles = StyleSheet.create({
     gap: 16,
   },
   vegetableCard: {
+    position: "relative",
     minHeight: 138,
     borderRadius: 20,
     borderWidth: 1,
@@ -862,6 +901,26 @@ const libStyles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 16,
     paddingVertical: 20,
+  },
+  rankBadge: {
+    position: "absolute",
+    right: 10,
+    top: 10,
+    zIndex: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: "#E4E9E4",
+  },
+  rankBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#374139",
   },
   vegetableImage: {
     width: 54,
