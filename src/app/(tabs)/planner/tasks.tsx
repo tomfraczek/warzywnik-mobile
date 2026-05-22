@@ -84,17 +84,24 @@ export default function PlannerTasksScreen() {
     toInitialFilter(params.filter),
   );
 
-  const tasksQuery = useGetMyTasks("all");
-  const doneTasksQuery = useGetMyTasks("done");
+  const shouldFetchPendingTasks = filter !== "done";
+  const shouldFetchDoneTasks = filter === "done" || filter === "all";
+
+  const pendingTasksQuery = useGetMyTasks("pending", {
+    enabled: shouldFetchPendingTasks,
+  });
+  const doneTasksQuery = useGetMyTasks("done", {
+    enabled: shouldFetchDoneTasks,
+  });
   const actions = usePlannerActions();
 
   const groupedTasks = useMemo(
-    () => groupPlannerTasks(tasksQuery.data?.items ?? []),
-    [tasksQuery.data?.items],
+    () => groupPlannerTasks(pendingTasksQuery.data?.items ?? []),
+    [pendingTasksQuery.data?.items],
   );
 
   const filterItemsMap = useMemo(() => {
-    const items = tasksQuery.data?.items ?? [];
+    const items = pendingTasksQuery.data?.items ?? [];
     const doneItems = doneTasksQuery.data?.items ?? [];
     const overdueTaskIdSet = new Set(
       groupedTasks.overdueTasks.map((task) => task.id),
@@ -119,7 +126,9 @@ export default function PlannerTasksScreen() {
       return Boolean(doneAt);
     };
 
-    const sortedByDue = [...items].sort((a, b) => {
+    const allItems = [...items, ...doneItems];
+
+    const sortedByDue = [...allItems].sort((a, b) => {
       const aDue = a.dueAt ? Date.parse(a.dueAt) : Number.MAX_SAFE_INTEGER;
       const bDue = b.dueAt ? Date.parse(b.dueAt) : Number.MAX_SAFE_INTEGER;
       return aDue - bDue;
@@ -247,7 +256,7 @@ export default function PlannerTasksScreen() {
     groupedTasks.todayTasks,
     groupedTasks.tomorrowTasks,
     groupedTasks.weekTasks,
-    tasksQuery.data?.items,
+    pendingTasksQuery.data?.items,
   ]);
 
   const filterCounts = useMemo(
@@ -284,12 +293,21 @@ export default function PlannerTasksScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={tasksQuery.isRefetching}
+            refreshing={
+              pendingTasksQuery.isRefetching || doneTasksQuery.isRefetching
+            }
             onRefresh={() => {
-              void Promise.all([
-                tasksQuery.refetch(),
-                doneTasksQuery.refetch(),
-              ]);
+              const refetchers: Array<Promise<unknown>> = [];
+
+              if (shouldFetchPendingTasks) {
+                refetchers.push(pendingTasksQuery.refetch());
+              }
+
+              if (shouldFetchDoneTasks) {
+                refetchers.push(doneTasksQuery.refetch());
+              }
+
+              void Promise.all(refetchers);
             }}
           />
         }

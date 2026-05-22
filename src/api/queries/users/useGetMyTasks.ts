@@ -13,10 +13,18 @@ const getMyTasks = async (
   return data;
 };
 
-export const useGetMyTasks = (status: TaskStatusFilter = "pending") => {
+type UseGetMyTasksOptions = {
+  enabled?: boolean;
+};
+
+export const useGetMyTasks = (
+  status: TaskStatusFilter = "pending",
+  options?: UseGetMyTasksOptions,
+) => {
   return useQuery({
     queryKey: ["me", "tasks", status],
     queryFn: () => getMyTasks(status),
+    enabled: options?.enabled ?? true,
     staleTime: ONE_MINUTE_MS,
     refetchOnMount: "always",
     retry: 1,

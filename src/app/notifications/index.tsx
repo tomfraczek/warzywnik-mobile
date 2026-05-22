@@ -31,7 +31,6 @@ import {
 } from "react-native-paper";
 
 const FILTER_OPTIONS: { value: NotificationListFilter; label: string }[] = [
-  { value: "all", label: "Wszystkie" },
   { value: "unread", label: "Nieprzeczytane" },
   { value: "read", label: "Przeczytane" },
 ];
