@@ -6,6 +6,7 @@ import {
 } from "@/src/api/queries/actionTasks/types";
 import { useGetPlantingActionTasks } from "@/src/api/queries/actionTasks/useGetPlantingActionTasks";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
+import { useGetBed } from "@/src/api/queries/beds/useGetBed";
 import {
   DiseaseOccurrence,
   DiseaseOccurrenceStatus,
@@ -343,6 +344,7 @@ export default function PlantingDetailsScreen() {
   const { data, isLoading, error, refetch } = useGetPlanting(
     resolvedPlantingId ?? null,
   );
+  const { data: bed } = useGetBed(resolvedBedId ?? null);
 
   const deletePlanting = useDeletePlanting(resolvedBedId);
   const updatePlanting = useUpdatePlanting(
@@ -649,6 +651,21 @@ export default function PlantingDetailsScreen() {
         : expectedHarvestWindowEnd
           ? `Do ${formatDate(expectedHarvestWindowEnd)}`
           : "Brak danych";
+  const plantingBedLabel =
+    planting?.bedName?.trim() ||
+    bed?.name?.trim() ||
+    (resolvedBedId ? `Grządka #${resolvedBedId.slice(0, 8)}` : "Brak danych");
+
+  const vegetableLibraryId = planting?.vegetableId ?? vegetable?.id ?? null;
+
+  const openVegetableLibrary = () => {
+    if (!vegetableLibraryId) {
+      Alert.alert("Biblioteka", "Brak identyfikatora warzywa dla tej uprawy.");
+      return;
+    }
+
+    router.push(`/(tabs)/education/vegetables/${vegetableLibraryId}`);
+  };
 
   const harvestRecords = useMemo(() => {
     if (!planting) return [];
@@ -1317,37 +1334,48 @@ export default function PlantingDetailsScreen() {
               <Text style={styles.heroTitle} numberOfLines={2}>
                 {vegetableName || "Szczegóły uprawy"}
               </Text>
-            </View>
-
-            <View style={styles.heroStatusRow}>
-              <View
-                style={[
-                  styles.statusBadge,
-                  {
-                    backgroundColor:
-                      statusTone?.backgroundColor ?? palette.accentBg,
-                    borderColor:
-                      statusTone?.borderColor ?? palette.accentBorder,
-                  },
-                ]}
-              >
+              <View style={styles.heroStatusRow}>
                 <View
                   style={[
-                    styles.statusBadgeDot,
+                    styles.statusBadge,
                     {
-                      backgroundColor: statusTone?.textColor ?? palette.accent,
+                      backgroundColor:
+                        statusTone?.backgroundColor ?? palette.accentBg,
+                      borderColor:
+                        statusTone?.borderColor ?? palette.accentBorder,
                     },
                   ]}
-                />
-                <Text
-                  style={[
-                    styles.statusBadgeText,
-                    { color: statusTone?.textColor ?? palette.accent },
-                  ]}
                 >
-                  {statusLabel}
-                </Text>
+                  <View
+                    style={[
+                      styles.statusBadgeDot,
+                      {
+                        backgroundColor:
+                          statusTone?.textColor ?? palette.accent,
+                      },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.statusBadgeText,
+                      { color: statusTone?.textColor ?? palette.accent },
+                    ]}
+                  >
+                    {statusLabel}
+                  </Text>
+                </View>
               </View>
+              <Button
+                compact
+                mode="text"
+                icon="book-open-variant"
+                onPress={openVegetableLibrary}
+                textColor={palette.secondaryCta}
+                contentStyle={styles.heroLibraryInlineContent}
+                labelStyle={styles.heroLibraryInlineLabel}
+              >
+                Porady i artykuły o tym warzywie
+              </Button>
             </View>
 
             {isPlannedPlanting ? (
@@ -1363,6 +1391,11 @@ export default function PlantingDetailsScreen() {
               <Text style={styles.heroHarvestWindowValue}>
                 {expectedHarvestWindowLabel}
               </Text>
+            </View>
+
+            <View style={styles.heroBedBlock}>
+              <Text style={styles.heroBedLabel}>Dodane do grządki</Text>
+              <Text style={styles.heroBedValue}>{plantingBedLabel}</Text>
             </View>
           </Surface>
         </View>
@@ -2861,6 +2894,16 @@ const makeStyles = (theme: MD3Theme) =>
     heroHeadingBlock: {
       gap: 8,
     },
+    heroLibraryInlineContent: {
+      justifyContent: "flex-start",
+      paddingHorizontal: 0,
+      minHeight: 28,
+    },
+    heroLibraryInlineLabel: {
+      marginLeft: 6,
+      fontSize: 13,
+      fontWeight: "600",
+    },
     heroEyebrow: {
       fontSize: 13,
       color: buildPalette(theme.dark).secondary,
@@ -2887,6 +2930,19 @@ const makeStyles = (theme: MD3Theme) =>
       fontWeight: "500",
     },
     heroHarvestWindowValue: {
+      fontSize: 15,
+      color: buildPalette(theme.dark).heading,
+      fontWeight: "600",
+    },
+    heroBedBlock: {
+      gap: 4,
+    },
+    heroBedLabel: {
+      fontSize: 12,
+      color: buildPalette(theme.dark).secondary,
+      fontWeight: "500",
+    },
+    heroBedValue: {
       fontSize: 15,
       color: buildPalette(theme.dark).heading,
       fontWeight: "600",
