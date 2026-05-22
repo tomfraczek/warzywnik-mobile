@@ -46,7 +46,12 @@ export function PlannerHarvestCard({
 
       {onPress && event.plantingId ? (
         <View style={styles.actions}>
-          <Button mode="outlined" compact onPress={() => onPress(event)}>
+          <Button
+            mode="contained"
+            compact
+            style={styles.primaryActionButton}
+            onPress={() => onPress(event)}
+          >
             Zobacz uprawę
           </Button>
         </View>
@@ -104,6 +109,10 @@ const makeStyles = (theme: MD3Theme) =>
     },
     actions: {
       marginTop: spacing.xs,
-      flexDirection: "row",
+      flexDirection: "column",
+      alignItems: "stretch",
+    },
+    primaryActionButton: {
+      width: "100%",
     },
   });
