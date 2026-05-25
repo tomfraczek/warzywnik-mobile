@@ -54,7 +54,13 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-notifications"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#2F7A4F"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
