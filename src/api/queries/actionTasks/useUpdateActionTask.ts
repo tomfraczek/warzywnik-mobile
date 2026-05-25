@@ -1,4 +1,9 @@
 import { restClient } from "@/src/api/axios";
+import {
+  getTaskAffectedPlantingIds,
+  getTaskOwnerId,
+  getTaskOwnerScope,
+} from "@/src/features/tasks/model";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { bedKeys } from "../beds/bedKeys";
 import { plantingKeys } from "../plantings/plantingKeys";
@@ -32,33 +37,47 @@ export const useUpdateActionTask = () => {
       queryClient.invalidateQueries({ queryKey: ["calendar"] });
       queryClient.invalidateQueries({ queryKey: ["me", "tasks"] });
 
-      if (updatedTask.bedId) {
+      const ownerScope = getTaskOwnerScope(updatedTask);
+      const ownerId = getTaskOwnerId(updatedTask);
+
+      const bedId =
+        ownerScope === "bed"
+          ? (ownerId ?? updatedTask.bedId)
+          : updatedTask.bedId;
+
+      if (bedId) {
         queryClient.invalidateQueries({
-          queryKey: actionTaskKeys.bed(
-            updatedTask.bedId,
-            undefined,
-            undefined,
-            "own",
-          ),
+          queryKey: actionTaskKeys.bed(bedId, undefined, undefined, "own"),
           exact: false,
         });
         queryClient.invalidateQueries({
-          queryKey: bedKeys.detail(updatedTask.bedId),
+          queryKey: bedKeys.detail(bedId),
         });
       }
 
+      const plantingIds = new Set<string>();
+      if (ownerScope === "planting" && ownerId) {
+        plantingIds.add(ownerId);
+      }
       if (updatedTask.plantingId) {
+        plantingIds.add(updatedTask.plantingId);
+      }
+      getTaskAffectedPlantingIds(updatedTask).forEach((plantingId) => {
+        plantingIds.add(plantingId);
+      });
+
+      plantingIds.forEach((plantingId) => {
         queryClient.invalidateQueries({
-          queryKey: actionTaskKeys.planting(updatedTask.plantingId),
+          queryKey: actionTaskKeys.planting(plantingId),
           exact: false,
         });
         queryClient.invalidateQueries({
-          queryKey: plantingKeys.detail(updatedTask.plantingId),
+          queryKey: plantingKeys.detail(plantingId),
         });
         queryClient.invalidateQueries({
-          queryKey: plantingKeys.timeline(updatedTask.plantingId),
+          queryKey: plantingKeys.timeline(plantingId),
         });
-      }
+      });
 
       queryClient.invalidateQueries({ queryKey: bedKeys.all });
       queryClient.invalidateQueries({ queryKey: ["harvest-prompts"] });

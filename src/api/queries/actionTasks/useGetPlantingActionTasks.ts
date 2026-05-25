@@ -1,12 +1,12 @@
 import { restClient } from "@/src/api/axios";
 import { useQuery } from "@tanstack/react-query";
-import { actionTaskKeys } from "./actionTaskKeys";
+import { actionTaskKeys, PlantingTaskMode } from "./actionTaskKeys";
 import {
   ActionTaskListResponse,
-  TaskEntityStatusLike,
-  TaskListStatusFilter,
   normalizeTaskListStatusFilter,
   resolveActionTaskList,
+  TaskEntityStatusLike,
+  TaskListStatusFilter,
 } from "./types";
 
 type ActionTaskRangeParams = {
@@ -18,16 +18,18 @@ const getPlantingActionTasks = async (
   plantingId: string,
   status?: TaskListStatusFilter,
   range?: ActionTaskRangeParams,
+  mode?: PlantingTaskMode,
 ): Promise<ActionTaskListResponse> => {
   const { data } = await restClient.get(
     `/plantings/${plantingId}/action-tasks`,
     {
       params:
-        status || range?.from || range?.to
+        status || range?.from || range?.to || mode
           ? {
               ...(status ? { status } : {}),
               ...(range?.from ? { from: range.from } : {}),
               ...(range?.to ? { to: range.to } : {}),
+              ...(mode ? { mode } : {}),
             }
           : undefined,
     },
@@ -42,6 +44,7 @@ export const useGetPlantingActionTasks = (
   plantingId: string | null,
   status?: TaskListStatusFilter | TaskEntityStatusLike,
   range?: ActionTaskRangeParams,
+  mode?: PlantingTaskMode,
 ) => {
   const normalizedStatus = normalizeTaskListStatusFilter(status);
 
@@ -50,9 +53,15 @@ export const useGetPlantingActionTasks = (
       plantingId as string,
       normalizedStatus,
       range,
+      mode,
     ),
     queryFn: () =>
-      getPlantingActionTasks(plantingId as string, normalizedStatus, range),
+      getPlantingActionTasks(
+        plantingId as string,
+        normalizedStatus,
+        range,
+        mode,
+      ),
     enabled: Boolean(plantingId),
   });
 };

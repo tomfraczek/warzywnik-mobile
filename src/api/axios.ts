@@ -1,7 +1,11 @@
 import axios, { AxiosError, isAxiosError } from "axios";
 
-const apiBaseUrl =
-  process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
+const fallbackApiBaseUrl = "https://warzywnik-app-q8l4o.ondigitalocean.app/v1";
+
+const rawApiBaseUrl =
+  process.env.EXPO_PUBLIC_API_BASE_URL?.trim() ?? fallbackApiBaseUrl;
+
+const apiBaseUrl = rawApiBaseUrl.replace(/\/+$/, "");
 
 export const restClient = axios.create({
   timeout: 5000,

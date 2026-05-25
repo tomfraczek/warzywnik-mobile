@@ -1,6 +1,10 @@
 import { CalendarHarvestWindowItem } from "@/src/api/queries/calendar/types";
 import { TaskItem } from "@/src/api/queries/users/meTypes";
-import { getTaskMeta } from "@/src/features/tasks/model";
+import {
+  getTaskMeta,
+  getTaskNavigationTarget,
+  getTaskOwnerScope,
+} from "@/src/features/tasks/model";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ComponentProps } from "react";
 import {
@@ -41,9 +45,7 @@ export const getTaskDueAt = (task: TaskItem) => {
 };
 
 export const getTaskContext = (task: TaskItem): PlannerTaskContext => {
-  const targetTypeRaw =
-    getTaskMeta(task, "targetType", "target_type") ?? task.targetType ?? "user";
-  const targetType = targetTypeRaw.toLowerCase();
+  const targetType = getTaskOwnerScope(task);
   const bedName =
     getTaskMeta(task, "bedName", "bed_name") ?? task.bedName ?? null;
   const vegetableName =
@@ -52,19 +54,21 @@ export const getTaskContext = (task: TaskItem): PlannerTaskContext => {
     null;
 
   if (targetType === "planting") {
+    const navTarget = getTaskNavigationTarget(task);
     return {
       title: vegetableName ?? "Uprawa",
       subtitle: bedName ? `Grządka: ${bedName}` : null,
-      canNavigate: Boolean(task.plantingId),
+      canNavigate: navTarget?.type === "planting",
     };
   }
 
   if (targetType === "bed") {
     const affectedVegetables = getTaskMeta(task, "affectedVegetables");
+    const navTarget = getTaskNavigationTarget(task);
     return {
       title: bedName ?? "Grządka",
       subtitle: affectedVegetables ? `Dotyczy: ${affectedVegetables}` : null,
-      canNavigate: Boolean(task.bedId),
+      canNavigate: navTarget?.type === "bed",
     };
   }
 

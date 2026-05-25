@@ -26,8 +26,6 @@ import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { usePostHarvestConfirmation } from "@/src/api/queries/plantings/usePostHarvestConfirmation";
 import { useGetBedQuickActionNotes } from "@/src/api/queries/quickActions/useGetBedQuickActionNotes";
 import { usePostBedQuickAction } from "@/src/api/queries/quickActions/usePostBedQuickAction";
-import { TaskItem as MyTaskItem } from "@/src/api/queries/users/meTypes";
-import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { BedPlanEntryCard } from "@/src/app/(tabs)/beds/_components/BedPlanEntryCard";
 import { BedSeasonHistorySection } from "@/src/app/(tabs)/beds/_components/BedSeasonHistorySection";
@@ -46,7 +44,12 @@ import {
   isPlantingActiveLifecycleStatus,
   isPlantingPlannedStatus,
 } from "@/src/features/plantings/status";
-import { isTaskActive, isWeatherWarningTask } from "@/src/features/tasks/model";
+import {
+  getTaskAffectedPlantingIds,
+  getTaskAggregationScope,
+  getTaskOwnerId,
+  getTaskOwnerScope,
+} from "@/src/features/tasks/model";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { getTodayKey } from "@/src/utils/date";
 import { useQueryClient } from "@tanstack/react-query";
@@ -186,26 +189,6 @@ const getTaskStatusTone = (status: ActionTask["status"]) => {
   return "warning" as const;
 };
 
-const resolveActionTaskTargetType = (task: ActionTask) => {
-  const normalized = task.targetType?.trim().toLowerCase();
-  if (normalized === "planting") return "planting" as const;
-  if (normalized === "bed") return "bed" as const;
-  if (normalized === "space") return "space" as const;
-  if (normalized === "user") return "user" as const;
-  if (task.plantingId) return "planting" as const;
-  if (task.bedId) return "bed" as const;
-  return "user" as const;
-};
-
-const getActionTaskAffectedPlantingIds = (task: ActionTask) => {
-  const candidate =
-    task.metadata?.affectedPlantingIds ?? task.meta?.affectedPlantingIds;
-  if (!Array.isArray(candidate)) return [] as string[];
-  return candidate.filter(
-    (id): id is string => typeof id === "string" && id.trim().length > 0,
-  );
-};
-
 const getActionTaskAffectedVegetablesLabel = (
   task: ActionTask,
   maxExplicitVegetables = 3,
@@ -225,104 +208,6 @@ const getActionTaskAffectedVegetablesLabel = (
   }
 
   return `Dotyczy: ${vegetables.join(", ")}`;
-};
-
-const getActionTaskAggregationScope = (task: ActionTask) => {
-  const scope =
-    task.metadata?.aggregationScope ?? task.meta?.aggregationScope ?? "none";
-  return scope;
-};
-
-const normalizeMyTaskStatus = (status: unknown): ActionTask["status"] => {
-  const normalized = String(status ?? "")
-    .trim()
-    .toLowerCase();
-  if (normalized === "done") return "done";
-  if (normalized === "canceled" || normalized === "cancelled") {
-    return "canceled";
-  }
-  return "pending";
-};
-
-const normalizeMyTaskSource = (
-  source: unknown,
-): ActionTask["source"] | undefined => {
-  const normalized = String(source ?? "")
-    .trim()
-    .toUpperCase();
-  if (normalized === "MANUAL") return "MANUAL";
-  if (normalized === "AUTOMATION") return "AUTOMATION";
-  if (normalized === "SUGGESTION") return "SUGGESTION";
-  if (normalized === "WEATHER_WARNING") return "WEATHER_WARNING";
-  if (normalized === "VEGETABLE_RULE") return "VEGETABLE_RULE";
-  return undefined;
-};
-
-const mapMyTaskToActionTask = (task: MyTaskItem): ActionTask => ({
-  id: task.id,
-  title: task.title,
-  description: task.description ?? null,
-  dueAt: task.dueAt ?? null,
-  status: normalizeMyTaskStatus(task.status),
-  source: normalizeMyTaskSource(task.source),
-  sourceType:
-    task.sourceType === "MANUAL" ||
-    task.sourceType === "AUTOMATION" ||
-    task.sourceType === "SUGGESTION"
-      ? task.sourceType
-      : undefined,
-  targetType: task.targetType as ActionTask["targetType"],
-  bedId: task.bedId ?? null,
-  plantingId: task.plantingId ?? null,
-  bedName: task.bedName ?? null,
-  vegetableName: task.vegetableName ?? null,
-  actionTemplate: task.actionTemplate
-    ? {
-        id: task.actionTemplate.id,
-        slug: task.actionTemplate.slug,
-        name: task.actionTemplate.name,
-        target: task.actionTemplate.target,
-        type: task.actionTemplate.type,
-        description: task.actionTemplate.description ?? null,
-        defaultDueOffsetDays: task.actionTemplate.defaultDueOffsetDays,
-      }
-    : null,
-  isManuallyRescheduled: task.isManuallyRescheduled,
-  meta: task.meta ?? null,
-  metadata: task.metadata ?? null,
-  suppressedAt: task.suppressedAt ?? null,
-});
-
-const isBedWeatherTaskForBed = (task: MyTaskItem, bedId: string | null) => {
-  if (!bedId) return false;
-  if (!isTaskActive(task) || !isWeatherWarningTask(task)) return false;
-
-  const targetType = task.targetType?.trim().toUpperCase();
-  const metaScope =
-    typeof task.meta?.scope === "string"
-      ? task.meta.scope.trim().toUpperCase()
-      : typeof task.metadata?.scope === "string"
-        ? task.metadata.scope.trim().toUpperCase()
-        : null;
-
-  const isBedScoped = targetType === "BED" || metaScope === "BED";
-  if (!isBedScoped) return false;
-
-  if (task.bedId === bedId) return true;
-
-  const affectedBedIdsMeta = Array.isArray(task.meta?.affectedBedIds)
-    ? task.meta?.affectedBedIds
-    : Array.isArray(task.metadata?.affectedBedIds)
-      ? task.metadata?.affectedBedIds
-      : [];
-
-  if (affectedBedIdsMeta.includes(bedId)) return true;
-
-  const affectsAllBeds =
-    task.meta?.affectsAllBeds === true ||
-    task.metadata?.affectsAllBeds === true;
-
-  return affectsAllBeds;
 };
 
 type PlantingRowProps = {
@@ -348,6 +233,8 @@ const PlantingRow = memo(function PlantingRow({
   const { data: plantingTasksResponse } = useGetPlantingActionTasks(
     planting.id,
     "pending",
+    undefined,
+    "all",
   );
 
   const vegetableName = isVegetableLoading
@@ -473,12 +360,6 @@ export default function BedDetailsScreen() {
     undefined,
     "own",
   );
-  const {
-    data: myTasksData,
-    isLoading: isMyTasksLoading,
-    error: myTasksError,
-    refetch: refetchMyTasks,
-  } = useGetMyTasks("pending");
   const deleteBed = useDeleteBed();
   const updateBed = useUpdateBed(resolvedBedId ?? "");
   const updateActionTask = useUpdateActionTask();
@@ -528,27 +409,14 @@ export default function BedDetailsScreen() {
     () => historyBedTasksResponse?.items ?? [],
     [historyBedTasksResponse?.items],
   );
-  const weatherBedTasks = useMemo(
-    () =>
-      (myTasksData?.items ?? [])
-        .filter((task) => isBedWeatherTaskForBed(task, resolvedBedId ?? null))
-        .map(mapMyTaskToActionTask),
-    [myTasksData?.items, resolvedBedId],
-  );
   const pendingTasks = useMemo(() => {
     const ownPendingBedTasks = pendingBedTasks.filter((task) => {
       if (task.status !== "pending" || task.suppressedAt) return false;
-      return resolveActionTaskTargetType(task) === "bed";
+      return getTaskOwnerScope(task) === "bed";
     });
 
-    const existingIds = new Set(ownPendingBedTasks.map((task) => task.id));
-    const merged = [
-      ...ownPendingBedTasks,
-      ...weatherBedTasks.filter((task) => !existingIds.has(task.id)),
-    ];
-
-    return sortTasksByDueAt(merged);
-  }, [pendingBedTasks, weatherBedTasks]);
+    return sortTasksByDueAt(ownPendingBedTasks);
+  }, [pendingBedTasks]);
   const historyTasks = useMemo(
     () =>
       sortTaskHistoryAsc(
@@ -556,7 +424,7 @@ export default function BedDetailsScreen() {
           const isDoneOrCanceled =
             task.status === "done" || task.status === "canceled";
           if (!isDoneOrCanceled) return false;
-          return resolveActionTaskTargetType(task) === "bed";
+          return getTaskOwnerScope(task) === "bed";
         }),
       ),
     [historyBedTasks],
@@ -641,17 +509,23 @@ export default function BedDetailsScreen() {
 
   const hasAttentionItems = harvestPrompts.length > 0 || activeTasks.length > 0;
 
-  const tasksError = bedTasksError ?? myTasksError;
-  const isTasksLoading = isBedTasksLoading || isMyTasksLoading;
+  const tasksError = bedTasksError;
+  const isTasksLoading = isBedTasksLoading;
 
   const attentionPlantingIds = useMemo(() => {
     const ids = new Set<string>();
     harvestPrompts.forEach((prompt) => ids.add(prompt.plantingId));
     activeTasks.forEach((task) => {
+      if (getTaskOwnerScope(task) === "planting") {
+        const ownerId = getTaskOwnerId(task);
+        if (ownerId) {
+          ids.add(ownerId);
+        }
+      }
       if (task.plantingId) {
         ids.add(task.plantingId);
       }
-      getActionTaskAffectedPlantingIds(task).forEach((plantingId) => {
+      getTaskAffectedPlantingIds(task).forEach((plantingId) => {
         ids.add(plantingId);
       });
     });
@@ -735,7 +609,6 @@ export default function BedDetailsScreen() {
         refetchPendingBedTasks(),
         refetchHistoryBedTasks(),
         refetchPlantings(),
-        refetchMyTasks(),
       ]);
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
@@ -757,7 +630,6 @@ export default function BedDetailsScreen() {
         refetchPendingBedTasks(),
         refetchHistoryBedTasks(),
         refetchPlantings(),
-        refetchMyTasks(),
       ]);
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
@@ -1261,7 +1133,7 @@ export default function BedDetailsScreen() {
                 onPress={() => {
                   void Promise.allSettled([
                     refetchPendingBedTasks(),
-                    refetchMyTasks(),
+                    refetchHistoryBedTasks(),
                   ]);
                 }}
               >
@@ -1276,8 +1148,8 @@ export default function BedDetailsScreen() {
 
           {activeTasks.map((task) => {
             const isHighlighted = highlightedActionTaskId === task.id;
-            const taskTargetType = resolveActionTaskTargetType(task);
-            const aggregationScope = getActionTaskAggregationScope(task);
+            const taskTargetType = getTaskOwnerScope(task);
+            const aggregationScope = getTaskAggregationScope(task);
             const affectedVegetablesLabel =
               getActionTaskAffectedVegetablesLabel(task);
             return (

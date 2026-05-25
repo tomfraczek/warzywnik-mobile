@@ -26,6 +26,24 @@ type PlantingTaskLookup = {
 };
 
 export type TaskTargetType = "user" | "bed" | "planting" | "space";
+export type TaskOwnerScopeType = TaskTargetType;
+export type TaskRelationType = "direct" | "related" | "aggregated" | "none";
+
+export type TaskNavigationTarget =
+  | { type: "planting"; plantingId: string; bedId?: string | null }
+  | { type: "bed"; bedId: string }
+  | null;
+
+type OwnershipTaskLike = {
+  ownerScopeType?: string | null;
+  ownerScopeId?: string | null;
+  relationType?: string | null;
+  targetType?: string | null;
+  bedId?: string | null;
+  plantingId?: string | null;
+  meta?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+} & Record<string, unknown>;
 
 export type TaskPresentation = {
   targetType: TaskTargetType;
@@ -111,6 +129,117 @@ const normalizeTargetType = (raw: string | null): TaskTargetType | null => {
   return null;
 };
 
+const normalizeRelationType = (raw: string | null): TaskRelationType | null => {
+  const normalized = raw?.trim().toUpperCase();
+  if (normalized === "DIRECT") return "direct";
+  if (normalized === "RELATED") return "related";
+  if (normalized === "AGGREGATED") return "aggregated";
+  if (normalized === "NONE") return "none";
+  return null;
+};
+
+export const getTaskOwnerScope = (
+  task: OwnershipTaskLike,
+): TaskOwnerScopeType => {
+  const ownerScope = normalizeTargetType(
+    getTaskMeta(
+      task as TaskItem,
+      "ownerScopeType",
+      "owner_scope_type",
+      "targetType",
+      "target_type",
+      "scope",
+    ),
+  );
+  if (ownerScope) return ownerScope;
+
+  if (task.plantingId) return "planting";
+  if (task.bedId) return "bed";
+  return "user";
+};
+
+export const getTaskOwnerId = (task: OwnershipTaskLike): string | null => {
+  const explicitOwnerId = getTaskMeta(
+    task as TaskItem,
+    "ownerScopeId",
+    "owner_scope_id",
+  );
+  if (explicitOwnerId) return explicitOwnerId;
+
+  const ownerScope = getTaskOwnerScope(task);
+  if (ownerScope === "planting") {
+    return getTaskMeta(task as TaskItem, "plantingId", "planting_id");
+  }
+  if (ownerScope === "bed") {
+    return getTaskMeta(task as TaskItem, "bedId", "bed_id");
+  }
+  return null;
+};
+
+export const getTaskRelationType = (
+  task: OwnershipTaskLike,
+): TaskRelationType => {
+  const explicitRelation = normalizeRelationType(
+    getTaskMeta(task as TaskItem, "relationType", "relation_type"),
+  );
+  if (explicitRelation) return explicitRelation;
+
+  if (task.plantingId) return "direct";
+  if (getTaskAffectedPlantingIds(task as TaskItem).length > 0) return "related";
+  return "none";
+};
+
+export const isTaskRelatedToPlanting = (
+  task: OwnershipTaskLike,
+  plantingId: string | null | undefined,
+) => {
+  if (!plantingId) return false;
+
+  const ownerScope = getTaskOwnerScope(task);
+  const ownerId = getTaskOwnerId(task);
+  if (ownerScope === "planting" && ownerId === plantingId) return true;
+  if (task.plantingId === plantingId) return true;
+  return getTaskAffectedPlantingIds(task as TaskItem).includes(plantingId);
+};
+
+export const getTaskNavigationTarget = (
+  task: OwnershipTaskLike,
+): TaskNavigationTarget => {
+  const ownerScope = getTaskOwnerScope(task);
+  const ownerId = getTaskOwnerId(task);
+
+  if (ownerScope === "planting") {
+    const plantingId = ownerId ?? task.plantingId ?? null;
+    if (!plantingId) return null;
+    return {
+      type: "planting",
+      plantingId,
+      bedId: task.bedId ?? null,
+    };
+  }
+
+  if (ownerScope === "bed") {
+    const bedId = ownerId ?? task.bedId ?? null;
+    if (!bedId) return null;
+    return { type: "bed", bedId };
+  }
+
+  const affectedPlantingId = getTaskAffectedPlantingIds(task as TaskItem)[0];
+  if (affectedPlantingId) {
+    return {
+      type: "planting",
+      plantingId: affectedPlantingId,
+      bedId: task.bedId ?? null,
+    };
+  }
+
+  if (task.bedId) {
+    return { type: "bed", bedId: task.bedId };
+  }
+
+  return null;
+};
+
 const normalizeHorizon = (raw: string | null): WarningHorizon | null => {
   const normalized = raw?.trim().toUpperCase();
   if (normalized === "RADAR") return "RADAR";
@@ -159,23 +288,17 @@ const resolveUserTaskLocationLabel = (task: TaskItem) => {
 };
 
 export const resolveTaskTargetType = (task: TaskItem): TaskTargetType => {
-  const explicitTarget = normalizeTargetType(
-    getTaskMeta(task, "targetType", "target_type", "scope"),
-  );
-
-  if (explicitTarget) return explicitTarget;
-
-  const plantingId = getTaskMeta(task, "plantingId", "planting_id");
-  if (plantingId) return "planting";
-
-  const bedId = getTaskMeta(task, "bedId", "bed_id");
-  if (bedId) return "bed";
-
-  return "user";
+  return getTaskOwnerScope(task);
 };
 
-export const getTaskAggregationScope = (task: TaskItem): AggregationScope => {
-  const raw = getTaskMeta(task, "aggregationScope", "aggregation_scope");
+export const getTaskAggregationScope = (
+  task: OwnershipTaskLike,
+): AggregationScope => {
+  const raw = getTaskMeta(
+    task as TaskItem,
+    "aggregationScope",
+    "aggregation_scope",
+  );
   const normalized = raw?.trim().toLowerCase();
   if (normalized === "bed") return "bed";
   if (normalized === "space") return "space";
@@ -183,24 +306,28 @@ export const getTaskAggregationScope = (task: TaskItem): AggregationScope => {
   return "none";
 };
 
-export const getTaskAffectedPlantingIds = (task: TaskItem): string[] => {
+export const getTaskAffectedPlantingIds = (
+  task: OwnershipTaskLike,
+): string[] => {
   return getTaskMetaStringArray(
-    task,
+    task as TaskItem,
     "affectedPlantingIds",
     "affected_planting_ids",
   );
 };
 
-export const getTaskAffectedVegetables = (task: TaskItem): string[] => {
+export const getTaskAffectedVegetables = (
+  task: OwnershipTaskLike,
+): string[] => {
   return getTaskMetaStringArray(
-    task,
+    task as TaskItem,
     "affectedVegetables",
     "affected_vegetables",
   );
 };
 
 export const getTaskAffectedVegetablesLabel = (
-  task: TaskItem,
+  task: OwnershipTaskLike,
   maxExplicitVegetables = 3,
 ) => {
   const vegetables = getTaskAffectedVegetables(task);
@@ -220,7 +347,7 @@ export const getTaskContextLabel = (
     "targetType" | "bedName" | "vegetableName" | "locationLabel"
   >,
 ) => {
-  const targetType = presentation?.targetType ?? resolveTaskTargetType(task);
+  const targetType = presentation?.targetType ?? getTaskOwnerScope(task);
 
   if (targetType === "planting") {
     return (

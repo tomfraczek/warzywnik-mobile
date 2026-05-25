@@ -1,4 +1,9 @@
 import { restClient } from "@/src/api/axios";
+import {
+  getTaskAffectedPlantingIds,
+  getTaskOwnerId,
+  getTaskOwnerScope,
+} from "@/src/features/tasks/model";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { bedKeys } from "../beds/bedKeys";
 import { plantingKeys } from "../plantings/plantingKeys";
@@ -15,7 +20,16 @@ export const useDeleteActionTask = () => {
     mutationFn: (
       params:
         | string
-        | { id: string; bedId?: string | null; plantingId?: string | null },
+        | {
+            id: string;
+            ownerScopeType?: string | null;
+            ownerScopeId?: string | null;
+            bedId?: string | null;
+            plantingId?: string | null;
+            affectedPlantingIds?: string[];
+            meta?: Record<string, unknown> | null;
+            metadata?: Record<string, unknown> | null;
+          },
     ) => deleteActionTask(typeof params === "string" ? params : params.id),
     onSuccess: (_, params) => {
       const context = typeof params === "string" ? null : params;
@@ -24,33 +38,48 @@ export const useDeleteActionTask = () => {
       queryClient.invalidateQueries({ queryKey: ["calendar"] });
       queryClient.invalidateQueries({ queryKey: ["me", "tasks"] });
 
-      if (context?.bedId) {
+      const ownerScope = context ? getTaskOwnerScope(context) : null;
+      const ownerId = context ? getTaskOwnerId(context) : null;
+      const bedId =
+        context && ownerScope === "bed"
+          ? (ownerId ?? context.bedId)
+          : context?.bedId;
+
+      if (bedId) {
         queryClient.invalidateQueries({
-          queryKey: actionTaskKeys.bed(
-            context.bedId,
-            undefined,
-            undefined,
-            "own",
-          ),
+          queryKey: actionTaskKeys.bed(bedId, undefined, undefined, "own"),
           exact: false,
         });
         queryClient.invalidateQueries({
-          queryKey: bedKeys.detail(context.bedId),
+          queryKey: bedKeys.detail(bedId),
         });
       }
 
+      const plantingIds = new Set<string>();
+      if (context && ownerScope === "planting" && ownerId) {
+        plantingIds.add(ownerId);
+      }
       if (context?.plantingId) {
+        plantingIds.add(context.plantingId);
+      }
+      if (context) {
+        getTaskAffectedPlantingIds(context).forEach((plantingId) => {
+          plantingIds.add(plantingId);
+        });
+      }
+
+      plantingIds.forEach((plantingId) => {
         queryClient.invalidateQueries({
-          queryKey: actionTaskKeys.planting(context.plantingId),
+          queryKey: actionTaskKeys.planting(plantingId),
           exact: false,
         });
         queryClient.invalidateQueries({
-          queryKey: plantingKeys.detail(context.plantingId),
+          queryKey: plantingKeys.detail(plantingId),
         });
         queryClient.invalidateQueries({
-          queryKey: plantingKeys.timeline(context.plantingId),
+          queryKey: plantingKeys.timeline(plantingId),
         });
-      }
+      });
 
       queryClient.invalidateQueries({ queryKey: bedKeys.all });
       queryClient.invalidateQueries({ queryKey: ["harvest-prompts"] });

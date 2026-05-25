@@ -48,10 +48,39 @@ export type ActionTask = {
     | "bed"
     | "planting"
     | "space"
+    | "growing_space"
     | "USER"
     | "BED"
     | "PLANTING"
-    | "SPACE";
+    | "SPACE"
+    | "GROWING_SPACE";
+  ownerScopeType?:
+    | "user"
+    | "bed"
+    | "planting"
+    | "space"
+    | "growing_space"
+    | "USER"
+    | "BED"
+    | "PLANTING"
+    | "SPACE"
+    | "GROWING_SPACE";
+  ownerScopeId?: string | null;
+  relationType?:
+    | "direct"
+    | "bed"
+    | "space"
+    | "related_from_bed"
+    | "related_from_space"
+    | "DIRECT"
+    | "BED"
+    | "SPACE"
+    | "RELATED_FROM_BED"
+    | "RELATED_FROM_SPACE"
+    | "RELATED"
+    | "AGGREGATED";
+  affectedPlantingIds?: string[];
+  growingSpaceId?: string | null;
   bedId?: string | null;
   plantingId?: string | null;
   bedName?: string | null;

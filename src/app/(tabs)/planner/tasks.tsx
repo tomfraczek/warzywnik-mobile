@@ -3,6 +3,8 @@ import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { Screen } from "@/src/components/Screen";
 import {
   getTaskMeta,
+  getTaskNavigationTarget,
+  getTaskOwnerScope,
   isTaskActive,
   isWeatherWarningTask,
 } from "@/src/features/tasks/model";
@@ -163,17 +165,11 @@ export default function PlannerTasksScreen() {
       });
 
     const plantingTasks = sortedByDue.filter((task) => {
-      const targetType = (task.targetType ?? getTaskMeta(task, "targetType"))
-        ?.toString()
-        .toUpperCase();
-      return targetType === "PLANTING" || Boolean(task.plantingId);
+      return getTaskOwnerScope(task) === "planting";
     });
 
     const bedTasks = sortedByDue.filter((task) => {
-      const targetType = (task.targetType ?? getTaskMeta(task, "targetType"))
-        ?.toString()
-        .toUpperCase();
-      return targetType === "BED" || Boolean(task.bedId);
+      return getTaskOwnerScope(task) === "bed";
     });
 
     const weekWithNearHorizon = [
@@ -277,13 +273,20 @@ export default function PlannerTasksScreen() {
   );
 
   const navigateToTaskContext = (task: TaskItem) => {
-    if (task.plantingId) {
-      router.push(`/plantings/${task.plantingId}`);
+    const target = getTaskNavigationTarget(task);
+    if (!target) return;
+    if (target.type === "planting") {
+      if (target.bedId) {
+        router.push(
+          `/(tabs)/beds/${target.bedId}/plantings/${target.plantingId}`,
+        );
+        return;
+      }
+      router.push(`/plantings/${target.plantingId}`);
       return;
     }
-    if (task.bedId) {
-      router.push(`/(tabs)/beds/${task.bedId}`);
-    }
+
+    router.push(`/(tabs)/beds/${target.bedId}`);
   };
 
   return (

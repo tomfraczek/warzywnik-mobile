@@ -2,9 +2,9 @@ import { getResponseError } from "@/src/api/axios";
 import { Reminder } from "@/src/api/queries/reminders/types";
 import { useGetReminders } from "@/src/api/queries/reminders/useGetReminders";
 import { useUpdateReminder } from "@/src/api/queries/reminders/useUpdateReminder";
+import { Screen } from "@/src/components/Screen";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
-import { Screen } from "@/src/components/Screen";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
@@ -35,9 +35,22 @@ const reminderTypeLabels: Record<string, ReminderContent> = {
 };
 
 const getPlantingIdFromPayload = (payload?: Record<string, unknown> | null) => {
+  const ownerScopeType = payload?.ownerScopeType;
+  const ownerScopeId = payload?.ownerScopeId;
+  if (ownerScopeType === "PLANTING" && typeof ownerScopeId === "string") {
+    return ownerScopeId;
+  }
+
   const raw = payload?.plantingId;
   if (typeof raw === "string") return raw;
   if (typeof raw === "number") return String(raw);
+
+  const affectedPlantingIds = payload?.affectedPlantingIds;
+  if (Array.isArray(affectedPlantingIds) && affectedPlantingIds.length > 0) {
+    const first = affectedPlantingIds[0];
+    if (typeof first === "string") return first;
+  }
+
   return null;
 };
 

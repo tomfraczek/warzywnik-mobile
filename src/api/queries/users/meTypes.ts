@@ -20,6 +20,20 @@ export type WarningHorizon = "RADAR" | "OPERATIONAL";
 export type WarningDayPart = "DAY" | "NIGHT" | "ANY";
 /** Open string type – backend may emit new codes; treat unknowns gracefully. */
 export type WarningCode = string;
+export type OwnerScopeType =
+  | "USER"
+  | "BED"
+  | "PLANTING"
+  | "SPACE"
+  | "GROWING_SPACE";
+export type TaskRelationType =
+  | "DIRECT"
+  | "BED"
+  | "SPACE"
+  | "RELATED_FROM_BED"
+  | "RELATED_FROM_SPACE"
+  | "RELATED"
+  | "AGGREGATED";
 
 export type WeatherHourlyItem = {
   time: string;
@@ -144,6 +158,10 @@ export type TaskMetaDto = {
   affectedBedsCount?: number;
   locationLabel?: string | null;
   warningCode?: WarningCode;
+  ownerScopeType?: OwnerScopeType | string;
+  ownerScopeId?: string | null;
+  relationType?: TaskRelationType | string;
+  growingSpaceId?: string | null;
   aggregationScope?: "bed" | "space" | "user" | "none";
   affectedPlantingIds?: string[];
   affectedVegetables?: string[];
@@ -164,6 +182,11 @@ export type TaskItem = {
   suppressedAt?: string | null;
   /** "USER" | "BED" | "PLANTING" – uppercase from the new API contract. */
   targetType?: TaskTargetType | string;
+  ownerScopeType?: OwnerScopeType | string;
+  ownerScopeId?: string | null;
+  relationType?: TaskRelationType | string;
+  affectedPlantingIds?: string[];
+  growingSpaceId?: string | null;
   plantingId?: string | null;
   bedId?: string | null;
   bedName?: string | null;

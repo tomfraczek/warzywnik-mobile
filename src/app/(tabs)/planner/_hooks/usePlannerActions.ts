@@ -32,7 +32,7 @@ export function usePlannerActions() {
   const waitForPlannerSync = async () => {
     await Promise.all([
       queryClient.refetchQueries({ queryKey: ["me", "tasks", "pending"] }),
-      queryClient.refetchQueries({ queryKey: ["me", "tasks", "all"] }),
+      queryClient.refetchQueries({ queryKey: ["me", "tasks", "done"] }),
       queryClient.refetchQueries({ queryKey: ["calendar"] }),
     ]);
   };
@@ -74,8 +74,27 @@ export function usePlannerActions() {
           deleteTask.mutate(
             {
               id: task.id,
+              ownerScopeType:
+                typeof task.ownerScopeType === "string"
+                  ? task.ownerScopeType
+                  : null,
+              ownerScopeId:
+                typeof task.ownerScopeId === "string"
+                  ? task.ownerScopeId
+                  : null,
               bedId: task.bedId,
               plantingId: task.plantingId,
+              affectedPlantingIds: Array.isArray(task.affectedPlantingIds)
+                ? task.affectedPlantingIds
+                : undefined,
+              meta:
+                typeof task.meta === "object" && task.meta
+                  ? (task.meta as Record<string, unknown>)
+                  : null,
+              metadata:
+                typeof task.metadata === "object" && task.metadata
+                  ? (task.metadata as Record<string, unknown>)
+                  : null,
             },
             {
               onSuccess: async () => {

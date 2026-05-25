@@ -35,6 +35,10 @@ export type PushNotificationPayload = {
   body: string;
   bedId?: string;
   plantingId?: string;
+  ownerScopeType?: "USER" | "BED" | "PLANTING" | "SPACE";
+  ownerScopeId?: string;
+  relationType?: "DIRECT" | "RELATED" | "AGGREGATED";
+  affectedPlantingIds?: string[];
   actionTaskIds?: string[];
   bedIds?: string[];
   plantingIds?: string[];

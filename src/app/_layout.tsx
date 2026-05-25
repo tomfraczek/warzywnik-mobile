@@ -234,14 +234,22 @@ function AuthBootstrapGate() {
   ]);
 
   if (FORCE_AUTH_FLOW_LOADER_FOR_TESTS) {
-    return <AuthFlowLoader />;
+    return (
+      <>
+        <Stack screenOptions={{ headerShown: false }} />
+        <AuthFlowLoader />
+      </>
+    );
   }
 
-  if (!ready || (!isSignedIn && isSsoAuthInProgress())) {
-    return <AuthFlowLoader />;
-  }
+  const shouldShowLoader = !ready || (!isSignedIn && isSsoAuthInProgress());
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false }} />
+      {shouldShowLoader ? <AuthFlowLoader /> : null}
+    </>
+  );
 }
 
 function PushNotificationsLifecycleBridge() {

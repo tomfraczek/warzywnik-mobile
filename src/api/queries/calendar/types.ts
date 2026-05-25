@@ -16,6 +16,24 @@ export type CalendarTaskItem = {
     | "BED"
     | "PLANTING"
     | "SPACE";
+  ownerScopeType?:
+    | "user"
+    | "bed"
+    | "planting"
+    | "space"
+    | "USER"
+    | "BED"
+    | "PLANTING"
+    | "SPACE";
+  ownerScopeId?: string | null;
+  relationType?:
+    | "direct"
+    | "related"
+    | "aggregated"
+    | "DIRECT"
+    | "RELATED"
+    | "AGGREGATED";
+  affectedPlantingIds?: string[];
   bedName?: string | null;
   vegetableName?: string | null;
   source?: string;

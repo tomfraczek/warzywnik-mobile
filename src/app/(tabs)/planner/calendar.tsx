@@ -1,6 +1,7 @@
 import { useGetCalendarWithOptions } from "@/src/api/queries/calendar/useGetCalendar";
 import { TaskItem } from "@/src/api/queries/users/meTypes";
 import { Screen } from "@/src/components/Screen";
+import { getTaskNavigationTarget } from "@/src/features/tasks/model";
 import { spacing } from "@/src/theme/ui";
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
@@ -41,14 +42,19 @@ export default function PlannerCalendarScreen() {
   ]);
 
   const navigateToTaskContext = (task: TaskItem) => {
-    if (task.plantingId) {
-      router.push(`/plantings/${task.plantingId}`);
+    const target = getTaskNavigationTarget(task);
+    if (!target) return;
+    if (target.type === "planting") {
+      if (target.bedId) {
+        router.push(
+          `/(tabs)/beds/${target.bedId}/plantings/${target.plantingId}`,
+        );
+        return;
+      }
+      router.push(`/plantings/${target.plantingId}`);
       return;
     }
-
-    if (task.bedId) {
-      router.push(`/(tabs)/beds/${task.bedId}`);
-    }
+    router.push(`/(tabs)/beds/${target.bedId}`);
   };
 
   return (

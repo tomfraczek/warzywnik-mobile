@@ -3,6 +3,22 @@ import { PushNotificationPayload } from "./types";
 
 const homeRoute = (): Href => "/(tabs)/home";
 
+const resolvePayloadBedId = (payload: PushNotificationPayload) => {
+  if (payload.bedId) return payload.bedId;
+  if (payload.ownerScopeType === "BED" && payload.ownerScopeId) {
+    return payload.ownerScopeId;
+  }
+  return undefined;
+};
+
+const resolvePayloadPlantingId = (payload: PushNotificationPayload) => {
+  if (payload.plantingId) return payload.plantingId;
+  if (payload.ownerScopeType === "PLANTING" && payload.ownerScopeId) {
+    return payload.ownerScopeId;
+  }
+  return payload.affectedPlantingIds?.[0];
+};
+
 export const getPushNotificationRoute = (
   payload: PushNotificationPayload,
 ): Href => {
@@ -14,34 +30,37 @@ export const getPushNotificationRoute = (
       return "/(tabs)/beds";
 
     case "BED_DETAIL": {
-      if (!payload.bedId) {
+      const bedId = resolvePayloadBedId(payload);
+      if (!bedId) {
         return "/(tabs)/beds";
       }
       return {
         pathname: "/(tabs)/beds/[bedId]",
         params: {
-          bedId: payload.bedId,
+          bedId,
         },
       };
     }
 
     case "PLANTING_DETAIL": {
-      if (!payload.plantingId) {
+      const plantingId = resolvePayloadPlantingId(payload);
+      if (!plantingId) {
         return "/(tabs)/planner";
       }
-      if (payload.bedId) {
+      const bedId = resolvePayloadBedId(payload);
+      if (bedId) {
         return {
           pathname: "/(tabs)/beds/[bedId]/plantings/[plantingId]",
           params: {
-            bedId: payload.bedId,
-            plantingId: payload.plantingId,
+            bedId,
+            plantingId,
           },
         };
       }
       return {
         pathname: "/plantings/[plantingId]",
         params: {
-          plantingId: payload.plantingId,
+          plantingId,
         },
       };
     }

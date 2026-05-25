@@ -1,5 +1,6 @@
 import { Screen } from "@/src/components/Screen";
 import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
+import { getTaskNavigationTarget } from "@/src/features/tasks/model";
 import { spacing } from "@/src/theme/ui";
 import { useRouter } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -38,17 +39,25 @@ export default function PlannerScreen() {
   })();
 
   const navigateToTaskContext = (task: {
+    ownerScopeType?: string | null;
+    ownerScopeId?: string | null;
     plantingId?: string | null;
     bedId?: string | null;
   }) => {
-    if (task.plantingId) {
-      router.push(`/plantings/${task.plantingId}`);
+    const target = getTaskNavigationTarget(task);
+    if (!target) return;
+    if (target.type === "planting") {
+      if (target.bedId) {
+        router.push(
+          `/(tabs)/beds/${target.bedId}/plantings/${target.plantingId}`,
+        );
+        return;
+      }
+      router.push(`/plantings/${target.plantingId}`);
       return;
     }
 
-    if (task.bedId) {
-      router.push(`/(tabs)/beds/${task.bedId}`);
-    }
+    router.push(`/(tabs)/beds/${target.bedId}`);
   };
 
   const weekItemsCount = overview.weekGroups.reduce(

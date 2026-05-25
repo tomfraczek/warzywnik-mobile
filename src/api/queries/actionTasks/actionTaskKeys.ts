@@ -5,6 +5,8 @@ type ActionTaskRangeParams = {
   to?: string;
 };
 
+export type PlantingTaskMode = "direct" | "related" | "all";
+
 export const actionTaskKeys = {
   all: ["action-tasks"] as const,
   bed: (
@@ -17,6 +19,13 @@ export const actionTaskKeys = {
     plantingId: string,
     status?: TaskListStatusFilter,
     range?: ActionTaskRangeParams,
-  ) => ["action-tasks", "planting", plantingId, { status, ...range }] as const,
+    mode?: PlantingTaskMode,
+  ) =>
+    [
+      "action-tasks",
+      "planting",
+      plantingId,
+      { status, ...range, mode },
+    ] as const,
   detail: (id: string) => ["action-tasks", "detail", id] as const,
 };
