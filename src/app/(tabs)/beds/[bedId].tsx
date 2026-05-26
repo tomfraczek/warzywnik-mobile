@@ -4,6 +4,7 @@ import {
   getActionTaskSourceLabel,
   resolveActionTaskSourceType,
 } from "@/src/api/queries/actionTasks/types";
+import { actionTaskKeys } from "@/src/api/queries/actionTasks/actionTaskKeys";
 import { useDeleteActionTask } from "@/src/api/queries/actionTasks/useDeleteActionTask";
 import { useGetBedActionTasks } from "@/src/api/queries/actionTasks/useGetBedActionTasks";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
@@ -54,7 +55,6 @@ import {
   getTaskOwnershipReason,
 } from "@/src/features/tasks/taskPresentation";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
-import { getTodayKey } from "@/src/utils/date";
 import { pluralize } from "@/src/utils/pluralize";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
@@ -158,10 +158,16 @@ const formatNoteDateTime = (value?: string | null) => {
   }).format(date);
 };
 
-const getDueDateKey = (value?: string | null) => {
-  if (!value) return null;
-  const dateOnly = value.split("T")[0];
-  return dateOnly && /^\d{4}-\d{2}-\d{2}$/.test(dateOnly) ? dateOnly : null;
+const getTaskPlantingId = (task: ActionTask): string | null => {
+  const scope = (task.ownerScopeType ?? "").toLowerCase();
+  if (scope === "planting" && task.ownerScopeId) return task.ownerScopeId;
+  if (task.plantingId) return task.plantingId;
+  const affected =
+    task.affectedPlantingIds ??
+    task.metadata?.affectedPlantingIds ??
+    task.meta?.affectedPlantingIds;
+  if (Array.isArray(affected) && affected.length === 1) return affected[0];
+  return null;
 };
 
 const sortTasksByDueAt = (tasks: ActionTask[]) =>
@@ -219,12 +225,14 @@ type PlantingRowProps = {
   planting: Planting;
   onPress: () => void;
   hasAttention: boolean;
+  isFirst?: boolean;
 };
 
 const PlantingRow = memo(function PlantingRow({
   planting,
   onPress,
   hasAttention,
+  isFirst,
 }: PlantingRowProps) {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
@@ -240,7 +248,7 @@ const PlantingRow = memo(function PlantingRow({
   const showAttention = hasAttention;
 
   return (
-    <Pressable style={styles.plantingRow} onPress={onPress}>
+    <Pressable style={[styles.plantingRow, isFirst ? styles.plantingRowFirst : null]} onPress={onPress}>
       <View style={styles.plantingThumbWrap}>
         {vegetable?.imageUrl ? (
           <Image
@@ -302,7 +310,6 @@ export default function BedDetailsScreen() {
     : actionTaskId;
   const router = useRouter();
   const queryClient = useQueryClient();
-  const todayKey = getTodayKey();
   const [isBedDeleted, setIsBedDeleted] = useState(false);
   const { data, isLoading, error, refetch } = useGetBed(
     !isBedDeleted ? (resolvedBedId ?? null) : null,
@@ -336,7 +343,7 @@ export default function BedDetailsScreen() {
     !isBedDeleted ? (resolvedBedId ?? null) : null,
     "pending",
     undefined,
-    "own",
+    "includingChildren",
   );
   const {
     data: historyBedTasksResponse,
@@ -346,7 +353,7 @@ export default function BedDetailsScreen() {
     !isBedDeleted ? (resolvedBedId ?? null) : null,
     "all",
     undefined,
-    "own",
+    "includingChildren",
   );
   const deleteBed = useDeleteBed();
   const updateBed = useUpdateBed(resolvedBedId ?? "");
@@ -483,15 +490,7 @@ export default function BedDetailsScreen() {
     [plannedPlantings, activePlantings, endedPlantings, plantingsFilter],
   );
 
-  const activeTasks = useMemo(
-    () =>
-      pendingTasks.filter((task) => {
-        const dueDateKey = getDueDateKey(task.dueAt);
-        if (!dueDateKey) return true;
-        return dueDateKey >= todayKey;
-      }),
-    [pendingTasks, todayKey],
-  );
+  const activeTasks = useMemo(() => pendingTasks, [pendingTasks]);
 
   const hasAttentionItems = harvestPrompts.length > 0 || activeTasks.length > 0;
 
@@ -580,24 +579,62 @@ export default function BedDetailsScreen() {
     }
   };
 
+  const pendingTasksKey = actionTaskKeys.bed(
+    resolvedBedId ?? "",
+    "pending",
+    undefined,
+    "includingChildren",
+  );
+  const allTasksKey = actionTaskKeys.bed(
+    resolvedBedId ?? "",
+    "all",
+    undefined,
+    "includingChildren",
+  );
+
   const handleMarkTaskDone = async (taskId: string) => {
     if (isOffline) {
       Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
       return;
     }
+
+    await queryClient.cancelQueries({ queryKey: pendingTasksKey });
+    await queryClient.cancelQueries({ queryKey: allTasksKey });
+
+    const prevPending =
+      queryClient.getQueryData<{ items: ActionTask[] }>(pendingTasksKey);
+    const prevAll =
+      queryClient.getQueryData<{ items: ActionTask[] }>(allTasksKey);
+
+    const now = new Date().toISOString();
+    queryClient.setQueryData<{ items: ActionTask[] }>(pendingTasksKey, (old) =>
+      old ? { items: old.items.filter((t) => t.id !== taskId) } : old,
+    );
+    queryClient.setQueryData<{ items: ActionTask[] }>(allTasksKey, (old) =>
+      old
+        ? {
+            items: old.items.map((t) =>
+              t.id === taskId ? { ...t, status: "done", doneAt: now } : t,
+            ),
+          }
+        : old,
+    );
+
     try {
       await updateActionTask.mutateAsync({
         id: taskId,
         payload: { status: "done" },
       });
       setSnackbarMessage("Zadanie wykonane");
+    } catch (err) {
+      queryClient.setQueryData(pendingTasksKey, prevPending);
+      queryClient.setQueryData(allTasksKey, prevAll);
+      Alert.alert("Błąd", String(getResponseError(err)));
+    } finally {
       await Promise.allSettled([
         refetchPendingBedTasks(),
         refetchHistoryBedTasks(),
-        refetchPlantings(),
       ]);
-    } catch (err) {
-      Alert.alert("Błąd", String(getResponseError(err)));
     }
   };
 
@@ -606,6 +643,22 @@ export default function BedDetailsScreen() {
       Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
       return;
     }
+
+    await queryClient.cancelQueries({ queryKey: pendingTasksKey });
+    await queryClient.cancelQueries({ queryKey: allTasksKey });
+
+    const prevPending =
+      queryClient.getQueryData<{ items: ActionTask[] }>(pendingTasksKey);
+    const prevAll =
+      queryClient.getQueryData<{ items: ActionTask[] }>(allTasksKey);
+
+    queryClient.setQueryData<{ items: ActionTask[] }>(pendingTasksKey, (old) =>
+      old ? { items: old.items.filter((t) => t.id !== task.id) } : old,
+    );
+    queryClient.setQueryData<{ items: ActionTask[] }>(allTasksKey, (old) =>
+      old ? { items: old.items.filter((t) => t.id !== task.id) } : old,
+    );
+
     try {
       await deleteActionTask.mutateAsync({
         id: task.id,
@@ -620,13 +673,15 @@ export default function BedDetailsScreen() {
         metadata: task.metadata ?? null,
       });
       setSnackbarMessage("Zadanie usunięte");
+    } catch (err) {
+      queryClient.setQueryData(pendingTasksKey, prevPending);
+      queryClient.setQueryData(allTasksKey, prevAll);
+      Alert.alert("Błąd", String(getResponseError(err)));
+    } finally {
       await Promise.allSettled([
         refetchPendingBedTasks(),
         refetchHistoryBedTasks(),
-        refetchPlantings(),
       ]);
-    } catch (err) {
-      Alert.alert("Błąd", String(getResponseError(err)));
     }
   };
 
@@ -1023,10 +1078,11 @@ export default function BedDetailsScreen() {
                 contentContainerStyle={styles.plantingsListContent}
                 showsVerticalScrollIndicator
               >
-                {filteredPlantings.map((planting: Planting) => (
+                {filteredPlantings.map((planting: Planting, idx: number) => (
                   <PlantingRow
                     key={planting.id}
                     planting={planting}
+                    isFirst={idx === 0}
                     hasAttention={attentionPlantingIds.has(planting.id)}
                     onPress={() =>
                       router.push(
@@ -1144,6 +1200,7 @@ export default function BedDetailsScreen() {
             const affectedVegetablesLabel =
               getActionTaskAffectedVegetablesLabel(task);
             const relation = getTaskRelationType(task);
+            const taskPlantingId = getTaskPlantingId(task);
             return (
               <View
                 key={task.id}
@@ -1205,6 +1262,20 @@ export default function BedDetailsScreen() {
                   >
                     Anuluj
                   </Button>
+                  {taskPlantingId ? (
+                    <Button
+                      mode="text"
+                      style={styles.taskActionButton}
+                      icon="sprout-outline"
+                      onPress={() =>
+                        router.push(
+                          `/(tabs)/beds/${bed.id}/plantings/${taskPlantingId}`,
+                        )
+                      }
+                    >
+                      Przejdź do uprawy
+                    </Button>
+                  ) : null}
                 </View>
               </View>
             );
@@ -1942,6 +2013,9 @@ const makeStyles = (theme: MD3Theme) => {
       justifyContent: "space-between",
       alignItems: "center",
       gap: 10,
+    },
+    plantingRowFirst: {
+      borderTopWidth: 0,
     },
     plantingThumbWrap: {
       width: 46,

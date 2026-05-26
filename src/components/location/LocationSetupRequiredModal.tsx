@@ -45,7 +45,7 @@ const hasValidLocation = (location: unknown): location is { label: string } => {
 export function LocationSetupRequiredModal() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
   const { location, setLocationPreference, languagePreference } = useSettings();
   const segments = useSegments();
   const pathname = usePathname();
@@ -144,8 +144,20 @@ export function LocationSetupRequiredModal() {
     setErrorMessage(null);
 
     try {
+      const token = await getToken();
+      if (!token) {
+        // Auth is not fully ready yet. Allow a later retry.
+        hasCheckedRef.current = false;
+        return;
+      }
+
       const { data } =
-        await restClient.get<WeatherLocationResponse>("/users/me/weather");
+        await restClient.get<WeatherLocationResponse>("/users/me/weather", {
+          timeout: 15000,
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
       if (hasValidLocation(data?.location)) {
         const serverLocation = data.location;
@@ -168,10 +180,23 @@ export function LocationSetupRequiredModal() {
           return;
         }
       }
+
+      // Fallback: if we can't verify server state, still require location
+      // setup when there is no local location saved.
+      if (!location?.label?.trim()) {
+        setVisible(true);
+      }
     } finally {
       setIsChecking(false);
     }
-  }, [applyLocationLocally, isOffline, location?.mode, shouldRunCheck]);
+  }, [
+    applyLocationLocally,
+    getToken,
+    isOffline,
+    location?.label,
+    location?.mode,
+    shouldRunCheck,
+  ]);
 
   useEffect(() => {
     void checkServerLocation();

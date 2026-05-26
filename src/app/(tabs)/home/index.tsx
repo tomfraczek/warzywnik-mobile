@@ -289,9 +289,23 @@ export default function HomeScreen() {
           </View>
           <StatusBadge
             label={
-              weatherData?.stale ? "Pogoda: nieaktualna" : "Pogoda: aktualna"
+              isWeatherError && weatherData
+                ? "Pogoda: ostatnie dane"
+                : weatherData?.stale
+                  ? "Pogoda: nieaktualna"
+                  : weatherData
+                    ? "Pogoda: aktualna"
+                    : "Pogoda: brak danych"
             }
-            tone={weatherData?.stale ? "warning" : "success"}
+            tone={
+              isWeatherError && weatherData
+                ? "warning"
+                : weatherData?.stale
+                  ? "warning"
+                  : weatherData
+                    ? "success"
+                    : "neutral"
+            }
           />
         </View>
 
@@ -303,7 +317,7 @@ export default function HomeScreen() {
           <>
             <Pressable onPress={() => router.push("/(tabs)/home/weather")}>
               <Card title="Pogoda teraz" subtitle={weatherSubtitle}>
-                {isWeatherError ? (
+                {isWeatherError && !weatherData ? (
                   <View style={styles.weatherErrorWrap}>
                     <Text style={styles.placeholder}>
                       {isWeatherMissingLocationError(weatherError)

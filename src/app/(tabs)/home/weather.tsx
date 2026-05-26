@@ -160,7 +160,7 @@ export default function HomeWeatherScreen() {
     );
   }
 
-  if (isError || !data) {
+  if (!data) {
     const localLocationLabel = location?.label ?? null;
 
     return (
@@ -171,7 +171,7 @@ export default function HomeWeatherScreen() {
               ? "Brak ustawionej lokalizacji."
               : isWeatherUnavailableError(error)
                 ? "Pogoda chwilowo niedostępna."
-                : String(getResponseError(error))}
+                : "Nie udało się pobrać pogody."}
           </Text>
           {isWeatherMissingLocationError(error) && localLocationLabel ? (
             <Text style={styles.hintText}>
@@ -191,9 +191,11 @@ export default function HomeWeatherScreen() {
     <Screen safeAreaEdges={["left", "right"]}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          {data.stale && (
+          {isError ? (
+            <StatusBadge label="Brak połączenia – ostatnie znane dane" tone="warning" />
+          ) : data.stale ? (
             <StatusBadge label="Dane chwilowo nieaktualne" tone="warning" />
-          )}
+          ) : null}
         </View>
 
         {/* TERAZ */}
