@@ -132,7 +132,6 @@ export const getTaskIconName = (
   if (hasToken(actionKind, "HARVEST")) return "basket-outline";
 
   const source = (task.source ?? "").toUpperCase();
-  if (source === "WEATHER_WARNING") return "weather-partly-rainy";
   if (source === "MANUAL") return "check-circle-outline";
 
   return "sprout-outline";

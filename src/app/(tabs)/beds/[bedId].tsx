@@ -43,16 +43,16 @@ import {
   isPlantingActiveLifecycleStatus,
   isPlantingPlannedStatus,
 } from "@/src/features/plantings/status";
-import {
-  getTaskAffectedPlantingIds,
-  getTaskAggregationScope,
-} from "@/src/features/tasks/model";
+import { getTaskAffectedPlantingIds } from "@/src/features/tasks/model";
 import {
   getTaskOwnerId,
   getTaskOwnerScope,
   getTaskRelationType,
 } from "@/src/features/tasks/taskOwnership";
-import { getTaskOwnershipLabel } from "@/src/features/tasks/taskPresentation";
+import {
+  getTaskOwnershipLabel,
+  getTaskOwnershipReason,
+} from "@/src/features/tasks/taskPresentation";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { getTodayKey } from "@/src/utils/date";
 import { pluralize } from "@/src/utils/pluralize";
@@ -336,7 +336,7 @@ export default function BedDetailsScreen() {
     !isBedDeleted ? (resolvedBedId ?? null) : null,
     "pending",
     undefined,
-    "includingChildren",
+    "own",
   );
   const {
     data: historyBedTasksResponse,
@@ -346,7 +346,7 @@ export default function BedDetailsScreen() {
     !isBedDeleted ? (resolvedBedId ?? null) : null,
     "all",
     undefined,
-    "includingChildren",
+    "own",
   );
   const deleteBed = useDeleteBed();
   const updateBed = useUpdateBed(resolvedBedId ?? "");
@@ -491,44 +491,6 @@ export default function BedDetailsScreen() {
         return dueDateKey >= todayKey;
       }),
     [pendingTasks, todayKey],
-  );
-
-  const activeBedTasks = useMemo(
-    () =>
-      activeTasks.filter((task) => {
-        const relation = getTaskRelationType(task);
-        const ownerScope = getTaskOwnerScope(task);
-        return (
-          relation === "bed" ||
-          relation === "related_from_bed" ||
-          ownerScope === "bed"
-        );
-      }),
-    [activeTasks],
-  );
-
-  const activePlantingTasks = useMemo(
-    () =>
-      activeTasks.filter((task) => {
-        const relation = getTaskRelationType(task);
-        const ownerScope = getTaskOwnerScope(task);
-        return ownerScope === "planting" && relation === "direct";
-      }),
-    [activeTasks],
-  );
-
-  const activeSpaceTasks = useMemo(
-    () =>
-      activeTasks.filter((task) => {
-        const relation = getTaskRelationType(task);
-        const ownerScope = getTaskOwnerScope(task);
-        return (
-          relation === "space" ||
-          relation === "related_from_space" ||
-          ownerScope === "growing_space"
-        );
-      }),
-    [activeTasks],
   );
 
   const hasAttentionItems = harvestPrompts.length > 0 || activeTasks.length > 0;
@@ -1177,18 +1139,11 @@ export default function BedDetailsScreen() {
             <TasksCelebrationCard />
           ) : null}
 
-          {(activeBedTasks.length > 0 ||
-            activePlantingTasks.length > 0 ||
-            activeSpaceTasks.length > 0) && (
-            <Text style={styles.taskMeta}>Zadania grządki</Text>
-          )}
-
-          {activeBedTasks.map((task) => {
+          {activeTasks.map((task) => {
             const isHighlighted = highlightedActionTaskId === task.id;
-            const taskTargetType = getTaskOwnerScope(task);
-            const aggregationScope = getTaskAggregationScope(task);
             const affectedVegetablesLabel =
               getActionTaskAffectedVegetablesLabel(task);
+            const relation = getTaskRelationType(task);
             return (
               <View
                 key={task.id}
@@ -1215,14 +1170,13 @@ export default function BedDetailsScreen() {
                   <Text style={styles.taskMeta}>
                     {getTaskOwnershipLabel(task)}
                   </Text>
-                  {taskTargetType === "bed" ? (
+                  {relation === "related_from_bed" ||
+                  relation === "related_from_space" ? (
                     <Text style={styles.taskMeta}>
-                      {task.bedName ?? bed.name}
+                      {getTaskOwnershipReason(task)}
                     </Text>
                   ) : null}
-                  {taskTargetType === "bed" &&
-                  aggregationScope === "bed" &&
-                  affectedVegetablesLabel ? (
+                  {affectedVegetablesLabel ? (
                     <Text style={styles.taskMeta}>
                       {affectedVegetablesLabel}
                     </Text>
@@ -1234,7 +1188,6 @@ export default function BedDetailsScreen() {
                     tone="neutral"
                   />
                 </View>
-
                 <View style={styles.taskActions}>
                   <Button
                     mode="contained"
@@ -1252,62 +1205,6 @@ export default function BedDetailsScreen() {
                   >
                     Anuluj
                   </Button>
-                </View>
-              </View>
-            );
-          })}
-
-          {activePlantingTasks.length > 0 ? (
-            <Text style={[styles.taskMeta, { marginTop: 10 }]}>
-              Zadania upraw
-            </Text>
-          ) : null}
-          {activePlantingTasks.map((task) => {
-            const isHighlighted = highlightedActionTaskId === task.id;
-            return (
-              <View
-                key={`planting-${task.id}`}
-                style={[
-                  styles.taskRow,
-                  isHighlighted ? styles.taskRowHighlighted : null,
-                ]}
-              >
-                <View style={styles.taskMain}>
-                  <Text style={styles.taskTitle}>{task.title}</Text>
-                  <Text style={styles.taskMeta}>
-                    Termin: {formatDate(task.dueAt)}
-                  </Text>
-                  <Text style={styles.taskMeta}>
-                    {getTaskOwnershipLabel(task)}
-                  </Text>
-                </View>
-              </View>
-            );
-          })}
-
-          {activeSpaceTasks.length > 0 ? (
-            <Text style={[styles.taskMeta, { marginTop: 10 }]}>
-              Zadania przestrzeni
-            </Text>
-          ) : null}
-          {activeSpaceTasks.map((task) => {
-            const isHighlighted = highlightedActionTaskId === task.id;
-            return (
-              <View
-                key={`space-${task.id}`}
-                style={[
-                  styles.taskRow,
-                  isHighlighted ? styles.taskRowHighlighted : null,
-                ]}
-              >
-                <View style={styles.taskMain}>
-                  <Text style={styles.taskTitle}>{task.title}</Text>
-                  <Text style={styles.taskMeta}>
-                    Termin: {formatDate(task.dueAt)}
-                  </Text>
-                  <Text style={styles.taskMeta}>
-                    {getTaskOwnershipLabel(task)}
-                  </Text>
                 </View>
               </View>
             );

@@ -205,6 +205,19 @@ function buildPalette(dark: boolean) {
   };
 }
 
+const isHarvestActionTask = (task: ActionTask): boolean => {
+  const actionType = (task.actionTemplate?.type ?? "").toUpperCase();
+  const actionSlug = (task.actionTemplate?.slug ?? "").toUpperCase();
+  const title = (task.title ?? "").toLowerCase();
+  return (
+    actionType === "HARVEST" ||
+    actionSlug.includes("HARVEST") ||
+    title.includes("zbiór") ||
+    title.includes("zbior") ||
+    title.includes("zebra")
+  );
+};
+
 const sortTasksByDueAt = (tasks: ActionTask[]) =>
   [...tasks].sort((a, b) => {
     const aDue = a.dueAt ?? "9999-12-31";
@@ -291,6 +304,24 @@ export default function PlantingDetailsScreen() {
     useState<HarvestResultRecord | null>(null);
 
   const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [
+    confirmStartPlantingModalVisible,
+    setConfirmStartPlantingModalVisible,
+  ] = useState(false);
+  const [
+    confirmDeletePlantingModalVisible,
+    setConfirmDeletePlantingModalVisible,
+  ] = useState(false);
+  const [
+    confirmHarvestWindowModalVisible,
+    setConfirmHarvestWindowModalVisible,
+  ] = useState(false);
+  const [confirmHarvestWindowDateLabel, setConfirmHarvestWindowDateLabel] =
+    useState("");
+  const [
+    confirmDeleteOccurrenceModalVisible,
+    setConfirmDeleteOccurrenceModalVisible,
+  ] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<PlantingStatus | null>(
     null,
   );
@@ -718,29 +749,25 @@ export default function PlantingDetailsScreen() {
 
   const handleDelete = () => {
     if (isOffline) {
-      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      setSnackbarMessage(OFFLINE_MUTATION_MESSAGE);
       return;
     }
-    Alert.alert("Usunąć uprawę?", "Tej operacji nie można cofnąć.", [
-      { text: "Anuluj", style: "cancel" },
-      {
-        text: "Usuń",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            if (!resolvedPlantingId) return;
-            await deletePlanting.mutateAsync(resolvedPlantingId);
-            if (resolvedBedId) {
-              router.replace(`/(tabs)/beds/${resolvedBedId}`);
-            } else {
-              router.back();
-            }
-          } catch (err) {
-            Alert.alert("Błąd", String(getResponseError(err)));
-          }
-        },
-      },
-    ]);
+    setConfirmDeletePlantingModalVisible(true);
+  };
+
+  const executeDeletePlanting = async () => {
+    setConfirmDeletePlantingModalVisible(false);
+    try {
+      if (!resolvedPlantingId) return;
+      await deletePlanting.mutateAsync(resolvedPlantingId);
+      if (resolvedBedId) {
+        router.replace(`/(tabs)/beds/${resolvedBedId}`);
+      } else {
+        router.back();
+      }
+    } catch (err) {
+      setSnackbarMessage(String(getResponseError(err)));
+    }
   };
 
   const openStatusModal = () => {
@@ -821,24 +848,30 @@ export default function PlantingDetailsScreen() {
     const shouldConfirmPlanArchive =
       planting.status === "NEW" && selectedStatus !== "NEW";
 
-    if (!shouldConfirmPlanArchive) {
-      await executeSavePlantingStatus();
+    if (shouldConfirmPlanArchive) {
+      setConfirmStartPlantingModalVisible(true);
       return;
     }
 
-    Alert.alert(
-      "Rozpocząć uprawę?",
-      "Po rozpoczęciu uprawy checklista planu zostanie zarchiwizowana. Bieżące zadania będą generowane dla aktywnej uprawy.",
-      [
-        { text: "Anuluj", style: "cancel" },
-        {
-          text: "Rozpocznij",
-          onPress: () => {
-            void executeSavePlantingStatus();
-          },
-        },
-      ],
-    );
+    // Warn (but don't block) if the user wants to mark READY_FOR_FINAL_HARVEST
+    // before the planned harvest window has started.
+    if (selectedStatus === "READY_FOR_FINAL_HARVEST") {
+      const windowStart =
+        planting.harvestWindowStart ?? planting.harvestStartDate ?? null;
+      const windowStartKey = isoToDateOnly(windowStart);
+      const todayKeyValue = getTodayKey();
+
+      if (windowStartKey && windowStartKey > todayKeyValue) {
+        const formattedStart = windowStart
+          ? formatDate(windowStart)
+          : windowStartKey;
+        setConfirmHarvestWindowDateLabel(formattedStart);
+        setConfirmHarvestWindowModalVisible(true);
+        return;
+      }
+    }
+
+    await executeSavePlantingStatus();
   };
 
   const handleMarkTaskDone = async (taskId: string) => {
@@ -847,6 +880,15 @@ export default function PlantingDetailsScreen() {
       return;
     }
     if (taskIdsCompleting.includes(taskId)) {
+      return;
+    }
+
+    // If this is a harvest task, open the harvest form instead of
+    // marking it done – keeps harvest result recording in one place.
+    const task = visiblePlantingTasks.find((t) => t.id === taskId);
+    if (task && isHarvestActionTask(task)) {
+      setEditingHarvestRecord(null);
+      setHarvestFormVisible(true);
       return;
     }
 
@@ -1006,29 +1048,26 @@ export default function PlantingDetailsScreen() {
   const handleDeleteOccurrence = () => {
     if (!editType || !editOccurrenceId) return;
     if (isOffline) {
-      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      setSnackbarMessage(OFFLINE_MUTATION_MESSAGE);
       return;
     }
-    Alert.alert("Usunąć wystąpienie?", "Tej operacji nie można cofnąć.", [
-      { text: "Anuluj", style: "cancel" },
-      {
-        text: "Usuń",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            if (editType === "disease") {
-              await deleteDiseaseOccurrence.mutateAsync(editOccurrenceId);
-            } else {
-              await deletePestOccurrence.mutateAsync(editOccurrenceId);
-            }
-            setEditVisible(false);
-            setSnackbarMessage("Usunięto wystąpienie.");
-          } catch (err) {
-            Alert.alert("Błąd", String(getResponseError(err)));
-          }
-        },
-      },
-    ]);
+    setConfirmDeleteOccurrenceModalVisible(true);
+  };
+
+  const executeDeleteOccurrence = async () => {
+    if (!editType || !editOccurrenceId) return;
+    setConfirmDeleteOccurrenceModalVisible(false);
+    try {
+      if (editType === "disease") {
+        await deleteDiseaseOccurrence.mutateAsync(editOccurrenceId);
+      } else {
+        await deletePestOccurrence.mutateAsync(editOccurrenceId);
+      }
+      setEditVisible(false);
+      setSnackbarMessage("Usunięto wystąpienie.");
+    } catch (err) {
+      setSnackbarMessage(String(getResponseError(err)));
+    }
   };
 
   const severityLabels: Record<DiseaseSeverity, string> = {
@@ -1300,20 +1339,20 @@ export default function PlantingDetailsScreen() {
           ) : null}
 
           <PrimaryActionButton
-            onPress={openStatusModal}
-            icon="swap-horizontal"
-            label="Zmień status"
-            color={palette.accent}
-            disabled={isOffline}
-          />
-
-          <PrimaryActionButton
             onPress={openQuickActionModal}
             icon="lightning-bolt-outline"
             label="Wykonaj akcję"
             color={palette.secondaryCta}
             disabled={isOffline || postPlantingQuickAction.isPending}
             loading={postPlantingQuickAction.isPending}
+          />
+
+          <PrimaryActionButton
+            onPress={openStatusModal}
+            icon="swap-horizontal"
+            label="Zmień status"
+            color={palette.accent}
+            disabled={isOffline}
           />
         </View>
 
@@ -1993,6 +2032,137 @@ export default function PlantingDetailsScreen() {
           <Button mode="contained" onPress={() => setTaskInfoTask(null)}>
             Zamknij
           </Button>
+        </Modal>
+      </Portal>
+
+      <Portal>
+        <Modal
+          visible={confirmStartPlantingModalVisible}
+          onDismiss={() => setConfirmStartPlantingModalVisible(false)}
+          contentContainerStyle={styles.statusModal}
+        >
+          <Text style={styles.modalTitle}>Rozpocząć uprawę?</Text>
+          <Text style={styles.statusModalHint}>
+            Po rozpoczęciu uprawy checklista planu zostanie zarchiwizowana.
+            Bieżące zadania będą generowane dla aktywnej uprawy.
+          </Text>
+          <View style={styles.modalActionsBetween}>
+            <Button
+              mode="outlined"
+              onPress={() => setConfirmStartPlantingModalVisible(false)}
+              style={{ flex: 1 }}
+            >
+              Anuluj
+            </Button>
+            <Button
+              mode="contained"
+              onPress={() => {
+                setConfirmStartPlantingModalVisible(false);
+                void executeSavePlantingStatus();
+              }}
+              style={{ flex: 1 }}
+            >
+              Rozpocznij
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
+
+      <Portal>
+        <Modal
+          visible={confirmDeletePlantingModalVisible}
+          onDismiss={() => setConfirmDeletePlantingModalVisible(false)}
+          contentContainerStyle={styles.statusModal}
+        >
+          <Text style={styles.modalTitle}>Usunąć uprawę?</Text>
+          <Text style={styles.statusModalHint}>
+            Tej operacji nie można cofnąć.
+          </Text>
+          <View style={styles.modalActionsBetween}>
+            <Button
+              mode="outlined"
+              onPress={() => setConfirmDeletePlantingModalVisible(false)}
+              style={{ flex: 1 }}
+            >
+              Anuluj
+            </Button>
+            <Button
+              mode="contained"
+              buttonColor={theme.colors.error}
+              textColor={theme.colors.onError}
+              onPress={() => void executeDeletePlanting()}
+              style={{ flex: 1 }}
+            >
+              Usuń
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
+
+      <Portal>
+        <Modal
+          visible={confirmHarvestWindowModalVisible}
+          onDismiss={() => setConfirmHarvestWindowModalVisible(false)}
+          contentContainerStyle={styles.statusModal}
+        >
+          <Text style={styles.modalTitle}>
+            Okno zbioru jeszcze się nie zaczęło
+          </Text>
+          <Text style={styles.statusModalHint}>
+            Według planu okno zbioru zaczyna się dopiero{" "}
+            {confirmHarvestWindowDateLabel}. Czy na pewno chcesz oznaczyć tę
+            uprawę jako gotową do zbioru?
+          </Text>
+          <View style={styles.modalActionsBetween}>
+            <Button
+              mode="outlined"
+              onPress={() => setConfirmHarvestWindowModalVisible(false)}
+              style={{ flex: 1 }}
+            >
+              Anuluj
+            </Button>
+            <Button
+              mode="contained"
+              onPress={() => {
+                setConfirmHarvestWindowModalVisible(false);
+                void executeSavePlantingStatus();
+              }}
+              style={{ flex: 1 }}
+            >
+              Tak, roślina jest gotowa
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
+
+      <Portal>
+        <Modal
+          visible={confirmDeleteOccurrenceModalVisible}
+          onDismiss={() => setConfirmDeleteOccurrenceModalVisible(false)}
+          contentContainerStyle={styles.statusModal}
+        >
+          <Text style={styles.modalTitle}>Usunąć wystąpienie?</Text>
+          <Text style={styles.statusModalHint}>
+            Tej operacji nie można cofnąć.
+          </Text>
+          <View style={styles.modalActionsBetween}>
+            <Button
+              mode="outlined"
+              onPress={() => setConfirmDeleteOccurrenceModalVisible(false)}
+              style={{ flex: 1 }}
+            >
+              Anuluj
+            </Button>
+            <Button
+              mode="contained"
+              buttonColor={theme.colors.error}
+              textColor={theme.colors.onError}
+              onPress={() => void executeDeleteOccurrence()}
+              style={{ flex: 1 }}
+            >
+              Usuń
+            </Button>
+          </View>
         </Modal>
       </Portal>
 
