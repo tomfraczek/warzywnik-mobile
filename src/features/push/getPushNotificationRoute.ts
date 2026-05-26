@@ -11,6 +11,18 @@ const resolvePayloadBedId = (payload: PushNotificationPayload) => {
   return undefined;
 };
 
+const resolvePayloadSpaceId = (payload: PushNotificationPayload) => {
+  if (payload.growingSpaceId) return payload.growingSpaceId;
+  if (
+    (payload.ownerScopeType === "GROWING_SPACE" ||
+      payload.ownerScopeType === "SPACE") &&
+    payload.ownerScopeId
+  ) {
+    return payload.ownerScopeId;
+  }
+  return undefined;
+};
+
 const resolvePayloadPlantingId = (payload: PushNotificationPayload) => {
   if (payload.plantingId) return payload.plantingId;
   if (payload.ownerScopeType === "PLANTING" && payload.ownerScopeId) {
@@ -43,6 +55,25 @@ export const getPushNotificationRoute = (
     }
 
     case "PLANTING_DETAIL": {
+      if (payload.relationType === "RELATED_FROM_BED") {
+        const relatedBedId = resolvePayloadBedId(payload);
+        if (relatedBedId) {
+          return {
+            pathname: "/(tabs)/beds/[bedId]",
+            params: {
+              bedId: relatedBedId,
+            },
+          };
+        }
+      }
+
+      if (payload.relationType === "RELATED_FROM_SPACE") {
+        const spaceId = resolvePayloadSpaceId(payload);
+        if (spaceId) {
+          return "/(tabs)/planner/tasks?filter=space";
+        }
+      }
+
       const plantingId = resolvePayloadPlantingId(payload);
       if (!plantingId) {
         return "/(tabs)/planner";

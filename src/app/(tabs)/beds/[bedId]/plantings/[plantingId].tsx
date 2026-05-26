@@ -50,6 +50,11 @@ import {
   getPlantingStatusLabel,
   getPlantingStatusTone,
 } from "@/src/features/plantings/status";
+import { getTaskRelationType } from "@/src/features/tasks/taskOwnership";
+import {
+  getTaskOwnershipLabel,
+  getTaskOwnershipReason,
+} from "@/src/features/tasks/taskPresentation";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { getTodayKey } from "@/src/utils/date";
 import { formatQualityRating, formatYield } from "@/src/utils/learningMappers";
@@ -1557,6 +1562,23 @@ export default function PlantingDetailsScreen() {
                     <Text style={styles.taskMeta}>
                       Termin: {formatDate(task.dueAt)}
                     </Text>
+                    <Text style={styles.taskMeta}>
+                      {getTaskOwnershipLabel(task)}
+                    </Text>
+                    {(() => {
+                      const relation = getTaskRelationType(task);
+                      if (
+                        relation === "related_from_bed" ||
+                        relation === "related_from_space"
+                      ) {
+                        return (
+                          <Text style={styles.taskMeta}>
+                            {getTaskOwnershipReason(task)}
+                          </Text>
+                        );
+                      }
+                      return null;
+                    })()}
                     <StatusBadge
                       label={getActionTaskSourceLabel(
                         resolveActionTaskSourceType(task),

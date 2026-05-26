@@ -54,6 +54,39 @@ const getPlantingIdFromPayload = (payload?: Record<string, unknown> | null) => {
   return null;
 };
 
+const getBedIdFromPayload = (payload?: Record<string, unknown> | null) => {
+  const relationType = payload?.relationType;
+  if (
+    relationType === "BED" ||
+    relationType === "RELATED_FROM_BED" ||
+    relationType === "related_from_bed"
+  ) {
+    if (typeof payload?.ownerScopeId === "string") return payload.ownerScopeId;
+  }
+
+  const ownerScopeType = payload?.ownerScopeType;
+  if (ownerScopeType === "BED" && typeof payload?.ownerScopeId === "string") {
+    return payload.ownerScopeId;
+  }
+
+  const raw = payload?.bedId;
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "number") return String(raw);
+  return null;
+};
+
+const isSpacePayload = (payload?: Record<string, unknown> | null) => {
+  const relationType = payload?.relationType;
+  const ownerScopeType = payload?.ownerScopeType;
+  return (
+    relationType === "SPACE" ||
+    relationType === "RELATED_FROM_SPACE" ||
+    relationType === "related_from_space" ||
+    ownerScopeType === "SPACE" ||
+    ownerScopeType === "GROWING_SPACE"
+  );
+};
+
 const getReminderContent = (reminder: Reminder): ReminderContent => {
   if (reminder.type && reminderTypeLabels[reminder.type]) {
     return reminderTypeLabels[reminder.type];
@@ -105,13 +138,23 @@ export default function RemindersScreen() {
 
   const renderItem = ({ item }: { item: Reminder }) => {
     const content = getReminderContent(item);
+    const bedId = getBedIdFromPayload(item.payload ?? null);
     const plantingId = getPlantingIdFromPayload(item.payload ?? null);
+    const openSpace = isSpacePayload(item.payload ?? null);
     return (
       <Card style={styles.card} mode="outlined">
         <Pressable
           onPress={() => {
+            if (bedId) {
+              router.push(`/(tabs)/beds/${bedId}`);
+              return;
+            }
             if (plantingId) {
               router.push(`/plantings/${plantingId}`);
+              return;
+            }
+            if (openSpace) {
+              router.push("/(tabs)/planner/tasks?filter=space");
             }
           }}
         >

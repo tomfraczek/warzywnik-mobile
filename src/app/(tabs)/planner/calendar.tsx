@@ -1,7 +1,7 @@
 import { useGetCalendarWithOptions } from "@/src/api/queries/calendar/useGetCalendar";
 import { TaskItem } from "@/src/api/queries/users/meTypes";
 import { Screen } from "@/src/components/Screen";
-import { getTaskNavigationTarget } from "@/src/features/tasks/model";
+import { getTaskNavigationTarget } from "@/src/features/tasks/taskRouting";
 import { spacing } from "@/src/theme/ui";
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
@@ -52,6 +52,10 @@ export default function PlannerCalendarScreen() {
         return;
       }
       router.push(`/plantings/${target.plantingId}`);
+      return;
+    }
+    if (target.type === "space") {
+      router.push("/(tabs)/planner/tasks?filter=space");
       return;
     }
     router.push(`/(tabs)/beds/${target.bedId}`);

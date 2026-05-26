@@ -3,7 +3,7 @@ import {
   getTaskAffectedPlantingIds,
   getTaskOwnerId,
   getTaskOwnerScope,
-} from "@/src/features/tasks/model";
+} from "@/src/features/tasks/taskOwnership";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { bedKeys } from "../beds/bedKeys";
 import { plantingKeys } from "../plantings/plantingKeys";

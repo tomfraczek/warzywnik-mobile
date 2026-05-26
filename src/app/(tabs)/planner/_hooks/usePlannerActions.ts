@@ -82,8 +82,16 @@ export function usePlannerActions() {
                 typeof task.ownerScopeId === "string"
                   ? task.ownerScopeId
                   : null,
+              relationType:
+                typeof task.relationType === "string"
+                  ? task.relationType
+                  : null,
               bedId: task.bedId,
               plantingId: task.plantingId,
+              growingSpaceId:
+                typeof task.growingSpaceId === "string"
+                  ? task.growingSpaceId
+                  : null,
               affectedPlantingIds: Array.isArray(task.affectedPlantingIds)
                 ? task.affectedPlantingIds
                 : undefined,

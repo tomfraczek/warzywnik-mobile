@@ -4,7 +4,16 @@ export type Reminder = {
   id: string;
   status: ReminderStatus;
   type?: string | null;
-  payload?: Record<string, unknown> | null;
+  payload?: {
+    ownerScopeType?: string | null;
+    ownerScopeId?: string | null;
+    relationType?: string | null;
+    affectedPlantingIds?: string[];
+    plantingId?: string | null;
+    bedId?: string | null;
+    growingSpaceId?: string | null;
+    [key: string]: unknown;
+  } | null;
   scheduledAt?: string | null;
   sentAt?: string | null;
   attempts?: number | null;

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import {
-  getTaskNavigationTarget,
   getTaskOwnerId,
   getTaskOwnerScope,
   getTaskRelationType,
   isTaskRelatedToPlanting,
-} from "./model";
+} from "./taskOwnership";
+import { getTaskNavigationTarget } from "./taskRouting";
 
 describe("task ownership helpers", () => {
   it("prefers ownerScope fields over legacy targetType", () => {
@@ -45,7 +45,7 @@ describe("task ownership helpers", () => {
       },
     };
 
-    expect(getTaskRelationType(task)).toBe("related");
+    expect(getTaskRelationType(task)).toBe("bed");
     expect(isTaskRelatedToPlanting(task, "p-1")).toBe(true);
     expect(isTaskRelatedToPlanting(task, "p-9")).toBe(false);
   });
@@ -80,6 +80,23 @@ describe("task ownership helpers", () => {
     expect(getTaskNavigationTarget(task)).toEqual({
       type: "bed",
       bedId: "b-2",
+    });
+  });
+
+  it("routes related_from_bed to bed context", () => {
+    const task = {
+      id: "t6",
+      status: "pending",
+      ownerScopeType: "BED",
+      ownerScopeId: "b-99",
+      relationType: "RELATED_FROM_BED",
+      affectedPlantingIds: ["p-99"],
+    };
+
+    expect(getTaskRelationType(task)).toBe("related_from_bed");
+    expect(getTaskNavigationTarget(task)).toEqual({
+      type: "bed",
+      bedId: "b-99",
     });
   });
 });

@@ -1,10 +1,11 @@
 import { CalendarHarvestWindowItem } from "@/src/api/queries/calendar/types";
 import { TaskItem } from "@/src/api/queries/users/meTypes";
+import { getTaskMeta } from "@/src/features/tasks/model";
 import {
-  getTaskMeta,
-  getTaskNavigationTarget,
   getTaskOwnerScope,
-} from "@/src/features/tasks/model";
+  getTaskRelationType,
+} from "@/src/features/tasks/taskOwnership";
+import { getTaskNavigationTarget } from "@/src/features/tasks/taskRouting";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ComponentProps } from "react";
 import {
@@ -55,9 +56,17 @@ export const getTaskContext = (task: TaskItem): PlannerTaskContext => {
 
   if (targetType === "planting") {
     const navTarget = getTaskNavigationTarget(task);
+    const relation = getTaskRelationType(task);
     return {
       title: vegetableName ?? "Uprawa",
-      subtitle: bedName ? `Grządka: ${bedName}` : null,
+      subtitle:
+        relation === "related_from_bed"
+          ? "Dotyczy przez grządkę"
+          : relation === "related_from_space"
+            ? "Dotyczy przez przestrzeń"
+            : bedName
+              ? `Grządka: ${bedName}`
+              : null,
       canNavigate: navTarget?.type === "planting",
     };
   }
@@ -72,9 +81,9 @@ export const getTaskContext = (task: TaskItem): PlannerTaskContext => {
     };
   }
 
-  if (targetType === "space") {
+  if (targetType === "growing_space") {
     return {
-      title: targetTypeLabelMap.space,
+      title: "Przestrzeń / szklarnia",
       subtitle: getTaskMeta(task, "locationLabel", "location"),
       canNavigate: false,
     };

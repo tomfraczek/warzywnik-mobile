@@ -19,7 +19,7 @@ import {
 } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
-import { useColorScheme } from "react-native";
+import { useColorScheme, View } from "react-native";
 import {
   MD3DarkTheme,
   MD3LightTheme,
@@ -247,7 +247,13 @@ function AuthBootstrapGate() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }} />
-      {shouldShowLoader ? <AuthFlowLoader /> : null}
+      {shouldShowLoader ? (
+        <View
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+        >
+          <AuthFlowLoader />
+        </View>
+      ) : null}
     </>
   );
 }

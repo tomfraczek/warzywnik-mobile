@@ -1,4 +1,9 @@
 import { TaskItem } from "@/src/api/queries/users/meTypes";
+import { getTaskRelationType } from "@/src/features/tasks/taskOwnership";
+import {
+  getTaskOwnershipLabel,
+  getTaskOwnershipReason,
+} from "@/src/features/tasks/taskPresentation";
 import { spacing } from "@/src/theme/ui";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, View } from "react-native";
@@ -57,6 +62,8 @@ export function PlannerTaskCard({
   const sourceChip = getTaskSourceChip(task);
   const context = getTaskContext(task);
   const affectedLabel = getAffectedLabel(task);
+  const ownershipLabel = getTaskOwnershipLabel(task);
+  const relation = getTaskRelationType(task);
 
   return (
     <View style={styles.card}>
@@ -81,9 +88,16 @@ export function PlannerTaskCard({
       ) : null}
 
       <View style={styles.contextWrap}>
+        <Text style={styles.contextSubtitle}>{ownershipLabel}</Text>
         <Text style={styles.contextTitle}>{context.title}</Text>
         {context.subtitle ? (
           <Text style={styles.contextSubtitle}>{context.subtitle}</Text>
+        ) : null}
+        {relation === "related_from_bed" ||
+        relation === "related_from_space" ? (
+          <Text style={styles.contextSubtitle}>
+            {getTaskOwnershipReason(task)}
+          </Text>
         ) : null}
         {affectedLabel ? (
           <Text style={styles.contextSubtitle}>{affectedLabel}</Text>

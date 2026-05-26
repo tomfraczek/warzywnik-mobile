@@ -6,7 +6,6 @@ import {
 } from "@/src/api/queries/actionTasks/types";
 import { useDeleteActionTask } from "@/src/api/queries/actionTasks/useDeleteActionTask";
 import { useGetBedActionTasks } from "@/src/api/queries/actionTasks/useGetBedActionTasks";
-import { useGetPlantingActionTasks } from "@/src/api/queries/actionTasks/useGetPlantingActionTasks";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
 import { useGetBedPlan } from "@/src/api/queries/bedPlan/useGetBedPlan";
 import { bedKeys } from "@/src/api/queries/beds/bedKeys";
@@ -47,9 +46,13 @@ import {
 import {
   getTaskAffectedPlantingIds,
   getTaskAggregationScope,
+} from "@/src/features/tasks/model";
+import {
   getTaskOwnerId,
   getTaskOwnerScope,
-} from "@/src/features/tasks/model";
+  getTaskRelationType,
+} from "@/src/features/tasks/taskOwnership";
+import { getTaskOwnershipLabel } from "@/src/features/tasks/taskPresentation";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { getTodayKey } from "@/src/utils/date";
 import { useQueryClient } from "@tanstack/react-query";
@@ -214,14 +217,12 @@ type PlantingRowProps = {
   planting: Planting;
   onPress: () => void;
   hasAttention: boolean;
-  todayKey: string;
 };
 
 const PlantingRow = memo(function PlantingRow({
   planting,
   onPress,
   hasAttention,
-  todayKey,
 }: PlantingRowProps) {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
@@ -230,26 +231,11 @@ const PlantingRow = memo(function PlantingRow({
     isLoading: isVegetableLoading,
     error: vegetableError,
   } = useGetVegetable(planting.vegetableId ?? null);
-  const { data: plantingTasksResponse } = useGetPlantingActionTasks(
-    planting.id,
-    "pending",
-    undefined,
-    "all",
-  );
-
   const vegetableName = isVegetableLoading
     ? "Ładowanie..."
     : (vegetable?.name ?? (vegetableError ? "Brak nazwy" : "Brak nazwy"));
   const plantingStatusTone = getPlantingStatusTone(planting.status, theme.dark);
-  const hasOwnPendingTasks = (plantingTasksResponse?.items ?? []).some(
-    (task) => {
-      if (task.status !== "pending" || task.suppressedAt) return false;
-      const dueDateKey = getDueDateKey(task.dueAt);
-      if (!dueDateKey) return true;
-      return dueDateKey >= todayKey;
-    },
-  );
-  const showAttention = hasAttention || hasOwnPendingTasks;
+  const showAttention = hasAttention;
 
   return (
     <Pressable style={styles.plantingRow} onPress={onPress}>
@@ -348,7 +334,7 @@ export default function BedDetailsScreen() {
     !isBedDeleted ? (resolvedBedId ?? null) : null,
     "pending",
     undefined,
-    "own",
+    "includingChildren",
   );
   const {
     data: historyBedTasksResponse,
@@ -358,7 +344,7 @@ export default function BedDetailsScreen() {
     !isBedDeleted ? (resolvedBedId ?? null) : null,
     "all",
     undefined,
-    "own",
+    "includingChildren",
   );
   const deleteBed = useDeleteBed();
   const updateBed = useUpdateBed(resolvedBedId ?? "");
@@ -410,12 +396,11 @@ export default function BedDetailsScreen() {
     [historyBedTasksResponse?.items],
   );
   const pendingTasks = useMemo(() => {
-    const ownPendingBedTasks = pendingBedTasks.filter((task) => {
-      if (task.status !== "pending" || task.suppressedAt) return false;
-      return getTaskOwnerScope(task) === "bed";
-    });
-
-    return sortTasksByDueAt(ownPendingBedTasks);
+    return sortTasksByDueAt(
+      pendingBedTasks.filter(
+        (task) => task.status === "pending" && !task.suppressedAt,
+      ),
+    );
   }, [pendingBedTasks]);
   const historyTasks = useMemo(
     () =>
@@ -423,8 +408,7 @@ export default function BedDetailsScreen() {
         historyBedTasks.filter((task) => {
           const isDoneOrCanceled =
             task.status === "done" || task.status === "canceled";
-          if (!isDoneOrCanceled) return false;
-          return getTaskOwnerScope(task) === "bed";
+          return isDoneOrCanceled;
         }),
       ),
     [historyBedTasks],
@@ -505,6 +489,44 @@ export default function BedDetailsScreen() {
         return dueDateKey >= todayKey;
       }),
     [pendingTasks, todayKey],
+  );
+
+  const activeBedTasks = useMemo(
+    () =>
+      activeTasks.filter((task) => {
+        const relation = getTaskRelationType(task);
+        const ownerScope = getTaskOwnerScope(task);
+        return (
+          relation === "bed" ||
+          relation === "related_from_bed" ||
+          ownerScope === "bed"
+        );
+      }),
+    [activeTasks],
+  );
+
+  const activePlantingTasks = useMemo(
+    () =>
+      activeTasks.filter((task) => {
+        const relation = getTaskRelationType(task);
+        const ownerScope = getTaskOwnerScope(task);
+        return ownerScope === "planting" && relation === "direct";
+      }),
+    [activeTasks],
+  );
+
+  const activeSpaceTasks = useMemo(
+    () =>
+      activeTasks.filter((task) => {
+        const relation = getTaskRelationType(task);
+        const ownerScope = getTaskOwnerScope(task);
+        return (
+          relation === "space" ||
+          relation === "related_from_space" ||
+          ownerScope === "growing_space"
+        );
+      }),
+    [activeTasks],
   );
 
   const hasAttentionItems = harvestPrompts.length > 0 || activeTasks.length > 0;
@@ -615,15 +637,23 @@ export default function BedDetailsScreen() {
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
+  const handleDeleteTask = async (task: ActionTask) => {
     if (isOffline) {
       Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
       return;
     }
     try {
       await deleteActionTask.mutateAsync({
-        id: taskId,
+        id: task.id,
+        ownerScopeType: task.ownerScopeType ?? null,
+        ownerScopeId: task.ownerScopeId ?? null,
         bedId: resolvedBedId ?? null,
+        plantingId: task.plantingId ?? null,
+        growingSpaceId: task.growingSpaceId ?? null,
+        relationType: task.relationType ?? null,
+        affectedPlantingIds: task.affectedPlantingIds,
+        meta: task.meta ?? null,
+        metadata: task.metadata ?? null,
       });
       setSnackbarMessage("Zadanie usunięte");
       await Promise.allSettled([
@@ -1034,7 +1064,6 @@ export default function BedDetailsScreen() {
                     key={planting.id}
                     planting={planting}
                     hasAttention={attentionPlantingIds.has(planting.id)}
-                    todayKey={todayKey}
                     onPress={() =>
                       router.push(
                         `/(tabs)/beds/${bed.id}/plantings/${planting.id}`,
@@ -1146,7 +1175,13 @@ export default function BedDetailsScreen() {
             <TasksCelebrationCard />
           ) : null}
 
-          {activeTasks.map((task) => {
+          {(activeBedTasks.length > 0 ||
+            activePlantingTasks.length > 0 ||
+            activeSpaceTasks.length > 0) && (
+            <Text style={styles.taskMeta}>Zadania grządki</Text>
+          )}
+
+          {activeBedTasks.map((task) => {
             const isHighlighted = highlightedActionTaskId === task.id;
             const taskTargetType = getTaskOwnerScope(task);
             const aggregationScope = getTaskAggregationScope(task);
@@ -1174,6 +1209,9 @@ export default function BedDetailsScreen() {
                   </View>
                   <Text style={styles.taskMeta}>
                     Termin: {formatDate(task.dueAt)}
+                  </Text>
+                  <Text style={styles.taskMeta}>
+                    {getTaskOwnershipLabel(task)}
                   </Text>
                   {taskTargetType === "bed" ? (
                     <Text style={styles.taskMeta}>
@@ -1207,11 +1245,67 @@ export default function BedDetailsScreen() {
                   <Button
                     mode="outlined"
                     style={styles.taskActionButton}
-                    onPress={() => handleDeleteTask(task.id)}
+                    onPress={() => handleDeleteTask(task)}
                     disabled={deleteActionTask.isPending || isOffline}
                   >
                     Anuluj
                   </Button>
+                </View>
+              </View>
+            );
+          })}
+
+          {activePlantingTasks.length > 0 ? (
+            <Text style={[styles.taskMeta, { marginTop: 10 }]}>
+              Zadania upraw
+            </Text>
+          ) : null}
+          {activePlantingTasks.map((task) => {
+            const isHighlighted = highlightedActionTaskId === task.id;
+            return (
+              <View
+                key={`planting-${task.id}`}
+                style={[
+                  styles.taskRow,
+                  isHighlighted ? styles.taskRowHighlighted : null,
+                ]}
+              >
+                <View style={styles.taskMain}>
+                  <Text style={styles.taskTitle}>{task.title}</Text>
+                  <Text style={styles.taskMeta}>
+                    Termin: {formatDate(task.dueAt)}
+                  </Text>
+                  <Text style={styles.taskMeta}>
+                    {getTaskOwnershipLabel(task)}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+
+          {activeSpaceTasks.length > 0 ? (
+            <Text style={[styles.taskMeta, { marginTop: 10 }]}>
+              Zadania przestrzeni
+            </Text>
+          ) : null}
+          {activeSpaceTasks.map((task) => {
+            const isHighlighted = highlightedActionTaskId === task.id;
+            return (
+              <View
+                key={`space-${task.id}`}
+                style={[
+                  styles.taskRow,
+                  isHighlighted ? styles.taskRowHighlighted : null,
+                ]}
+              >
+                <View style={styles.taskMain}>
+                  <Text style={styles.taskTitle}>{task.title}</Text>
+                  <Text style={styles.taskMeta}>
+                    Termin: {formatDate(task.dueAt)}
+                  </Text>
+                  <Text style={styles.taskMeta}>
+                    {getTaskOwnershipLabel(task)}
+                  </Text>
                 </View>
               </View>
             );

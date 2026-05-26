@@ -1,6 +1,6 @@
 import { Screen } from "@/src/components/Screen";
 import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
-import { getTaskNavigationTarget } from "@/src/features/tasks/model";
+import { getTaskNavigationTarget } from "@/src/features/tasks/taskRouting";
 import { spacing } from "@/src/theme/ui";
 import { useRouter } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -54,6 +54,11 @@ export default function PlannerScreen() {
         return;
       }
       router.push(`/plantings/${target.plantingId}`);
+      return;
+    }
+
+    if (target.type === "space") {
+      router.push("/(tabs)/planner/tasks?filter=space");
       return;
     }
 

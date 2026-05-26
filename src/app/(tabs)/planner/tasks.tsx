@@ -3,11 +3,14 @@ import { useGetMyTasks } from "@/src/api/queries/users/useGetMyTasks";
 import { Screen } from "@/src/components/Screen";
 import {
   getTaskMeta,
-  getTaskNavigationTarget,
-  getTaskOwnerScope,
   isTaskActive,
   isWeatherWarningTask,
 } from "@/src/features/tasks/model";
+import {
+  getTaskOwnerScope,
+  getTaskRelationType,
+} from "@/src/features/tasks/taskOwnership";
+import { getTaskNavigationTarget } from "@/src/features/tasks/taskRouting";
 import { spacing } from "@/src/theme/ui";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
@@ -37,7 +40,9 @@ type PlannerTasksFilter =
   | "manual"
   | "weather"
   | "planting"
-  | "bed";
+  | "bed"
+  | "space"
+  | "related";
 
 const FILTER_LABELS: Record<PlannerTasksFilter, string> = {
   all: "Wszystkie",
@@ -51,6 +56,8 @@ const FILTER_LABELS: Record<PlannerTasksFilter, string> = {
   weather: "Pogoda",
   planting: "Z upraw",
   bed: "Z grządek",
+  space: "Z przestrzeni",
+  related: "Powiązane",
 };
 
 const toInitialFilter = (
@@ -69,7 +76,9 @@ const toInitialFilter = (
     param === "manual" ||
     param === "weather" ||
     param === "planting" ||
-    param === "bed"
+    param === "bed" ||
+    param === "space" ||
+    param === "related"
   ) {
     return param;
   }
@@ -172,6 +181,17 @@ export default function PlannerTasksScreen() {
       return getTaskOwnerScope(task) === "bed";
     });
 
+    const spaceTasks = sortedByDue.filter((task) => {
+      return getTaskOwnerScope(task) === "growing_space";
+    });
+
+    const relatedTasks = sortedByDue.filter((task) => {
+      const relation = getTaskRelationType(task);
+      return (
+        relation === "related_from_bed" || relation === "related_from_space"
+      );
+    });
+
     const weekWithNearHorizon = [
       ...groupedTasks.todayTasks,
       ...groupedTasks.tomorrowTasks,
@@ -245,6 +265,8 @@ export default function PlannerTasksScreen() {
       weather: sortedByDue.filter((task) => isWeatherWarningTask(task)),
       planting: plantingTasks,
       bed: bedTasks,
+      space: spaceTasks,
+      related: relatedTasks,
     } satisfies Record<PlannerTasksFilter, TaskItem[]>;
   }, [
     doneTasksQuery.data?.items,
@@ -283,6 +305,11 @@ export default function PlannerTasksScreen() {
         return;
       }
       router.push(`/plantings/${target.plantingId}`);
+      return;
+    }
+
+    if (target.type === "space") {
+      router.push("/(tabs)/planner/tasks?filter=space");
       return;
     }
 

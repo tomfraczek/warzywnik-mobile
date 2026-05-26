@@ -12,7 +12,7 @@ export type WeatherType =
 
 export type WeatherBasis = "FRESH" | "STALE" | "NONE";
 export type WeatherProvider = "OPEN_METEO";
-export type WarningScope = "USER" | "BED" | "PLANTING";
+export type WarningScope = "USER" | "BED" | "PLANTING" | "GROWING_SPACE";
 export type WarningSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 /** @deprecated Horizon is now derived from code + localDate – not sent by the backend. */
 export type WarningHorizon = "RADAR" | "OPERATIONAL";
@@ -147,7 +147,12 @@ export type WarningsResponse = {
 export type TaskSource = "WEATHER_WARNING" | "AUTOMATION" | string;
 export type TaskSourceType = "MANUAL" | "AUTOMATION" | "SUGGESTION";
 export type TaskStatus = "PENDING" | "DONE" | "CANCELED";
-export type TaskTargetType = "USER" | "BED" | "PLANTING" | "SPACE";
+export type TaskTargetType =
+  | "USER"
+  | "BED"
+  | "PLANTING"
+  | "SPACE"
+  | "GROWING_SPACE";
 export type TaskStatusFilter = "pending" | "done" | "all";
 
 /** Metadata attached to a task – provides context about scope and origin. */
