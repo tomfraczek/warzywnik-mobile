@@ -147,10 +147,7 @@ export default function VegetablePickerScreen() {
       )}
 
       <View style={styles.rowBody}>
-        <Text
-          style={[styles.rowTitle, { color: palette.heading }]}
-          numberOfLines={1}
-        >
+        <Text style={[styles.rowTitle, { color: palette.heading }]}>
           {item.name}
         </Text>
         {item.latinName ? (
