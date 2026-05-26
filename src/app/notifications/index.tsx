@@ -9,13 +9,13 @@ import {
 import { useGetNotifications } from "@/src/api/queries/notifications/useGetNotifications";
 import { Screen } from "@/src/components/Screen";
 import CustomHeader from "@/src/components/navigation/CustomHeader";
-import { Card } from "@/src/components/ui/Card";
 import { getPushNotificationRoute } from "@/src/features/push/getPushNotificationRoute";
-import { spacing } from "@/src/theme/ui";
+import { radius, spacing } from "@/src/theme/ui";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -35,6 +35,16 @@ const FILTER_OPTIONS: { value: NotificationListFilter; label: string }[] = [
   { value: "read", label: "Przeczytane" },
 ];
 
+const PRIORITY_ACCENT = (
+  priority: NotificationItem["priority"],
+  theme: MD3Theme,
+): string => {
+  if (priority === "CRITICAL") return theme.colors.error;
+  if (priority === "HIGH") return "#C17E00";
+  if (priority === "NORMAL") return theme.colors.primary;
+  return theme.colors.outline;
+};
+
 const PRIORITY_LABEL: Record<NotificationItem["priority"], string> = {
   LOW: "Niski",
   NORMAL: "Normalny",
@@ -42,37 +52,54 @@ const PRIORITY_LABEL: Record<NotificationItem["priority"], string> = {
   CRITICAL: "Krytyczny",
 };
 
-const PRIORITY_COLOR = (
+const PRIORITY_BADGE_BG = (
   priority: NotificationItem["priority"],
   theme: MD3Theme,
-) => {
-  if (priority === "CRITICAL") return theme.colors.error;
-  if (priority === "HIGH") return "#AD7A00";
-  if (priority === "NORMAL") return theme.colors.primary;
+): string => {
+  if (priority === "CRITICAL") return theme.colors.errorContainer;
+  if (priority === "HIGH") return "#3A2800";
+  if (priority === "NORMAL") return theme.colors.primaryContainer;
+  return theme.colors.surfaceVariant;
+};
+
+const PRIORITY_BADGE_TEXT = (
+  priority: NotificationItem["priority"],
+  theme: MD3Theme,
+): string => {
+  if (priority === "CRITICAL") return theme.colors.onErrorContainer;
+  if (priority === "HIGH") return "#FFCF6B";
+  if (priority === "NORMAL") return theme.colors.onPrimaryContainer;
   return theme.colors.onSurfaceVariant;
 };
 
-const formatDateTime = (value: string) => {
+const formatRelativeDate = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "przed chwilą";
+  if (diffMin < 60) return `${diffMin} min temu`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${diffH} godz. temu`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD === 1) return "wczoraj";
+  if (diffD < 7) return `${diffD} dni temu`;
   return new Intl.DateTimeFormat("pl-PL", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
   }).format(date);
 };
-
-const USER_BODY_FALLBACK = "Sprawdź zalecenia dla ogrodu.";
 
 export default function NotificationsScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const router = useRouter();
-  const [status, setStatus] = useState<NotificationListFilter>("all");
+  const [status, setStatus] = useState<NotificationListFilter>("unread");
   const [page, setPage] = useState(1);
-  const [allItems, setAllItems] = useState<NotificationItem[]>([]);
+  const [itemsByFilter, setItemsByFilter] =
+    useState<Partial<Record<NotificationListFilter, NotificationItem[]>>>();
 
   const notificationsQuery = useGetNotifications({
     status,
@@ -91,41 +118,47 @@ export default function NotificationsScreen() {
   );
   const hasNextPage = notificationsQuery.data?.hasNextPage === true;
 
-  useEffect(() => {
-    if (page === 1) {
-      setAllItems(pageItems);
-      return;
-    }
+  const allItems = useMemo(
+    () => itemsByFilter?.[status] ?? [],
+    [itemsByFilter, status],
+  );
 
-    setAllItems((prev) => {
+  useEffect(() => {
+    if (notificationsQuery.isLoading) return;
+
+    setItemsByFilter((prev) => {
+      const existing = page === 1 ? [] : (prev?.[status] ?? []);
       const map = new Map<string, NotificationItem>();
-      prev.forEach((item) => map.set(item.id, item));
+      existing.forEach((item) => map.set(item.id, item));
       pageItems.forEach((item) => map.set(item.id, item));
-      return Array.from(map.values());
+      return { ...prev, [status]: Array.from(map.values()) };
     });
-  }, [page, pageItems]);
+  }, [pageItems, status, page, notificationsQuery.isLoading]);
 
   const unreadCount = useMemo(
-    () => allItems.filter((item) => item.status === "unread").length,
-    [allItems],
+    () =>
+      (itemsByFilter?.unread ?? []).filter((i) => i.status === "unread").length,
+    [itemsByFilter?.unread],
   );
 
   const updateItemAsReadLocally = (notificationId: string) => {
     const now = new Date().toISOString();
-    setAllItems((prev) => {
+    setItemsByFilter((prev) => {
+      const items = prev?.[status] ?? [];
       if (status === "unread") {
-        return prev.filter((item) => item.id !== notificationId);
+        return {
+          ...prev,
+          [status]: items.filter((item) => item.id !== notificationId),
+        };
       }
-
-      return prev.map((item) =>
-        item.id === notificationId
-          ? {
-              ...item,
-              status: "read",
-              readAt: item.readAt ?? now,
-            }
-          : item,
-      );
+      return {
+        ...prev,
+        [status]: items.map((item) =>
+          item.id === notificationId
+            ? { ...item, status: "read" as const, readAt: item.readAt ?? now }
+            : item,
+        ),
+      };
     });
   };
 
@@ -159,12 +192,22 @@ export default function NotificationsScreen() {
   };
 
   const handleDismiss = async (notificationId: string) => {
+    setItemsByFilter((prev) => ({
+      ...prev,
+      [status]: (prev?.[status] ?? []).filter(
+        (item) => item.id !== notificationId,
+      ),
+    }));
     try {
       await dismissNotification.mutateAsync(notificationId);
     } catch {
+      void notificationsQuery.refetch();
       Alert.alert("Powiadomienia", "Nie udało się ukryć powiadomienia.");
     }
   };
+
+  const isLoadingInitially =
+    notificationsQuery.isLoading && allItems.length === 0;
 
   return (
     <Screen safeAreaEdges={["left", "right", "bottom"]}>
@@ -180,138 +223,195 @@ export default function NotificationsScreen() {
           />
         }
       >
-        <Card title="Powiadomienia" subtitle="Historia i akcje">
-          <View style={styles.headerRow}>
-            <Text style={styles.helperText}>Nieprzeczytane: {unreadCount}</Text>
-            <Button
-              mode="text"
-              onPress={async () => {
-                try {
-                  if (status === "unread") {
-                    setAllItems([]);
-                  } else {
-                    const now = new Date().toISOString();
-                    setAllItems((prev) =>
-                      prev.map((item) => ({
-                        ...item,
-                        status: "read",
-                        readAt: item.readAt ?? now,
-                      })),
-                    );
-                  }
-                  await markAllRead.mutateAsync();
-                } catch {
-                  void notificationsQuery.refetch();
-                  Alert.alert(
-                    "Powiadomienia",
-                    "Nie udało się oznaczyć wszystkich jako przeczytane.",
-                  );
-                }
-              }}
-              disabled={markAllRead.isPending}
-            >
-              Oznacz wszystko jako przeczytane
-            </Button>
-          </View>
-
+        {/* Filter + header */}
+        <View style={styles.filterSection}>
           <SegmentedButtons
             value={status}
             onValueChange={(value) => {
               setStatus(value as NotificationListFilter);
               setPage(1);
-              setAllItems([]);
             }}
             buttons={FILTER_OPTIONS}
           />
-        </Card>
+          {status === "unread" && unreadCount > 0 ? (
+            <View style={styles.headerActions}>
+              <Text style={styles.unreadCountText}>
+                {unreadCount} nieprzeczytanych
+              </Text>
+              <Pressable
+                onPress={async () => {
+                  try {
+                    setItemsByFilter((prev) => ({
+                      ...prev,
+                      unread: [],
+                    }));
+                    await markAllRead.mutateAsync();
+                  } catch {
+                    void notificationsQuery.refetch();
+                    Alert.alert(
+                      "Powiadomienia",
+                      "Nie udało się oznaczyć wszystkich jako przeczytane.",
+                    );
+                  }
+                }}
+                disabled={markAllRead.isPending}
+              >
+                <Text style={styles.markAllReadText}>Oznacz wszystkie</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
 
+        {/* Error */}
         {notificationsQuery.isError ? (
-          <Card>
+          <View style={styles.emptyCard}>
             <Text style={styles.errorText}>
               Nie udało się pobrać powiadomień.
             </Text>
             <Button
               mode="outlined"
               onPress={() => void notificationsQuery.refetch()}
+              style={{ marginTop: spacing.sm }}
             >
               Spróbuj ponownie
             </Button>
-          </Card>
+          </View>
         ) : null}
 
+        {/* Notification list */}
         {allItems.map((item) => (
           <TouchableRipple
             key={item.id}
             onPress={() => void handleOpen(item)}
             borderless
+            style={[styles.card, item.status === "unread" && styles.cardUnread]}
           >
-            <View style={styles.notificationRow}>
-              <View style={styles.notificationMain}>
+            <View>
+              {/* Accent bar */}
+              <View
+                style={[
+                  styles.accentBar,
+                  { backgroundColor: PRIORITY_ACCENT(item.priority, theme) },
+                ]}
+              />
+
+              <View style={styles.cardContent}>
+                {/* Title row */}
                 <View style={styles.titleRow}>
-                  <Text style={styles.notificationTitle}>{item.title}</Text>
+                  <Text
+                    style={[
+                      styles.title,
+                      item.status === "unread" && styles.titleUnread,
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {item.title}
+                  </Text>
                   {item.status === "unread" ? (
                     <View style={styles.unreadDot} />
                   ) : null}
                 </View>
-                <Text style={styles.notificationBody}>
-                  {item.body || USER_BODY_FALLBACK}
-                </Text>
-                <View style={styles.metaRow}>
-                  <Text
-                    style={[
-                      styles.priority,
-                      { color: PRIORITY_COLOR(item.priority, theme) },
-                    ]}
-                  >
-                    {PRIORITY_LABEL[item.priority]}
-                  </Text>
-                  <Text style={styles.dateText}>
-                    {formatDateTime(item.createdAt)}
-                  </Text>
-                </View>
-              </View>
 
-              <View style={styles.actionsCol}>
-                {item.status === "unread" ? (
-                  <Button
-                    compact
-                    mode="text"
-                    onPress={() => {
-                      void handleMarkRead(item);
-                    }}
-                    disabled={markRead.isPending}
-                  >
-                    Przeczytane
-                  </Button>
+                {/* Body */}
+                {item.body ? (
+                  <Text style={styles.body} numberOfLines={3}>
+                    {item.body}
+                  </Text>
                 ) : null}
-                <Button
-                  compact
-                  mode="text"
-                  onPress={() => {
-                    void handleDismiss(item.id);
-                  }}
-                  disabled={dismissNotification.isPending}
-                >
-                  Ukryj
-                </Button>
+
+                {/* Footer */}
+                <View style={styles.footer}>
+                  <View style={styles.footerLeft}>
+                    <View
+                      style={[
+                        styles.priorityBadge,
+                        {
+                          backgroundColor: PRIORITY_BADGE_BG(
+                            item.priority,
+                            theme,
+                          ),
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.priorityBadgeText,
+                          {
+                            color: PRIORITY_BADGE_TEXT(item.priority, theme),
+                          },
+                        ]}
+                      >
+                        {PRIORITY_LABEL[item.priority]}
+                      </Text>
+                    </View>
+                    <Text style={styles.dateText}>
+                      {formatRelativeDate(item.createdAt)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.footerActions}>
+                    {item.status === "unread" ? (
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          void handleMarkRead(item);
+                        }}
+                        disabled={markRead.isPending}
+                        style={styles.actionButton}
+                        hitSlop={8}
+                      >
+                        <Text style={styles.actionButtonText}>Przeczytane</Text>
+                      </Pressable>
+                    ) : null}
+                    <Pressable
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        void handleDismiss(item.id);
+                      }}
+                      disabled={dismissNotification.isPending}
+                      style={styles.actionButton}
+                      hitSlop={8}
+                    >
+                      <Text
+                        style={[
+                          styles.actionButtonText,
+                          styles.actionButtonDim,
+                        ]}
+                      >
+                        Ukryj
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
               </View>
             </View>
           </TouchableRipple>
         ))}
 
-        {allItems.length === 0 && !notificationsQuery.isLoading ? (
-          <Card>
-            <Text style={styles.helperText}>
-              Brak powiadomień dla wybranego filtra.
+        {/* Empty state – only when not loading */}
+        {allItems.length === 0 && !isLoadingInitially ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyIcon}>🔔</Text>
+            <Text style={styles.emptyTitle}>
+              {status === "unread"
+                ? "Brak nieprzeczytanych"
+                : "Brak przeczytanych powiadomień"}
             </Text>
-          </Card>
+            <Text style={styles.emptySubtitle}>
+              {status === "unread"
+                ? "Wszystko przeczytane. Świetna robota!"
+                : "Tu pojawią się przeczytane powiadomienia."}
+            </Text>
+          </View>
         ) : null}
 
+        {/* Load more */}
         {hasNextPage ? (
           <Button
             mode="outlined"
-            onPress={() => setPage((value) => value + 1)}
-            loading={notificationsQuery.isLoading}
+            onPress={() => setPage((v) => v + 1)}
+            loading={notificationsQuery.isFetching}
+            style={styles.loadMoreButton}
           >
             Załaduj więcej
           </Button>
@@ -326,74 +426,171 @@ const makeStyles = (theme: MD3Theme) =>
     container: {
       padding: spacing.md,
       paddingBottom: spacing.xl,
-      gap: spacing.md,
+      gap: spacing.sm,
     },
-    headerRow: {
+
+    /* Filter section */
+    filterSection: {
+      gap: spacing.xs,
+      marginBottom: spacing.xs,
+    },
+    headerActions: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: spacing.sm,
-      gap: spacing.sm,
+      paddingHorizontal: 2,
+      marginTop: 4,
     },
-    helperText: {
-      fontSize: 13,
+    unreadCountText: {
+      fontSize: 12,
       color: theme.colors.onSurfaceVariant,
     },
-    errorText: {
+    markAllReadText: {
       fontSize: 13,
-      color: theme.colors.error,
-      marginBottom: spacing.sm,
+      fontWeight: "600",
+      color: theme.colors.primary,
     },
-    notificationRow: {
-      borderRadius: 18,
+
+    /* Notification card */
+    card: {
+      borderRadius: radius.md,
       borderWidth: 1,
       borderColor: theme.colors.outlineVariant,
       backgroundColor: theme.colors.surface,
-      padding: spacing.md,
-      flexDirection: "row",
-      gap: spacing.sm,
+      overflow: "hidden",
     },
-    notificationMain: {
-      flex: 1,
+    cardUnread: {
+      backgroundColor: theme.colors.surfaceVariant,
+      borderColor: theme.colors.outline,
+    },
+    accentBar: {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      bottom: 0,
+      width: 3,
+      borderTopLeftRadius: radius.md,
+      borderBottomLeftRadius: radius.md,
+    },
+    cardContent: {
+      paddingVertical: spacing.sm,
+      paddingRight: spacing.sm,
+      paddingLeft: spacing.sm + 3 + 8,
       gap: 6,
     },
+
+    /* Title */
     titleRow: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       gap: 8,
     },
-    notificationTitle: {
-      fontSize: 15,
+    title: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: "600",
+      color: theme.colors.onSurfaceVariant,
+      lineHeight: 20,
+    },
+    titleUnread: {
       fontWeight: "700",
       color: theme.colors.onSurface,
-      flex: 1,
     },
     unreadDot: {
       width: 8,
       height: 8,
       borderRadius: 4,
       backgroundColor: theme.colors.primary,
+      marginTop: 6,
+      flexShrink: 0,
     },
-    notificationBody: {
+
+    /* Body */
+    body: {
       fontSize: 13,
       color: theme.colors.onSurfaceVariant,
+      lineHeight: 18,
     },
-    metaRow: {
+
+    /* Footer */
+    footer: {
       flexDirection: "row",
-      justifyContent: "space-between",
       alignItems: "center",
-      marginTop: 2,
+      justifyContent: "space-between",
+      marginTop: 4,
+      gap: spacing.sm,
     },
-    priority: {
-      fontSize: 12,
+    footerLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flex: 1,
+    },
+    priorityBadge: {
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderRadius: 99,
+    },
+    priorityBadgeText: {
+      fontSize: 11,
       fontWeight: "700",
+      letterSpacing: 0.2,
     },
     dateText: {
-      fontSize: 12,
+      fontSize: 11,
       color: theme.colors.onSurfaceVariant,
     },
-    actionsCol: {
-      alignItems: "flex-end",
-      justifyContent: "center",
+    footerActions: {
+      flexDirection: "row",
+      gap: 4,
+      alignItems: "center",
+    },
+    actionButton: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    actionButtonText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: theme.colors.primary,
+    },
+    actionButtonDim: {
+      color: theme.colors.onSurfaceVariant,
+    },
+
+    /* Empty state */
+    emptyCard: {
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+      backgroundColor: theme.colors.surface,
+      padding: spacing.lg,
+      alignItems: "center",
+      gap: spacing.xs,
+      marginTop: spacing.sm,
+    },
+    emptyIcon: {
+      fontSize: 32,
+      marginBottom: 4,
+    },
+    emptyTitle: {
+      fontSize: 15,
+      fontWeight: "700",
+      color: theme.colors.onSurface,
+      textAlign: "center",
+    },
+    emptySubtitle: {
+      fontSize: 13,
+      color: theme.colors.onSurfaceVariant,
+      textAlign: "center",
+    },
+    errorText: {
+      fontSize: 13,
+      color: theme.colors.error,
+      textAlign: "center",
+    },
+
+    loadMoreButton: {
+      marginTop: spacing.xs,
     },
   });

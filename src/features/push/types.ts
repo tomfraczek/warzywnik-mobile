@@ -25,6 +25,11 @@ export type NotificationRouteTarget =
 
 export type NotificationPriority = "LOW" | "NORMAL" | "HIGH" | "CRITICAL";
 export type PushRiskLevel = "NONE" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type PushDeliveryPolicy =
+  | "PUSH_IMMEDIATE"
+  | "PUSH_DIGEST"
+  | "CENTER_ONLY"
+  | "PLAN_ONLY";
 
 export type PushNotificationPayload = {
   notificationId: string;
@@ -33,6 +38,16 @@ export type PushNotificationPayload = {
   priority: NotificationPriority;
   title: string;
   body: string;
+  // Aggregated notifications (post-refactor)
+  userIntentKey?: string;
+  count?: number;
+  deliveryPolicy?: PushDeliveryPolicy;
+  // Multi-entity arrays
+  actionTaskIds?: string[];
+  bedIds?: string[];
+  plantingIds?: string[];
+  affectedPlantingIds?: string[];
+  // Legacy single-entity fields (kept for backward compatibility)
   bedId?: string;
   plantingId?: string;
   ownerScopeType?: "USER" | "BED" | "PLANTING" | "SPACE" | "GROWING_SPACE";
@@ -45,11 +60,7 @@ export type PushNotificationPayload = {
     | "RELATED_FROM_SPACE"
     | "RELATED"
     | "AGGREGATED";
-  affectedPlantingIds?: string[];
   growingSpaceId?: string;
-  actionTaskIds?: string[];
-  bedIds?: string[];
-  plantingIds?: string[];
   warningIds?: string[];
   riskLevel?: PushRiskLevel;
   riskReason?: string;

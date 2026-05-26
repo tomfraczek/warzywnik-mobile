@@ -3,6 +3,7 @@ import {
   NotificationRouteTarget,
   NotificationType,
   ParsedPushNotificationPayload,
+  PushDeliveryPolicy,
   PushNotificationPayload,
   PushRiskLevel,
 } from "./types";
@@ -48,6 +49,18 @@ const RISK_LEVELS: PushRiskLevel[] = [
   "HIGH",
   "CRITICAL",
 ];
+
+const DELIVERY_POLICIES: PushDeliveryPolicy[] = [
+  "PUSH_IMMEDIATE",
+  "PUSH_DIGEST",
+  "CENTER_ONLY",
+  "PLAN_ONLY",
+];
+
+const readNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  return undefined;
+};
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -122,6 +135,9 @@ export const parsePushNotificationPayload = (
     priority,
     title,
     body,
+    userIntentKey: readString(raw.userIntentKey),
+    count: readNumber(raw.count),
+    deliveryPolicy: readEnum(raw.deliveryPolicy, DELIVERY_POLICIES),
     bedId: readString(raw.bedId),
     plantingId: readString(raw.plantingId),
     ownerScopeType: readEnum(raw.ownerScopeType, [

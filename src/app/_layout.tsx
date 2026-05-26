@@ -10,13 +10,7 @@ import { usePushNotificationsLifecycle } from "@/src/features/push/usePushNotifi
 import { ClerkProvider, useAuth, useClerk, useUser } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import {
-  Stack,
-  usePathname,
-  useRootNavigationState,
-  useRouter,
-  useSegments,
-} from "expo-router";
+import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import { useColorScheme, View } from "react-native";
@@ -128,10 +122,13 @@ function AuthBootstrapGate() {
   const router = useRouter();
   const segments = useSegments();
   const pathname = usePathname();
-  const rootNavigationState = useRootNavigationState();
-  const isRootNavigationMounted = Boolean(rootNavigationState?.key);
   const isHandlingAuthError = useRef(false);
   const [ready, setReady] = useState(false);
+  const [isNavigationReady, setIsNavigationReady] = useState(false);
+
+  useEffect(() => {
+    setIsNavigationReady(true);
+  }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -154,25 +151,16 @@ function AuthBootstrapGate() {
       } finally {
         queryClient.clear();
         await clientPersister.removeClient();
-        if (isRootNavigationMounted) {
-          router.replace("/(auth)");
-        }
+        router.replace("/(auth)");
         isHandlingAuthError.current = false;
       }
     });
 
     setReady(true);
-  }, [
-    getToken,
-    isLoaded,
-    isRootNavigationMounted,
-    isSignedIn,
-    router,
-    signOut,
-  ]);
+  }, [getToken, isLoaded, isSignedIn, router, signOut]);
 
   useEffect(() => {
-    if (!isLoaded || !isRootNavigationMounted) return;
+    if (!isLoaded || !isNavigationReady || !areSettingsReady) return;
 
     const inAuthGroup = segments[0] === "(auth)";
     const ssoInProgress = isSsoAuthInProgress();
@@ -194,8 +182,9 @@ function AuthBootstrapGate() {
       );
     }
   }, [
+    areSettingsReady,
     isLoaded,
-    isRootNavigationMounted,
+    isNavigationReady,
     isSignedIn,
     pathname,
     profile.name,

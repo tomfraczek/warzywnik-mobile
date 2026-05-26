@@ -295,9 +295,5 @@ export const formatWeatherStatusTimeWindow = (
     return `Od około ${startsAt}`;
   }
 
-  if (validTo) {
-    return `Ważne do ${validTo}`;
-  }
-
   return null;
 };

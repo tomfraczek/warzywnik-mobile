@@ -3,6 +3,46 @@ import { PushNotificationPayload } from "./types";
 
 const homeRoute = (): Href => "/(tabs)/home";
 
+/**
+ * Routing based on userIntentKey takes priority over routeTarget.
+ *
+ * Aggregated notifications must never fall through to single bedId/plantingId
+ * routing just because the backend still provides those fields for backward
+ * compatibility.
+ *
+ * Pattern matching uses prefix matching so that variants like
+ * "WATERING_TODAY:BED" or "GARDEN_RISK_DROUGHT" are handled correctly.
+ */
+const getRouteByUserIntentKey = (userIntentKey: string): Href | null => {
+  // Task / planner intents → planner tasks list
+  if (
+    userIntentKey.startsWith("WATERING_TODAY") ||
+    userIntentKey.startsWith("HARVEST_READY") ||
+    userIntentKey.startsWith("LIFECYCLE_HARVEST") ||
+    userIntentKey.startsWith("FROST_PROTECTION") ||
+    userIntentKey.startsWith("WIND_PROTECTION")
+  ) {
+    return "/(tabs)/planner/tasks";
+  }
+
+  // Planner / today plan intents → planner root
+  if (userIntentKey.startsWith("TASKS_DUE_TODAY")) {
+    return "/(tabs)/planner";
+  }
+
+  // Weather alert intents
+  if (userIntentKey.startsWith("WEATHER_ALERTS")) {
+    return "/(tabs)/home/warnings";
+  }
+
+  // Garden risk intents (GARDEN_RISK_DROUGHT, GARDEN_RISK_FLOOD, etc.)
+  if (userIntentKey.startsWith("GARDEN_RISK")) {
+    return "/(tabs)/home/garden-risk";
+  }
+
+  return null;
+};
+
 const resolvePayloadBedId = (payload: PushNotificationPayload) => {
   if (payload.bedId) return payload.bedId;
   if (payload.ownerScopeType === "BED" && payload.ownerScopeId) {
@@ -34,6 +74,17 @@ const resolvePayloadPlantingId = (payload: PushNotificationPayload) => {
 export const getPushNotificationRoute = (
   payload: PushNotificationPayload,
 ): Href => {
+  // ── 1. userIntentKey routing (aggregated notifications) ──────────────────
+  // This MUST run before routeTarget resolution to prevent aggregated pushes
+  // from landing on a single bed/planting detail screen.
+  if (payload.userIntentKey) {
+    const intentRoute = getRouteByUserIntentKey(payload.userIntentKey);
+    if (intentRoute !== null) {
+      return intentRoute;
+    }
+  }
+
+  // ── 2. Legacy routeTarget routing ────────────────────────────────────────
   switch (payload.routeTarget) {
     case "HOME":
       return homeRoute();

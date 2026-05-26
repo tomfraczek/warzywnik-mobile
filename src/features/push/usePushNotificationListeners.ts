@@ -4,8 +4,8 @@ import { handlePushNotificationResponse } from "@/src/features/push/handlePushNo
 import { parsePushNotificationPayload } from "@/src/features/push/parsePushNotificationPayload";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
-import { useRootNavigationState, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef } from "react";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const asRecord = (value: unknown): Record<string, unknown> | null => {
   if (typeof value !== "object" || value === null) return null;
@@ -14,8 +14,7 @@ const asRecord = (value: unknown): Record<string, unknown> | null => {
 
 export const usePushNotificationListeners = () => {
   const router = useRouter();
-  const rootNavigationState = useRootNavigationState();
-  const isRootNavigationMounted = Boolean(rootNavigationState?.key);
+  const [isNavigationReady, setIsNavigationReady] = useState(false);
 
   const lastHandledResponseIdRef = useRef<string | null>(null);
   const isRootNavigationMountedRef = useRef(false);
@@ -23,6 +22,10 @@ export const usePushNotificationListeners = () => {
     responseId: string;
     payload: Record<string, unknown> | null;
   } | null>(null);
+
+  useEffect(() => {
+    setIsNavigationReady(true);
+  }, []);
 
   const handleNotificationResponse = useCallback(
     (responseId: string, payload: Record<string, unknown> | null) => {
@@ -40,15 +43,15 @@ export const usePushNotificationListeners = () => {
   );
 
   useEffect(() => {
-    isRootNavigationMountedRef.current = isRootNavigationMounted;
-    if (!isRootNavigationMounted) return;
+    isRootNavigationMountedRef.current = isNavigationReady;
+    if (!isNavigationReady) return;
 
     const pending = pendingResponseRef.current;
     if (!pending) return;
 
     pendingResponseRef.current = null;
     handleNotificationResponse(pending.responseId, pending.payload);
-  }, [handleNotificationResponse, isRootNavigationMounted]);
+  }, [handleNotificationResponse, isNavigationReady]);
 
   useEffect(() => {
     Notifications.setNotificationHandler({
