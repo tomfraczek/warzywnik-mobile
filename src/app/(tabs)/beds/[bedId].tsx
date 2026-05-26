@@ -55,6 +55,7 @@ import {
 import { getTaskOwnershipLabel } from "@/src/features/tasks/taskPresentation";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { getTodayKey } from "@/src/utils/date";
+import { pluralize } from "@/src/utils/pluralize";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -207,7 +208,8 @@ const getActionTaskAffectedVegetablesLabel = (
 
   if (vegetables.length === 0) return null;
   if (vegetables.length > maxExplicitVegetables) {
-    return `Dotyczy ${vegetables.length} upraw na grządce`;
+    const uprawForm = pluralize("uprawy", "upraw", "upraw", vegetables.length);
+    return `Dotyczy ${vegetables.length} ${uprawForm} na grządce`;
   }
 
   return `Dotyczy: ${vegetables.join(", ")}`;

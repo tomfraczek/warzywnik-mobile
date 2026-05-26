@@ -2,6 +2,7 @@ import { Screen } from "@/src/components/Screen";
 import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
 import { getTaskNavigationTarget } from "@/src/features/tasks/taskRouting";
 import { spacing } from "@/src/theme/ui";
+import { pluralize } from "@/src/utils/pluralize";
 import { useRouter } from "expo-router";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, MD3Theme, Text, useTheme } from "react-native-paper";
@@ -29,11 +30,8 @@ export default function PlannerScreen() {
 
   const headerSubtitle = (() => {
     if (overview.isOffline) return "Pokazujemy ostatnio zapisany plan";
-    if (overview.summary.overdueCount > 0) {
-      return `Masz ${overview.summary.overdueCount} zaległych zadań`;
-    }
     if (overview.summary.todayCount > 0) {
-      return `Masz dziś ${overview.summary.todayCount} prac w ogrodzie`;
+      return `Masz dziś ${overview.summary.todayCount} ${pluralize("pracę", "prace", "prac", overview.summary.todayCount)} w ogrodzie`;
     }
     return "Na dziś ogród nie wymaga pilnych działań";
   })();

@@ -5,6 +5,7 @@ import {
   getTaskOwnershipReason,
 } from "@/src/features/tasks/taskPresentation";
 import { spacing } from "@/src/theme/ui";
+import { pluralize } from "@/src/utils/pluralize";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StyleSheet, View } from "react-native";
 import { Button, MD3Theme, Text, useTheme } from "react-native-paper";
@@ -40,7 +41,13 @@ const getAffectedLabel = (task: TaskItem) => {
   }
 
   if (typeof meta?.affectedBedsCount === "number") {
-    return `Dotyczy ${meta.affectedBedsCount} grządek`;
+    const grządkaForm = pluralize(
+      "grządki",
+      "grządek",
+      "grządek",
+      meta.affectedBedsCount,
+    );
+    return `Dotyczy ${meta.affectedBedsCount} ${grządkaForm}`;
   }
 
   return null;
