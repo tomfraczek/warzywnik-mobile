@@ -1,4 +1,3 @@
-import { getResponseError } from "@/src/api/axios";
 import {
   WeatherDayItem,
   WeatherHourlyItem,
@@ -192,7 +191,10 @@ export default function HomeWeatherScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
           {isError ? (
-            <StatusBadge label="Brak połączenia – ostatnie znane dane" tone="warning" />
+            <StatusBadge
+              label="Brak połączenia – ostatnie znane dane"
+              tone="warning"
+            />
           ) : data.stale ? (
             <StatusBadge label="Dane chwilowo nieaktualne" tone="warning" />
           ) : null}

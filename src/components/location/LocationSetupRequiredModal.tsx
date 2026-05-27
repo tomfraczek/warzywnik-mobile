@@ -151,13 +151,15 @@ export function LocationSetupRequiredModal() {
         return;
       }
 
-      const { data } =
-        await restClient.get<WeatherLocationResponse>("/users/me/weather", {
+      const { data } = await restClient.get<WeatherLocationResponse>(
+        "/users/me/weather",
+        {
           timeout: 15000,
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        });
+        },
+      );
 
       if (hasValidLocation(data?.location)) {
         const serverLocation = data.location;

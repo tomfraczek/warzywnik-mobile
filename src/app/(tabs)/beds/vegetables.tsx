@@ -1,4 +1,5 @@
 import { getResponseError } from "@/src/api/axios";
+import { useCreateVegetableSuggestion } from "@/src/api/mutations/vegetableSuggestions/useCreateVegetableSuggestion";
 import { VegetableListItem } from "@/src/api/queries/vegetables/types";
 import { useGetVegetables } from "@/src/api/queries/vegetables/useGetVegetables";
 import { setSelectedVegetable } from "@/src/app/(tabs)/beds/_state/vegetableSelectionStore";
@@ -11,13 +12,23 @@ import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { Button, Icon, MD3Theme, useTheme } from "react-native-paper";
+import {
+  ActivityIndicator,
+  Button,
+  Icon,
+  MD3Theme,
+  Modal,
+  Portal,
+  useTheme,
+} from "react-native-paper";
 
 function buildPalette(dark: boolean) {
   return {
@@ -86,6 +97,51 @@ export default function VegetablePickerScreen() {
   const isOffline = useIsOffline();
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const [suggestionVisible, setSuggestionVisible] = useState(false);
+  const [suggestionName, setSuggestionName] = useState("");
+  const [suggestionNote, setSuggestionNote] = useState("");
+  const [suggestionSuccess, setSuggestionSuccess] = useState(false);
+  const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  const createSuggestion = useCreateVegetableSuggestion();
+
+  const openSuggestionModal = () => {
+    setSuggestionName("");
+    setSuggestionNote("");
+    setSuggestionSuccess(false);
+    setSuggestionError(null);
+    setSuggestionVisible(true);
+  };
+
+  const closeSuggestionModal = () => {
+    setSuggestionVisible(false);
+  };
+
+  const handleSendSuggestion = async () => {
+    const trimmedName = suggestionName.trim();
+    if (trimmedName.length < 2) {
+      setSuggestionError("Nazwa musi mieć co najmniej 2 znaki.");
+      return;
+    }
+    if (trimmedName.length > 80) {
+      setSuggestionError("Nazwa może mieć maksymalnie 80 znaków.");
+      return;
+    }
+    if (suggestionNote.trim().length > 500) {
+      setSuggestionError("Notatka może mieć maksymalnie 500 znaków.");
+      return;
+    }
+    setSuggestionError(null);
+    try {
+      await createSuggestion.mutateAsync({
+        name: trimmedName,
+        note: suggestionNote.trim() || null,
+      });
+      setSuggestionSuccess(true);
+    } catch {
+      setSuggestionError("Nie udało się wysłać propozycji. Spróbuj ponownie.");
+    }
+  };
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -186,9 +242,14 @@ export default function VegetablePickerScreen() {
             <Text style={[styles.title, { color: palette.heading }]}>
               Wybierz warzywo
             </Text>
-            <Text style={[styles.subtitle, { color: palette.secondary }]}>
-              Wybierz roślinę, którą chcesz dodać do grządki.
-            </Text>
+            <View style={styles.subtitleRow}>
+              <Text style={[styles.subtitle, { color: palette.secondary }]}>
+                Wybierz roślinę, którą chcesz dodać do grządki.{" "}
+              </Text>
+              <Pressable onPress={openSuggestionModal}>
+                <Text style={styles.suggestionLink}>Zgłoś propozycję</Text>
+              </Pressable>
+            </View>
 
             <View
               style={[
@@ -278,9 +339,7 @@ export default function VegetablePickerScreen() {
             >
               {isFetchingNextPage ? "Ładowanie..." : "Wczytaj więcej"}
             </Button>
-          ) : (
-            <View style={styles.footerSpace} />
-          )
+          ) : null
         }
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) {
@@ -315,6 +374,155 @@ export default function VegetablePickerScreen() {
           ) : null
         }
       />
+      <Portal>
+        <Modal
+          visible={suggestionVisible}
+          onDismiss={closeSuggestionModal}
+          contentContainerStyle={[
+            styles.modalContainer,
+            { backgroundColor: palette.cardBg },
+          ]}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+          >
+            {suggestionSuccess ? (
+              <View style={styles.modalSuccessWrap}>
+                <View
+                  style={[
+                    styles.modalSuccessIcon,
+                    { backgroundColor: palette.accentBg },
+                  ]}
+                >
+                  <Icon
+                    source="check-circle-outline"
+                    size={36}
+                    color={palette.accent}
+                  />
+                </View>
+                <Text
+                  style={[styles.modalSuccessTitle, { color: palette.heading }]}
+                >
+                  Dziękujemy!
+                </Text>
+                <Text
+                  style={[
+                    styles.modalSuccessSubtitle,
+                    { color: palette.secondary },
+                  ]}
+                >
+                  Twoja propozycja została wysłana. Postaramy się dodać warzywo
+                  jak najszybciej.
+                </Text>
+                <Button
+                  mode="contained"
+                  onPress={closeSuggestionModal}
+                  style={styles.modalSuccessButton}
+                >
+                  Zamknij
+                </Button>
+              </View>
+            ) : (
+              <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={[styles.modalTitle, { color: palette.heading }]}>
+                    Zgłoś propozycję
+                  </Text>
+                  <Text
+                    style={[styles.modalSubtitle, { color: palette.secondary }]}
+                  >
+                    Powiedz nam, jakiego warzywa brakuje na liście.
+                  </Text>
+                </View>
+
+                <View
+                  style={[
+                    styles.modalInput,
+                    {
+                      backgroundColor: palette.searchBg,
+                      borderColor:
+                        suggestionError && suggestionName.trim().length === 0
+                          ? palette.errorText
+                          : palette.searchBorder,
+                    },
+                  ]}
+                >
+                  <TextInput
+                    value={suggestionName}
+                    onChangeText={(t) => {
+                      setSuggestionName(t);
+                      setSuggestionError(null);
+                    }}
+                    placeholder="Nazwa warzywa *"
+                    placeholderTextColor={palette.searchPlaceholder}
+                    style={[styles.modalInputText, { color: palette.heading }]}
+                    maxLength={80}
+                    autoFocus
+                  />
+                </View>
+
+                <View
+                  style={[
+                    styles.modalInput,
+                    {
+                      backgroundColor: palette.searchBg,
+                      borderColor: palette.searchBorder,
+                      minHeight: 80,
+                      alignItems: "flex-start",
+                      paddingVertical: 12,
+                    },
+                  ]}
+                >
+                  <TextInput
+                    value={suggestionNote}
+                    onChangeText={setSuggestionNote}
+                    placeholder="Dodatkowe uwagi (opcjonalne)"
+                    placeholderTextColor={palette.searchPlaceholder}
+                    style={[styles.modalInputText, { color: palette.heading }]}
+                    maxLength={500}
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
+
+                {suggestionError ? (
+                  <Text
+                    style={[
+                      styles.modalErrorText,
+                      { color: palette.errorText },
+                    ]}
+                  >
+                    {suggestionError}
+                  </Text>
+                ) : null}
+
+                <View style={styles.modalActions}>
+                  <Button
+                    mode="outlined"
+                    onPress={closeSuggestionModal}
+                    style={styles.modalActionButton}
+                    disabled={createSuggestion.isPending}
+                  >
+                    Anuluj
+                  </Button>
+                  <Button
+                    mode="contained"
+                    onPress={handleSendSuggestion}
+                    style={styles.modalActionButton}
+                    disabled={createSuggestion.isPending}
+                  >
+                    {createSuggestion.isPending ? (
+                      <ActivityIndicator size={16} color="#fff" />
+                    ) : (
+                      "Wyślij"
+                    )}
+                  </Button>
+                </View>
+              </View>
+            )}
+          </KeyboardAvoidingView>
+        </Modal>
+      </Portal>
     </Screen>
   );
 }
@@ -323,7 +531,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 32,
+    paddingBottom: 8,
     gap: 12,
   },
   headerContent: {
@@ -336,10 +544,16 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: -0.3,
   },
+  subtitleRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    marginTop: -6,
+    gap: 0,
+  },
   subtitle: {
     fontSize: 14,
     lineHeight: 20,
-    marginTop: -6,
   },
   searchBar: {
     minHeight: 54,
@@ -462,5 +676,96 @@ const styles = StyleSheet.create({
     width: "55%",
     height: 11,
     borderRadius: 999,
+  },
+  suggestionFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    paddingBottom: 8,
+    flexWrap: "wrap",
+  },
+  suggestionHint: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  suggestionLink: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#2563EB",
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
+  modalContainer: {
+    marginHorizontal: 20,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  modalContent: {
+    padding: 20,
+    gap: 14,
+  },
+  modalHeader: {
+    gap: 4,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    lineHeight: 26,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  modalInput: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    minHeight: 50,
+    justifyContent: "center",
+  },
+  modalInputText: {
+    fontSize: 15,
+    flex: 1,
+  },
+  modalErrorText: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: -6,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
+  modalActionButton: {
+    flex: 1,
+  },
+  modalSuccessWrap: {
+    padding: 24,
+    alignItems: "center",
+    gap: 12,
+  },
+  modalSuccessIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  modalSuccessTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  modalSuccessSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  modalSuccessButton: {
+    marginTop: 8,
+    width: "100%",
   },
 });

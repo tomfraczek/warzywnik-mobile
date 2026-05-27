@@ -1,10 +1,10 @@
 import { getResponseError } from "@/src/api/axios";
+import { actionTaskKeys } from "@/src/api/queries/actionTasks/actionTaskKeys";
 import {
   ActionTask,
   getActionTaskSourceLabel,
   resolveActionTaskSourceType,
 } from "@/src/api/queries/actionTasks/types";
-import { actionTaskKeys } from "@/src/api/queries/actionTasks/actionTaskKeys";
 import { useDeleteActionTask } from "@/src/api/queries/actionTasks/useDeleteActionTask";
 import { useGetBedActionTasks } from "@/src/api/queries/actionTasks/useGetBedActionTasks";
 import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActionTask";
@@ -248,7 +248,10 @@ const PlantingRow = memo(function PlantingRow({
   const showAttention = hasAttention;
 
   return (
-    <Pressable style={[styles.plantingRow, isFirst ? styles.plantingRowFirst : null]} onPress={onPress}>
+    <Pressable
+      style={[styles.plantingRow, isFirst ? styles.plantingRowFirst : null]}
+      onPress={onPress}
+    >
       <View style={styles.plantingThumbWrap}>
         {vegetable?.imageUrl ? (
           <Image
@@ -601,10 +604,12 @@ export default function BedDetailsScreen() {
     await queryClient.cancelQueries({ queryKey: pendingTasksKey });
     await queryClient.cancelQueries({ queryKey: allTasksKey });
 
-    const prevPending =
-      queryClient.getQueryData<{ items: ActionTask[] }>(pendingTasksKey);
-    const prevAll =
-      queryClient.getQueryData<{ items: ActionTask[] }>(allTasksKey);
+    const prevPending = queryClient.getQueryData<{ items: ActionTask[] }>(
+      pendingTasksKey,
+    );
+    const prevAll = queryClient.getQueryData<{ items: ActionTask[] }>(
+      allTasksKey,
+    );
 
     const now = new Date().toISOString();
     queryClient.setQueryData<{ items: ActionTask[] }>(pendingTasksKey, (old) =>
@@ -647,10 +652,12 @@ export default function BedDetailsScreen() {
     await queryClient.cancelQueries({ queryKey: pendingTasksKey });
     await queryClient.cancelQueries({ queryKey: allTasksKey });
 
-    const prevPending =
-      queryClient.getQueryData<{ items: ActionTask[] }>(pendingTasksKey);
-    const prevAll =
-      queryClient.getQueryData<{ items: ActionTask[] }>(allTasksKey);
+    const prevPending = queryClient.getQueryData<{ items: ActionTask[] }>(
+      pendingTasksKey,
+    );
+    const prevAll = queryClient.getQueryData<{ items: ActionTask[] }>(
+      allTasksKey,
+    );
 
     queryClient.setQueryData<{ items: ActionTask[] }>(pendingTasksKey, (old) =>
       old ? { items: old.items.filter((t) => t.id !== task.id) } : old,

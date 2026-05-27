@@ -3,9 +3,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import { useQuery } from "@tanstack/react-query";
 import { WeatherResponse } from "./meTypes";
 
-const getMyWeather = async (
-  token: string,
-): Promise<WeatherResponse> => {
+const getMyWeather = async (token: string): Promise<WeatherResponse> => {
   const { data } = await restClient.get<WeatherResponse>("/users/me/weather", {
     timeout: 15000,
     headers: {
