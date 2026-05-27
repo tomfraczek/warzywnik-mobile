@@ -14,13 +14,12 @@ import {
   useSettings,
 } from "@/src/context/SettingsProvider";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
-import { isPushDiagnosticsVisible } from "@/src/features/push/diagnostics";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { radius, spacing } from "@/src/theme/ui";
 import { useClerk, useUser } from "@clerk/clerk-expo";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   Avatar,
@@ -51,8 +50,6 @@ export default function ProfileScreen() {
     profile,
     themeMode,
     setThemeMode,
-    units,
-    setUnits,
     languagePreference,
     setLanguagePreference,
     location,
@@ -78,7 +75,6 @@ export default function ProfileScreen() {
 
   const preferences = preferencesQuery.data;
   const notificationsEnabled = preferences?.notificationsEnabled ?? false;
-  const planTone = useMemo(() => "neutral" as const, []);
 
   const geoLanguage =
     languagePreference === "system" ? undefined : languagePreference;
@@ -368,9 +364,7 @@ export default function ProfileScreen() {
                   notificationsEnabled: value,
                 });
               }}
-              disabled={
-                updatePreferences.isPending || preferencesQuery.isLoading
-              }
+              disabled={preferencesQuery.isLoading}
             />
           </View>
 
@@ -393,7 +387,7 @@ export default function ProfileScreen() {
                   },
                 });
               }}
-              disabled={!notificationsEnabled || updatePreferences.isPending}
+              disabled={!notificationsEnabled}
             />
           </View>
 
@@ -413,7 +407,7 @@ export default function ProfileScreen() {
                   },
                 });
               }}
-              disabled={!notificationsEnabled || updatePreferences.isPending}
+              disabled={!notificationsEnabled}
             />
           </View>
 
@@ -433,7 +427,7 @@ export default function ProfileScreen() {
                   },
                 });
               }}
-              disabled={!notificationsEnabled || updatePreferences.isPending}
+              disabled={!notificationsEnabled}
             />
           </View>
 
@@ -453,7 +447,7 @@ export default function ProfileScreen() {
                   },
                 });
               }}
-              disabled={!notificationsEnabled || updatePreferences.isPending}
+              disabled={!notificationsEnabled}
             />
           </View>
 
@@ -466,7 +460,7 @@ export default function ProfileScreen() {
             <Button
               mode="outlined"
               onPress={decrementNotificationHour}
-              disabled={!notificationsEnabled || updatePreferences.isPending}
+              disabled={!notificationsEnabled}
             >
               -
             </Button>
@@ -476,13 +470,13 @@ export default function ProfileScreen() {
             <Button
               mode="outlined"
               onPress={incrementNotificationHour}
-              disabled={!notificationsEnabled || updatePreferences.isPending}
+              disabled={!notificationsEnabled}
             >
               +
             </Button>
           </View>
 
-          {isPushDiagnosticsVisible() ? (
+          {/* {isPushDiagnosticsVisible() ? (
             <Button
               mode="outlined"
               icon="bug-outline"
@@ -490,7 +484,7 @@ export default function ProfileScreen() {
             >
               Otwórz diagnostykę push
             </Button>
-          ) : null}
+          ) : null} */}
         </Card>
 
         <Card title="Dane">
