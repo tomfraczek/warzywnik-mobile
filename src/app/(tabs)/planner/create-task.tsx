@@ -20,6 +20,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -498,7 +500,10 @@ export default function PlannerCreateTaskScreen() {
 
   return (
     <Screen safeAreaEdges={["left", "right", "bottom"]}>
-      <View style={styles.root}>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
@@ -735,7 +740,7 @@ export default function PlannerCreateTaskScreen() {
             )}
           </Pressable>
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       <BottomSheetModal
         visible={showPlaceSheet}

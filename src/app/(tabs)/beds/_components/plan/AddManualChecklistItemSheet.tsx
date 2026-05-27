@@ -1,6 +1,12 @@
 import { BottomSheetModal } from "@/src/components/ui/BottomSheetModal";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Button, TextInput } from "react-native-paper";
 
 type AddManualChecklistItemSheetProps = {
@@ -34,48 +40,52 @@ export function AddManualChecklistItemSheet({
       onDismiss={onDismiss}
       dismissDisabled={isSubmitting}
     >
-      <View style={styles.container}>
-        <Text style={styles.title}>Dodaj własny punkt</Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <View style={styles.container}>
+          <Text style={styles.title}>Dodaj własny punkt</Text>
 
-        <TextInput
-          mode="outlined"
-          label="Tytuł *"
-          placeholder="np. Kupić nowe grabki"
-          value={title}
-          onChangeText={setTitle}
-          disabled={isSubmitting}
-        />
+          <TextInput
+            mode="outlined"
+            label="Tytuł *"
+            placeholder="np. Kupić nowe grabki"
+            value={title}
+            onChangeText={setTitle}
+            disabled={isSubmitting}
+          />
 
-        <TextInput
-          mode="outlined"
-          label="Opis"
-          placeholder="Dodaj krótki opis, jeśli chcesz"
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          numberOfLines={3}
-          disabled={isSubmitting}
-        />
+          <TextInput
+            mode="outlined"
+            label="Opis"
+            placeholder="Dodaj krótki opis, jeśli chcesz"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={3}
+            disabled={isSubmitting}
+          />
 
-        <View style={styles.actions}>
-          <Button mode="outlined" onPress={onDismiss} disabled={isSubmitting}>
-            Anuluj
-          </Button>
-          <Button
-            mode="contained"
-            onPress={() =>
-              onSubmit({
-                title: trimmedTitle,
-                description: description.trim() || null,
-              })
-            }
-            loading={isSubmitting}
-            disabled={isSubmitting || trimmedTitle.length === 0}
-          >
-            Dodaj do checklisty
-          </Button>
+          <View style={styles.actions}>
+            <Button mode="outlined" onPress={onDismiss} disabled={isSubmitting}>
+              Anuluj
+            </Button>
+            <Button
+              mode="contained"
+              onPress={() =>
+                onSubmit({
+                  title: trimmedTitle,
+                  description: description.trim() || null,
+                })
+              }
+              loading={isSubmitting}
+              disabled={isSubmitting || trimmedTitle.length === 0}
+            >
+              Dodaj do checklisty
+            </Button>
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </BottomSheetModal>
   );
 }

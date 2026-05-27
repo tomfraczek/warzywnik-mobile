@@ -65,6 +65,8 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -2349,41 +2351,45 @@ export default function PlantingDetailsScreen() {
         ) : null}
 
         {quickActionStep === "note" ? (
-          <View style={styles.modalActionsColumn}>
-            <Text style={styles.modalTitle}>Notatka</Text>
-            <TextInput
-              mode="outlined"
-              label="Treść notatki"
-              value={quickActionNote}
-              onChangeText={setQuickActionNote}
-              multiline
-              numberOfLines={4}
-              style={styles.modalInput}
-              disabled={postPlantingQuickAction.isPending}
-            />
-
-            <View style={styles.modalActionsBetween}>
-              <Button
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          >
+            <View style={styles.modalActionsColumn}>
+              <Text style={styles.modalTitle}>Notatka</Text>
+              <TextInput
                 mode="outlined"
-                onPress={() => setQuickActionStep("menu")}
+                label="Treść notatki"
+                value={quickActionNote}
+                onChangeText={setQuickActionNote}
+                multiline
+                numberOfLines={4}
+                style={styles.modalInput}
                 disabled={postPlantingQuickAction.isPending}
-              >
-                Wstecz
-              </Button>
-              <Button
-                mode="contained"
-                onPress={handleSavePlantingNoteQuickAction}
-                loading={postPlantingQuickAction.isPending}
-                disabled={
-                  postPlantingQuickAction.isPending ||
-                  isOffline ||
-                  !quickActionNote.trim()
-                }
-              >
-                Zapisz
-              </Button>
+              />
+
+              <View style={styles.modalActionsBetween}>
+                <Button
+                  mode="outlined"
+                  onPress={() => setQuickActionStep("menu")}
+                  disabled={postPlantingQuickAction.isPending}
+                >
+                  Wstecz
+                </Button>
+                <Button
+                  mode="contained"
+                  onPress={handleSavePlantingNoteQuickAction}
+                  loading={postPlantingQuickAction.isPending}
+                  disabled={
+                    postPlantingQuickAction.isPending ||
+                    isOffline ||
+                    !quickActionNote.trim()
+                  }
+                >
+                  Zapisz
+                </Button>
+              </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         ) : null}
       </BottomSheetModal>
 

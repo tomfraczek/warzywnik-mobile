@@ -15,7 +15,14 @@ import { isAxiosError } from "axios";
 import * as Location from "expo-location";
 import { usePathname, useSegments } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, View } from "react-native";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 import {
   Button,
   MD3Theme,
@@ -310,61 +317,65 @@ export function LocationSetupRequiredModal() {
         dismissable={false}
         contentContainerStyle={styles.modalContent}
       >
-        <Text style={styles.title}>Ustaw lokalizację</Text>
-        <Text style={styles.description}>
-          Nie znaleziono zapisanej lokalizacji na serwerze. Ustaw ją, aby
-          pobierać pogodę i ostrzeżenia.
-        </Text>
-
-        <TextInput
-          mode="outlined"
-          value={locationQuery}
-          onChangeText={(value) => {
-            setLocationQuery(value);
-            setSelectedLocationLabel(null);
-            setErrorMessage(null);
-          }}
-          placeholder="Wpisz miasto, ulicę lub adres"
-          style={styles.locationInput}
-          left={<TextInput.Icon icon="map-marker" />}
-          disabled={isBusy || isOffline}
-        />
-
-        {locationResults.length > 0 ? (
-          <View style={styles.results}>
-            {locationResults.map((result) => (
-              <Pressable
-                key={result.placeId}
-                onPress={() => saveManualLocation(result)}
-                style={styles.resultItem}
-                disabled={isBusy || isOffline}
-              >
-                <Text style={styles.resultText}>{result.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-
-        {locationResults.length === 0 &&
-        locationQuery.trim().length >= 3 &&
-        !geoSearchQuery.isFetching &&
-        !selectedLocationLabel ? (
-          <Text style={styles.helper}>Brak wyników.</Text>
-        ) : null}
-
-        <Button
-          mode="outlined"
-          icon="crosshairs-gps"
-          onPress={saveCurrentLocation}
-          loading={isBusy}
-          disabled={isBusy || isOffline}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          Użyj bieżącej lokalizacji
-        </Button>
+          <Text style={styles.title}>Ustaw lokalizację</Text>
+          <Text style={styles.description}>
+            Nie znaleziono zapisanej lokalizacji na serwerze. Ustaw ją, aby
+            pobierać pogodę i ostrzeżenia.
+          </Text>
 
-        {errorMessage ? (
-          <Text style={styles.errorText}>{errorMessage}</Text>
-        ) : null}
+          <TextInput
+            mode="outlined"
+            value={locationQuery}
+            onChangeText={(value) => {
+              setLocationQuery(value);
+              setSelectedLocationLabel(null);
+              setErrorMessage(null);
+            }}
+            placeholder="Wpisz miasto, ulicę lub adres"
+            style={styles.locationInput}
+            left={<TextInput.Icon icon="map-marker" />}
+            disabled={isBusy || isOffline}
+          />
+
+          {locationResults.length > 0 ? (
+            <View style={styles.results}>
+              {locationResults.map((result) => (
+                <Pressable
+                  key={result.placeId}
+                  onPress={() => saveManualLocation(result)}
+                  style={styles.resultItem}
+                  disabled={isBusy || isOffline}
+                >
+                  <Text style={styles.resultText}>{result.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+
+          {locationResults.length === 0 &&
+          locationQuery.trim().length >= 3 &&
+          !geoSearchQuery.isFetching &&
+          !selectedLocationLabel ? (
+            <Text style={styles.helper}>Brak wyników.</Text>
+          ) : null}
+
+          <Button
+            mode="outlined"
+            icon="crosshairs-gps"
+            onPress={saveCurrentLocation}
+            loading={isBusy}
+            disabled={isBusy || isOffline}
+          >
+            Użyj bieżącej lokalizacji
+          </Button>
+
+          {errorMessage ? (
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          ) : null}
+        </KeyboardAvoidingView>
       </Modal>
     </Portal>
   );

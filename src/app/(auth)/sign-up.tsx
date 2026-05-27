@@ -9,7 +9,14 @@ import { useSignUp, useSSO } from "@clerk/clerk-expo";
 import * as AuthSession from "expo-auth-session";
 import { Link, useRouter } from "expo-router";
 import * as React from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Button, MD3Theme, TextInput, useTheme } from "react-native-paper";
 
 export default function SignUpScreen() {
@@ -133,57 +140,71 @@ export default function SignUpScreen() {
   if (pendingVerification) {
     return (
       <Screen>
-        <View style={styles.container}>
-          <Text style={styles.title}>Verify your email</Text>
-          <TextInput
-            style={styles.input}
-            value={code}
-            placeholder="Enter your verification code"
-            onChangeText={(code) => setCode(code)}
-          />
-          <Button mode="contained" onPress={onVerifyPress}>
-            Verify
-          </Button>
-        </View>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View style={styles.container}>
+            <Text style={styles.title}>Verify your email</Text>
+            <TextInput
+              style={styles.input}
+              value={code}
+              placeholder="Enter your verification code"
+              onChangeText={(code) => setCode(code)}
+            />
+            <Button mode="contained" onPress={onVerifyPress}>
+              Verify
+            </Button>
+          </View>
+        </KeyboardAvoidingView>
       </Screen>
     );
   }
 
   return (
     <Screen safeAreaEdges={["top", "left", "right"]}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Sign up</Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <View style={styles.container}>
+          <Text style={styles.title}>Sign up</Text>
 
-        <Button mode="outlined" onPress={onGoogleSignUpPress} icon={googleIcon}>
-          Continue with Google
-        </Button>
+          <Button
+            mode="outlined"
+            onPress={onGoogleSignUpPress}
+            icon={googleIcon}
+          >
+            Continue with Google
+          </Button>
 
-        <Text style={styles.orText}>or</Text>
+          <Text style={styles.orText}>or</Text>
 
-        <TextInput
-          style={styles.input}
-          autoCapitalize="none"
-          value={emailAddress}
-          placeholder="Enter email"
-          onChangeText={(email) => setEmailAddress(email)}
-        />
-        <TextInput
-          style={styles.input}
-          value={password}
-          placeholder="Enter password"
-          secureTextEntry={true}
-          onChangeText={(password) => setPassword(password)}
-        />
-        <Button mode="contained" onPress={onSignUpPress}>
-          Continue
-        </Button>
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account?</Text>
-          <Link href="../sign-in">
-            <Text style={styles.link}>Sign in</Text>
-          </Link>
-        </View>
-      </View>
+          <TextInput
+            style={styles.input}
+            autoCapitalize="none"
+            value={emailAddress}
+            placeholder="Enter email"
+            onChangeText={(email) => setEmailAddress(email)}
+          />
+          <TextInput
+            style={styles.input}
+            value={password}
+            placeholder="Enter password"
+            secureTextEntry={true}
+            onChangeText={(password) => setPassword(password)}
+          />
+          <Button mode="contained" onPress={onSignUpPress}>
+            Continue
+          </Button>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Already have an account?</Text>
+            <Link href="../sign-in">
+              <Text style={styles.link}>Sign in</Text>
+            </Link>
+          </View>
+        </View>{" "}
+      </KeyboardAvoidingView>{" "}
     </Screen>
   );
 }

@@ -244,7 +244,8 @@ export default function VegetablePickerScreen() {
             </Text>
             <View style={styles.subtitleRow}>
               <Text style={[styles.subtitle, { color: palette.secondary }]}>
-                Wybierz roślinę, którą chcesz dodać do grządki.{" "}
+                Wybierz roślinę, którą chcesz dodać do grządki. Nie widzisz
+                swojego warzywa?
               </Text>
               <Pressable onPress={openSuggestionModal}>
                 <Text style={styles.suggestionLink}>Zgłoś propozycję</Text>

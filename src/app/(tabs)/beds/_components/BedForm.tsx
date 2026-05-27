@@ -4,6 +4,8 @@ import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { memo } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -150,252 +152,261 @@ function BedFormComponent({
   ];
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        s.container,
-        { backgroundColor: palette.background },
-      ]}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/* ── A. Podstawowe informacje ── */}
-      <SectionCard
-        title="Podstawowe informacje"
-        description="Uzupełnij nazwę i opis swojej grządki."
-        palette={palette}
+      <ScrollView
+        contentContainerStyle={[
+          s.container,
+          { backgroundColor: palette.background },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <FieldLabel label="Nazwa" palette={palette} />
-        <TextInput
-          style={inputStyle}
-          value={values.name}
-          onChangeText={(text) => onChange({ name: text })}
-          placeholder="np. Grządka A"
-          placeholderTextColor={palette.placeholder}
-          returnKeyType="next"
-        />
-
-        <FieldLabel label="Opis" palette={palette} optional />
-        <TextInput
-          style={[inputStyle, s.textarea]}
-          value={values.description}
-          onChangeText={(text) => onChange({ description: text })}
-          placeholder="Krótki opis — co tu rośnie, jakie warunki…"
-          placeholderTextColor={palette.placeholder}
-          multiline
-          numberOfLines={3}
-          textAlignVertical="top"
-        />
-
-        <FieldLabel label="Lokalizacja" palette={palette} optional />
-        <TextInput
-          style={inputStyle}
-          value={values.locationLabel}
-          onChangeText={(text) => onChange({ locationLabel: text })}
-          placeholder="np. przy szklarni, ogród zachodni…"
-          placeholderTextColor={palette.placeholder}
-          returnKeyType="done"
-        />
-      </SectionCard>
-
-      {/* ── B. Parametry fizyczne ── */}
-      <SectionCard
-        title="Parametry fizyczne"
-        description="Opcjonalna głębokość grządki w centymetrach."
-        palette={palette}
-      >
-        <FieldLabel label="Głębokość (cm)" palette={palette} optional />
-        <TextInput
-          style={inputStyle}
-          value={values.depthCm}
-          onChangeText={(text) => onChange({ depthCm: text })}
-          keyboardType="numeric"
-          placeholder="np. 30"
-          placeholderTextColor={palette.placeholder}
-        />
-
-        <View style={{ marginTop: 4 }}>
-          <FieldLabel label="Rodzaj uprawy" palette={palette} />
-          <View style={s.envGrid}>
-            {CULTIVATION_ENVIRONMENT_OPTIONS.map((option) => {
-              const selected = values.cultivationEnvironment === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  style={[
-                    s.envChip,
-                    {
-                      backgroundColor: selected
-                        ? palette.accentBg
-                        : palette.inputBg,
-                      borderColor: selected
-                        ? palette.accentBorder
-                        : palette.inputBorder,
-                    },
-                  ]}
-                  onPress={() =>
-                    onChange({ cultivationEnvironment: option.value })
-                  }
-                >
-                  <Icon
-                    source={option.icon}
-                    size={15}
-                    color={selected ? palette.accent : palette.meta}
-                  />
-                  <Text
-                    style={[
-                      s.envChipText,
-                      { color: selected ? palette.accent : palette.secondary },
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      </SectionCard>
-
-      {/* ── C. Gleba ── */}
-      <SectionCard
-        title="Gleba"
-        description="Wybierz typ gleby dla grządki."
-        palette={palette}
-      >
-        <FieldLabel label="Gleba" palette={palette} optional />
-        <Pressable
-          style={[
-            s.soilPicker,
-            {
-              backgroundColor: palette.soilBg,
-              borderColor: values.soilId
-                ? palette.accentBorder
-                : palette.soilBorder,
-            },
-          ]}
-          onPress={onPickSoil}
+        {/* ── A. Podstawowe informacje ── */}
+        <SectionCard
+          title="Podstawowe informacje"
+          description="Uzupełnij nazwę i opis swojej grządki."
+          palette={palette}
         >
-          <View style={s.soilPickerLeft}>
-            <Icon
-              source="layers-outline"
-              size={20}
-              color={values.soilId ? palette.accent : palette.meta}
-            />
-            <Text
-              style={[
-                s.soilPickerText,
-                {
-                  color: values.soilId ? palette.heading : palette.placeholder,
-                },
-              ]}
-            >
-              {values.soilName ?? "Wybierz glebę…"}
-            </Text>
-          </View>
-          <Text style={[s.soilPickerAction, { color: palette.accent }]}>
-            {values.soilId ? "Zmień" : "Wybierz"}
-          </Text>
-        </Pressable>
-        {values.soilId && onClearSoil ? (
-          <Pressable style={s.clearSoilBtn} onPress={onClearSoil}>
-            <Text style={[s.clearSoilText, { color: palette.errorText }]}>
-              Usuń wybraną glebę
-            </Text>
-          </Pressable>
-        ) : null}
-      </SectionCard>
-
-      {/* ── D. Analiza gleby ── */}
-      <SectionCard
-        title="Analiza gleby"
-        description="Uzupełnij tylko wtedy, gdy masz wykonany test gleby."
-        palette={palette}
-      >
-        <View style={s.switchRow}>
-          <View style={s.switchRowLeft}>
-            <Text style={[s.switchLabel, { color: palette.heading }]}>
-              Mam wyniki analizy gleby
-            </Text>
-            <Text style={[s.switchDesc, { color: palette.meta }]}>
-              Odblokuje pola do wprowadzenia pomiarów
-            </Text>
-          </View>
-          <Switch
-            value={values.soilTestingEnabled}
-            onValueChange={(v) => onChange({ soilTestingEnabled: v })}
-            trackColor={{
-              false: palette.switchTrackOff,
-              true: palette.switchTrackOn,
-            }}
-            thumbColor={
-              values.soilTestingEnabled ? palette.switchThumbOn : palette.meta
-            }
+          <FieldLabel label="Nazwa" palette={palette} />
+          <TextInput
+            style={inputStyle}
+            value={values.name}
+            onChangeText={(text) => onChange({ name: text })}
+            placeholder="np. Grządka A"
+            placeholderTextColor={palette.placeholder}
+            returnKeyType="next"
           />
-        </View>
 
-        {values.soilTestingEnabled ? (
-          <View style={s.metricsBlock}>
-            <View
-              style={[
-                s.metricsDivider,
-                { backgroundColor: palette.cardBorder },
-              ]}
-            />
-            <Text style={[s.metricsHint, { color: palette.meta }]}>
-              Wartości N, P, K w zakresie 0–100. pH w zakresie 0–14.
-            </Text>
-            <View style={s.metricsRow}>
-              {(
-                [
-                  { key: "measuredN", label: "Azot (N)", ph: false },
-                  { key: "measuredP", label: "Fosfor (P)", ph: false },
-                  { key: "measuredK", label: "Potas (K)", ph: false },
-                  { key: "measuredPh", label: "Odczyn (pH)", ph: true },
-                ] as const
-              ).map(({ key, label }) => (
-                <View key={key} style={s.metricCol}>
-                  <Text style={[s.metricLabel, { color: palette.secondary }]}>
-                    {label}
-                  </Text>
-                  <TextInput
+          <FieldLabel label="Opis" palette={palette} optional />
+          <TextInput
+            style={[inputStyle, s.textarea]}
+            value={values.description}
+            onChangeText={(text) => onChange({ description: text })}
+            placeholder="Krótki opis — co tu rośnie, jakie warunki…"
+            placeholderTextColor={palette.placeholder}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
+
+          <FieldLabel label="Lokalizacja" palette={palette} optional />
+          <TextInput
+            style={inputStyle}
+            value={values.locationLabel}
+            onChangeText={(text) => onChange({ locationLabel: text })}
+            placeholder="np. przy szklarni, ogród zachodni…"
+            placeholderTextColor={palette.placeholder}
+            returnKeyType="done"
+          />
+        </SectionCard>
+
+        {/* ── B. Parametry fizyczne ── */}
+        <SectionCard
+          title="Parametry fizyczne"
+          description="Opcjonalna głębokość grządki w centymetrach."
+          palette={palette}
+        >
+          <FieldLabel label="Głębokość (cm)" palette={palette} optional />
+          <TextInput
+            style={inputStyle}
+            value={values.depthCm}
+            onChangeText={(text) => onChange({ depthCm: text })}
+            keyboardType="numeric"
+            placeholder="np. 30"
+            placeholderTextColor={palette.placeholder}
+          />
+
+          <View style={{ marginTop: 4 }}>
+            <FieldLabel label="Rodzaj uprawy" palette={palette} />
+            <View style={s.envGrid}>
+              {CULTIVATION_ENVIRONMENT_OPTIONS.map((option) => {
+                const selected = values.cultivationEnvironment === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
                     style={[
-                      s.metricInput,
+                      s.envChip,
                       {
-                        backgroundColor: palette.inputBg,
-                        borderColor: palette.inputBorder,
-                        color: palette.heading,
+                        backgroundColor: selected
+                          ? palette.accentBg
+                          : palette.inputBg,
+                        borderColor: selected
+                          ? palette.accentBorder
+                          : palette.inputBorder,
                       },
                     ]}
-                    value={values[key]}
-                    onChangeText={(text) => onChange({ [key]: text })}
-                    keyboardType="numeric"
-                    placeholder={key === "measuredPh" ? "0–14" : "0–100"}
-                    placeholderTextColor={palette.placeholder}
-                  />
-                </View>
-              ))}
+                    onPress={() =>
+                      onChange({ cultivationEnvironment: option.value })
+                    }
+                  >
+                    <Icon
+                      source={option.icon}
+                      size={15}
+                      color={selected ? palette.accent : palette.meta}
+                    />
+                    <Text
+                      style={[
+                        s.envChipText,
+                        {
+                          color: selected ? palette.accent : palette.secondary,
+                        },
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
-        ) : null}
-      </SectionCard>
+        </SectionCard>
 
-      {/* ── Submit ── */}
-      <Pressable
-        style={[
-          s.submitBtn,
-          { backgroundColor: palette.accent },
-          (isSubmitting || isOffline) && s.submitBtnDisabled,
-        ]}
-        disabled={Boolean(isSubmitting) || isOffline}
-        onPress={onSubmit}
-      >
-        {isSubmitting ? (
-          <ActivityIndicator color="#FFFFFF" size="small" />
-        ) : (
-          <Text style={s.submitText}>{submitLabel}</Text>
-        )}
-      </Pressable>
-    </ScrollView>
+        {/* ── C. Gleba ── */}
+        <SectionCard
+          title="Gleba"
+          description="Wybierz typ gleby dla grządki."
+          palette={palette}
+        >
+          <FieldLabel label="Gleba" palette={palette} optional />
+          <Pressable
+            style={[
+              s.soilPicker,
+              {
+                backgroundColor: palette.soilBg,
+                borderColor: values.soilId
+                  ? palette.accentBorder
+                  : palette.soilBorder,
+              },
+            ]}
+            onPress={onPickSoil}
+          >
+            <View style={s.soilPickerLeft}>
+              <Icon
+                source="layers-outline"
+                size={20}
+                color={values.soilId ? palette.accent : palette.meta}
+              />
+              <Text
+                style={[
+                  s.soilPickerText,
+                  {
+                    color: values.soilId
+                      ? palette.heading
+                      : palette.placeholder,
+                  },
+                ]}
+              >
+                {values.soilName ?? "Wybierz glebę…"}
+              </Text>
+            </View>
+            <Text style={[s.soilPickerAction, { color: palette.accent }]}>
+              {values.soilId ? "Zmień" : "Wybierz"}
+            </Text>
+          </Pressable>
+          {values.soilId && onClearSoil ? (
+            <Pressable style={s.clearSoilBtn} onPress={onClearSoil}>
+              <Text style={[s.clearSoilText, { color: palette.errorText }]}>
+                Usuń wybraną glebę
+              </Text>
+            </Pressable>
+          ) : null}
+        </SectionCard>
+
+        {/* ── D. Analiza gleby ── */}
+        <SectionCard
+          title="Analiza gleby"
+          description="Uzupełnij tylko wtedy, gdy masz wykonany test gleby."
+          palette={palette}
+        >
+          <View style={s.switchRow}>
+            <View style={s.switchRowLeft}>
+              <Text style={[s.switchLabel, { color: palette.heading }]}>
+                Mam wyniki analizy gleby
+              </Text>
+              <Text style={[s.switchDesc, { color: palette.meta }]}>
+                Odblokuje pola do wprowadzenia pomiarów
+              </Text>
+            </View>
+            <Switch
+              value={values.soilTestingEnabled}
+              onValueChange={(v) => onChange({ soilTestingEnabled: v })}
+              trackColor={{
+                false: palette.switchTrackOff,
+                true: palette.switchTrackOn,
+              }}
+              thumbColor={
+                values.soilTestingEnabled ? palette.switchThumbOn : palette.meta
+              }
+            />
+          </View>
+
+          {values.soilTestingEnabled ? (
+            <View style={s.metricsBlock}>
+              <View
+                style={[
+                  s.metricsDivider,
+                  { backgroundColor: palette.cardBorder },
+                ]}
+              />
+              <Text style={[s.metricsHint, { color: palette.meta }]}>
+                Wartości N, P, K w zakresie 0–100. pH w zakresie 0–14.
+              </Text>
+              <View style={s.metricsRow}>
+                {(
+                  [
+                    { key: "measuredN", label: "Azot (N)", ph: false },
+                    { key: "measuredP", label: "Fosfor (P)", ph: false },
+                    { key: "measuredK", label: "Potas (K)", ph: false },
+                    { key: "measuredPh", label: "Odczyn (pH)", ph: true },
+                  ] as const
+                ).map(({ key, label }) => (
+                  <View key={key} style={s.metricCol}>
+                    <Text style={[s.metricLabel, { color: palette.secondary }]}>
+                      {label}
+                    </Text>
+                    <TextInput
+                      style={[
+                        s.metricInput,
+                        {
+                          backgroundColor: palette.inputBg,
+                          borderColor: palette.inputBorder,
+                          color: palette.heading,
+                        },
+                      ]}
+                      value={values[key]}
+                      onChangeText={(text) => onChange({ [key]: text })}
+                      keyboardType="numeric"
+                      placeholder={key === "measuredPh" ? "0–14" : "0–100"}
+                      placeholderTextColor={palette.placeholder}
+                    />
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
+        </SectionCard>
+
+        {/* ── Submit ── */}
+        <Pressable
+          style={[
+            s.submitBtn,
+            { backgroundColor: palette.accent },
+            (isSubmitting || isOffline) && s.submitBtnDisabled,
+          ]}
+          disabled={Boolean(isSubmitting) || isOffline}
+          onPress={onSubmit}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={s.submitText}>{submitLabel}</Text>
+          )}
+        </Pressable>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

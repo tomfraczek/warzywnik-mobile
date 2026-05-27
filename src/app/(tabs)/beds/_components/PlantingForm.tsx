@@ -4,6 +4,8 @@ import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { memo, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -119,403 +121,426 @@ function PlantingFormComponent({
     Boolean(isSubmitting) || isOffline || !!blockingMessage;
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.container,
-        { backgroundColor: palette.background },
-      ]}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {showHeaderIntro ? (
-        <View style={styles.screenIntro}>
-          <Text style={[styles.screenTitle, { color: palette.heading }]}>
-            {screenTitle}
-          </Text>
-          <Text style={[styles.screenSubtitle, { color: palette.secondary }]}>
-            {screenSubtitle}
-          </Text>
-        </View>
-      ) : null}
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          { backgroundColor: palette.background },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {showHeaderIntro ? (
+          <View style={styles.screenIntro}>
+            <Text style={[styles.screenTitle, { color: palette.heading }]}>
+              {screenTitle}
+            </Text>
+            <Text style={[styles.screenSubtitle, { color: palette.secondary }]}>
+              {screenSubtitle}
+            </Text>
+          </View>
+        ) : null}
 
-      {showHeaderIntro ? (
+        {showHeaderIntro ? (
+          <View
+            style={[
+              styles.heroCard,
+              {
+                backgroundColor: palette.cardBg,
+                borderColor: palette.cardBorder,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.heroPill,
+                {
+                  backgroundColor: palette.heroPillBg,
+                  borderColor: palette.accentBorder,
+                },
+              ]}
+            >
+              <Text
+                style={[styles.heroPillText, { color: palette.heroPillText }]}
+              >
+                {heroPillLabel}
+              </Text>
+            </View>
+            <Text style={[styles.heroTitle, { color: palette.heading }]}>
+              {heroTitle}
+            </Text>
+            <Text
+              style={[styles.heroDescription, { color: palette.secondary }]}
+            >
+              {heroDescription}
+            </Text>
+          </View>
+        ) : null}
+
         <View
           style={[
-            styles.heroCard,
+            styles.section,
             {
               backgroundColor: palette.cardBg,
               borderColor: palette.cardBorder,
             },
           ]}
         >
-          <View
-            style={[
-              styles.heroPill,
-              {
-                backgroundColor: palette.heroPillBg,
-                borderColor: palette.accentBorder,
-              },
-            ]}
+          <Text style={[styles.sectionTitle, { color: palette.heading }]}>
+            Podstawy
+          </Text>
+          <Text
+            style={[styles.sectionDescription, { color: palette.tertiary }]}
           >
-            <Text
-              style={[styles.heroPillText, { color: palette.heroPillText }]}
-            >
-              {heroPillLabel}
-            </Text>
-          </View>
-          <Text style={[styles.heroTitle, { color: palette.heading }]}>
-            {heroTitle}
+            Zacznij od wyboru warzywa i sposobu zaplanowania startu uprawy.
           </Text>
-          <Text style={[styles.heroDescription, { color: palette.secondary }]}>
-            {heroDescription}
+
+          <Text style={[styles.label, { color: palette.secondary }]}>
+            Warzywo *
           </Text>
-        </View>
-      ) : null}
-
-      <View
-        style={[
-          styles.section,
-          { backgroundColor: palette.cardBg, borderColor: palette.cardBorder },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: palette.heading }]}>
-          Podstawy
-        </Text>
-        <Text style={[styles.sectionDescription, { color: palette.tertiary }]}>
-          Zacznij od wyboru warzywa i sposobu zaplanowania startu uprawy.
-        </Text>
-
-        <Text style={[styles.label, { color: palette.secondary }]}>
-          Warzywo *
-        </Text>
-        <Pressable
-          style={[
-            styles.vegetableSelector,
-            {
-              backgroundColor: palette.selectorBg,
-              borderColor: values.vegetableId
-                ? palette.accentBorder
-                : palette.selectorBorder,
-            },
-          ]}
-          onPress={onPickVegetable}
-        >
-          <View style={styles.vegetableSelectorContent}>
-            {isVegetableLoading && values.vegetableId ? (
-              <View style={styles.skeletonWrap}>
-                <View
-                  style={[
-                    styles.skeletonLinePrimary,
-                    { backgroundColor: palette.inputBorder },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.skeletonLineSecondary,
-                    { backgroundColor: palette.inputBorder },
-                  ]}
-                />
-              </View>
-            ) : values.vegetableId ? (
-              <>
-                <Text
-                  style={[styles.vegetableTitle, { color: palette.heading }]}
-                >
-                  {resolvedVegetableName ?? "Wybrane warzywo"}
-                </Text>
-                <Text
-                  style={[
-                    styles.vegetableSubtitle,
-                    { color: palette.secondary },
-                  ]}
-                >
-                  {vegetableError
-                    ? "Nie udało się pobrać danych warzywa"
-                    : "Możesz zmienić wybór w dowolnym momencie"}
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text
-                  style={[styles.vegetableTitle, { color: palette.heading }]}
-                >
-                  Wybierz warzywo
-                </Text>
-                <Text
-                  style={[
-                    styles.vegetableSubtitle,
-                    { color: palette.secondary },
-                  ]}
-                >
-                  Przejdź do biblioteki warzyw
-                </Text>
-              </>
-            )}
-          </View>
-          <View style={styles.selectorActionWrap}>
-            <Text
-              style={[styles.selectorActionText, { color: palette.accent }]}
-            >
-              {values.vegetableId ? "Zmień" : "Wybierz"}
-            </Text>
-            <Icon source="chevron-right" size={20} color={palette.accent} />
-          </View>
-        </Pressable>
-
-        {validationMessage ? (
-          <Text style={[styles.validationText, { color: palette.errorText }]}>
-            {validationMessage}
-          </Text>
-        ) : null}
-
-        {values.vegetableId && onClearVegetable ? (
-          <Pressable onPress={onClearVegetable} style={styles.clearAction}>
-            <Text style={[styles.clearText, { color: palette.errorText }]}>
-              Usuń wybór
-            </Text>
-          </Pressable>
-        ) : null}
-
-        <Text style={[styles.label, { color: palette.secondary }]}>
-          Metoda startu *
-        </Text>
-        <View style={styles.startMethodGrid}>
           <Pressable
             style={[
-              styles.startMethodCard,
+              styles.vegetableSelector,
               {
-                backgroundColor:
-                  values.startMethod === "DIRECT_SOW"
-                    ? palette.accentBg
-                    : palette.selectorBg,
-                borderColor:
-                  values.startMethod === "DIRECT_SOW"
-                    ? palette.accentBorder
-                    : palette.selectorBorder,
+                backgroundColor: palette.selectorBg,
+                borderColor: values.vegetableId
+                  ? palette.accentBorder
+                  : palette.selectorBorder,
               },
             ]}
-            onPress={() => onChange({ startMethod: "DIRECT_SOW" })}
+            onPress={onPickVegetable}
           >
-            <Icon
-              source="seed-outline"
-              size={16}
-              color={
-                values.startMethod === "DIRECT_SOW"
-                  ? palette.accent
-                  : palette.secondary
-              }
-            />
-            <Text
-              style={[
-                styles.startMethodTitle,
-                {
-                  color:
-                    values.startMethod === "DIRECT_SOW"
-                      ? palette.accent
-                      : palette.heading,
-                },
-              ]}
-            >
-              Siew bezpośredni
-            </Text>
-            <Text
-              style={[styles.startMethodSubtitle, { color: palette.secondary }]}
-            >
-              Nasiona trafiają od razu do grządki
-            </Text>
+            <View style={styles.vegetableSelectorContent}>
+              {isVegetableLoading && values.vegetableId ? (
+                <View style={styles.skeletonWrap}>
+                  <View
+                    style={[
+                      styles.skeletonLinePrimary,
+                      { backgroundColor: palette.inputBorder },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.skeletonLineSecondary,
+                      { backgroundColor: palette.inputBorder },
+                    ]}
+                  />
+                </View>
+              ) : values.vegetableId ? (
+                <>
+                  <Text
+                    style={[styles.vegetableTitle, { color: palette.heading }]}
+                  >
+                    {resolvedVegetableName ?? "Wybrane warzywo"}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.vegetableSubtitle,
+                      { color: palette.secondary },
+                    ]}
+                  >
+                    {vegetableError
+                      ? "Nie udało się pobrać danych warzywa"
+                      : "Możesz zmienić wybór w dowolnym momencie"}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text
+                    style={[styles.vegetableTitle, { color: palette.heading }]}
+                  >
+                    Wybierz warzywo
+                  </Text>
+                  <Text
+                    style={[
+                      styles.vegetableSubtitle,
+                      { color: palette.secondary },
+                    ]}
+                  >
+                    Przejdź do biblioteki warzyw
+                  </Text>
+                </>
+              )}
+            </View>
+            <View style={styles.selectorActionWrap}>
+              <Text
+                style={[styles.selectorActionText, { color: palette.accent }]}
+              >
+                {values.vegetableId ? "Zmień" : "Wybierz"}
+              </Text>
+              <Icon source="chevron-right" size={20} color={palette.accent} />
+            </View>
           </Pressable>
 
-          <Pressable
-            style={[
-              styles.startMethodCard,
-              {
-                backgroundColor:
-                  values.startMethod === "TRANSPLANT"
-                    ? palette.accentBg
-                    : palette.selectorBg,
-                borderColor:
-                  values.startMethod === "TRANSPLANT"
-                    ? palette.accentBorder
-                    : palette.selectorBorder,
-              },
-            ]}
-            onPress={() => onChange({ startMethod: "TRANSPLANT" })}
-          >
-            <Icon
-              source="sprout-outline"
-              size={16}
-              color={
-                values.startMethod === "TRANSPLANT"
-                  ? palette.accent
-                  : palette.secondary
-              }
-            />
-            <Text
-              style={[
-                styles.startMethodTitle,
-                {
-                  color:
-                    values.startMethod === "TRANSPLANT"
-                      ? palette.accent
-                      : palette.heading,
-                },
-              ]}
-            >
-              Rozsada
+          {validationMessage ? (
+            <Text style={[styles.validationText, { color: palette.errorText }]}>
+              {validationMessage}
             </Text>
-            <Text
-              style={[styles.startMethodSubtitle, { color: palette.secondary }]}
-            >
-              Najpierw przygotowujesz sadzonki
-            </Text>
-          </Pressable>
-        </View>
+          ) : null}
 
-        {showSowedAt ? (
-          <>
-            <Text style={[styles.label, { color: palette.secondary }]}>
-              Data siewu
-            </Text>
+          {values.vegetableId && onClearVegetable ? (
+            <Pressable onPress={onClearVegetable} style={styles.clearAction}>
+              <Text style={[styles.clearText, { color: palette.errorText }]}>
+                Usuń wybór
+              </Text>
+            </Pressable>
+          ) : null}
+
+          <Text style={[styles.label, { color: palette.secondary }]}>
+            Metoda startu *
+          </Text>
+          <View style={styles.startMethodGrid}>
             <Pressable
               style={[
-                styles.dateInput,
+                styles.startMethodCard,
                 {
-                  backgroundColor: palette.inputBg,
-                  borderColor: palette.inputBorder,
+                  backgroundColor:
+                    values.startMethod === "DIRECT_SOW"
+                      ? palette.accentBg
+                      : palette.selectorBg,
+                  borderColor:
+                    values.startMethod === "DIRECT_SOW"
+                      ? palette.accentBorder
+                      : palette.selectorBorder,
                 },
               ]}
-              onPress={() => setSowedOpen(true)}
+              onPress={() => onChange({ startMethod: "DIRECT_SOW" })}
             >
+              <Icon
+                source="seed-outline"
+                size={16}
+                color={
+                  values.startMethod === "DIRECT_SOW"
+                    ? palette.accent
+                    : palette.secondary
+                }
+              />
               <Text
                 style={[
-                  styles.dateInputText,
+                  styles.startMethodTitle,
                   {
-                    color: isoToDateOnly(values.sowedAt)
-                      ? palette.heading
-                      : palette.placeholder,
+                    color:
+                      values.startMethod === "DIRECT_SOW"
+                        ? palette.accent
+                        : palette.heading,
                   },
                 ]}
               >
-                {isoToDateOnly(values.sowedAt) || "YYYY-MM-DD"}
+                Siew bezpośredni
               </Text>
-              <Icon source="calendar" size={18} color={palette.secondary} />
+              <Text
+                style={[
+                  styles.startMethodSubtitle,
+                  { color: palette.secondary },
+                ]}
+              >
+                Nasiona trafiają od razu do grządki
+              </Text>
             </Pressable>
 
-            <DatePickerModal
-              locale="pl"
-              mode="single"
-              visible={sowedOpen}
-              date={sowedDate ?? new Date()}
-              onDismiss={() => setSowedOpen(false)}
-              onConfirm={({ date }) => {
-                setSowedOpen(false);
-                if (!date) return;
-                onChange({ sowedAt: date.toISOString() });
-              }}
-            />
-
-            {sowedAtHint ? (
+            <Pressable
+              style={[
+                styles.startMethodCard,
+                {
+                  backgroundColor:
+                    values.startMethod === "TRANSPLANT"
+                      ? palette.accentBg
+                      : palette.selectorBg,
+                  borderColor:
+                    values.startMethod === "TRANSPLANT"
+                      ? palette.accentBorder
+                      : palette.selectorBorder,
+                },
+              ]}
+              onPress={() => onChange({ startMethod: "TRANSPLANT" })}
+            >
+              <Icon
+                source="sprout-outline"
+                size={16}
+                color={
+                  values.startMethod === "TRANSPLANT"
+                    ? palette.accent
+                    : palette.secondary
+                }
+              />
               <Text
-                style={[styles.dateFieldHint, { color: palette.secondary }]}
+                style={[
+                  styles.startMethodTitle,
+                  {
+                    color:
+                      values.startMethod === "TRANSPLANT"
+                        ? palette.accent
+                        : palette.heading,
+                  },
+                ]}
               >
-                {sowedAtHint}
+                Rozsada
               </Text>
-            ) : null}
-          </>
-        ) : null}
-      </View>
+              <Text
+                style={[
+                  styles.startMethodSubtitle,
+                  { color: palette.secondary },
+                ]}
+              >
+                Najpierw przygotowujesz sadzonki
+              </Text>
+            </Pressable>
+          </View>
 
-      <View
-        style={[
-          styles.section,
-          { backgroundColor: palette.cardBg, borderColor: palette.cardBorder },
-        ]}
-      >
-        <Text style={[styles.sectionTitle, { color: palette.heading }]}>
-          Notatki
-        </Text>
-        <TextInput
-          style={[
-            styles.notesInput,
-            {
-              backgroundColor: palette.inputBg,
-              borderColor: palette.inputBorder,
-              color: palette.heading,
-            },
-          ]}
-          value={values.notes}
-          onChangeText={(text) => onChange({ notes: text })}
-          placeholder="Opcjonalnie"
-          placeholderTextColor={palette.placeholder}
-          multiline
-          numberOfLines={5}
-          textAlignVertical="top"
-        />
-      </View>
+          {showSowedAt ? (
+            <>
+              <Text style={[styles.label, { color: palette.secondary }]}>
+                Data siewu
+              </Text>
+              <Pressable
+                style={[
+                  styles.dateInput,
+                  {
+                    backgroundColor: palette.inputBg,
+                    borderColor: palette.inputBorder,
+                  },
+                ]}
+                onPress={() => setSowedOpen(true)}
+              >
+                <Text
+                  style={[
+                    styles.dateInputText,
+                    {
+                      color: isoToDateOnly(values.sowedAt)
+                        ? palette.heading
+                        : palette.placeholder,
+                    },
+                  ]}
+                >
+                  {isoToDateOnly(values.sowedAt) || "YYYY-MM-DD"}
+                </Text>
+                <Icon source="calendar" size={18} color={palette.secondary} />
+              </Pressable>
 
-      {isOffline && offlineMessage ? (
+              <DatePickerModal
+                locale="pl"
+                mode="single"
+                visible={sowedOpen}
+                date={sowedDate ?? new Date()}
+                onDismiss={() => setSowedOpen(false)}
+                onConfirm={({ date }) => {
+                  setSowedOpen(false);
+                  if (!date) return;
+                  onChange({ sowedAt: date.toISOString() });
+                }}
+              />
+
+              {sowedAtHint ? (
+                <Text
+                  style={[styles.dateFieldHint, { color: palette.secondary }]}
+                >
+                  {sowedAtHint}
+                </Text>
+              ) : null}
+            </>
+          ) : null}
+        </View>
+
         <View
           style={[
-            styles.inlineNotice,
+            styles.section,
             {
-              backgroundColor: palette.offlineBg,
-              borderColor: palette.offlineBorder,
+              backgroundColor: palette.cardBg,
+              borderColor: palette.cardBorder,
             },
           ]}
         >
-          <Icon
-            source="wifi-strength-off-outline"
-            size={16}
-            color={palette.offlineText}
+          <Text style={[styles.sectionTitle, { color: palette.heading }]}>
+            Notatki
+          </Text>
+          <TextInput
+            style={[
+              styles.notesInput,
+              {
+                backgroundColor: palette.inputBg,
+                borderColor: palette.inputBorder,
+                color: palette.heading,
+              },
+            ]}
+            value={values.notes}
+            onChangeText={(text) => onChange({ notes: text })}
+            placeholder="Opcjonalnie"
+            placeholderTextColor={palette.placeholder}
+            multiline
+            numberOfLines={5}
+            textAlignVertical="top"
           />
-          <Text
-            style={[styles.inlineNoticeText, { color: palette.offlineText }]}
-          >
-            {offlineMessage}
-          </Text>
         </View>
-      ) : null}
 
-      {blockingMessage ? (
-        <View
+        {isOffline && offlineMessage ? (
+          <View
+            style={[
+              styles.inlineNotice,
+              {
+                backgroundColor: palette.offlineBg,
+                borderColor: palette.offlineBorder,
+              },
+            ]}
+          >
+            <Icon
+              source="wifi-strength-off-outline"
+              size={16}
+              color={palette.offlineText}
+            />
+            <Text
+              style={[styles.inlineNoticeText, { color: palette.offlineText }]}
+            >
+              {offlineMessage}
+            </Text>
+          </View>
+        ) : null}
+
+        {blockingMessage ? (
+          <View
+            style={[
+              styles.blockingCard,
+              {
+                backgroundColor: palette.errorBg,
+                borderColor: palette.errorBorder,
+              },
+            ]}
+          >
+            <Text
+              style={[styles.blockingCardTitle, { color: palette.errorText }]}
+            >
+              Nie można kontynuować
+            </Text>
+            <Text
+              style={[styles.blockingCardText, { color: palette.errorText }]}
+            >
+              {blockingMessage}
+            </Text>
+          </View>
+        ) : null}
+
+        <Pressable
           style={[
-            styles.blockingCard,
+            styles.submitButton,
             {
-              backgroundColor: palette.errorBg,
-              borderColor: palette.errorBorder,
+              backgroundColor: palette.accent,
+              borderColor: palette.accent,
             },
+            submitDisabled && styles.disabledButton,
           ]}
+          disabled={submitDisabled}
+          onPress={onSubmit}
         >
-          <Text
-            style={[styles.blockingCardTitle, { color: palette.errorText }]}
-          >
-            Nie można kontynuować
-          </Text>
-          <Text style={[styles.blockingCardText, { color: palette.errorText }]}>
-            {blockingMessage}
-          </Text>
-        </View>
-      ) : null}
-
-      <Pressable
-        style={[
-          styles.submitButton,
-          {
-            backgroundColor: palette.accent,
-            borderColor: palette.accent,
-          },
-          submitDisabled && styles.disabledButton,
-        ]}
-        disabled={submitDisabled}
-        onPress={onSubmit}
-      >
-        {isSubmitting ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.submitText}>{submitLabel}</Text>
-        )}
-      </Pressable>
-    </ScrollView>
+          {isSubmitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.submitText}>{submitLabel}</Text>
+          )}
+        </Pressable>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

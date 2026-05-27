@@ -10,7 +10,14 @@ import * as AuthSession from "expo-auth-session";
 import { Link, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import React from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Button, MD3Theme, TextInput, useTheme } from "react-native-paper";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -130,40 +137,49 @@ export default function SignInScreen() {
 
   return (
     <Screen safeAreaEdges={["top", "left", "right"]}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Sign in</Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <View style={styles.container}>
+          <Text style={styles.title}>Sign in</Text>
 
-        <Button mode="outlined" onPress={onGoogleSignInPress} icon={googleIcon}>
-          Continue with Google
-        </Button>
+          <Button
+            mode="outlined"
+            onPress={onGoogleSignInPress}
+            icon={googleIcon}
+          >
+            Continue with Google
+          </Button>
 
-        <Text style={styles.orText}>or</Text>
+          <Text style={styles.orText}>or</Text>
 
-        <TextInput
-          style={styles.input}
-          autoCapitalize="none"
-          value={emailAddress}
-          placeholder="Enter email"
-          onChangeText={setEmailAddress}
-        />
-        <TextInput
-          style={styles.input}
-          value={password}
-          placeholder="Enter password"
-          secureTextEntry
-          onChangeText={setPassword}
-        />
-        <Button mode="contained" onPress={onSignInPress}>
-          Continue
-        </Button>
+          <TextInput
+            style={styles.input}
+            autoCapitalize="none"
+            value={emailAddress}
+            placeholder="Enter email"
+            onChangeText={setEmailAddress}
+          />
+          <TextInput
+            style={styles.input}
+            value={password}
+            placeholder="Enter password"
+            secureTextEntry
+            onChangeText={setPassword}
+          />
+          <Button mode="contained" onPress={onSignInPress}>
+            Continue
+          </Button>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Don&apos;t have an account?</Text>
-          <Link href="../sign-up">
-            <Text style={styles.link}>Sign up</Text>
-          </Link>
-        </View>
-      </View>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Don&apos;t have an account?</Text>
+            <Link href="../sign-up">
+              <Text style={styles.link}>Sign up</Text>
+            </Link>
+          </View>
+        </View>{" "}
+      </KeyboardAvoidingView>{" "}
     </Screen>
   );
 }

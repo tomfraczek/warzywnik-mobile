@@ -63,6 +63,8 @@ import { memo, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -1492,50 +1494,54 @@ export default function BedDetailsScreen() {
           ) : null}
 
           {quickActionStep === "note" ? (
-            <View style={styles.modalActionsColumn}>
-              <Text style={styles.modalTitle}>Notatka</Text>
-              <TextInput
-                mode="outlined"
-                label="Treść notatki"
-                value={quickActionNote}
-                onChangeText={setQuickActionNote}
-                multiline
-                numberOfLines={4}
-                style={styles.modalInput}
-                disabled={postBedQuickAction.isPending}
-              />
-              <View style={styles.modalActionsBetween}>
-                <Button
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+            >
+              <View style={styles.modalActionsColumn}>
+                <Text style={styles.modalTitle}>Notatka</Text>
+                <TextInput
                   mode="outlined"
-                  onPress={() => setQuickActionStep("menu")}
+                  label="Treść notatki"
+                  value={quickActionNote}
+                  onChangeText={setQuickActionNote}
+                  multiline
+                  numberOfLines={4}
+                  style={styles.modalInput}
                   disabled={postBedQuickAction.isPending}
-                >
-                  Wstecz
-                </Button>
-                <Button
-                  mode="contained"
-                  onPress={() => {
-                    const note = quickActionNote.trim();
-                    if (!note) {
-                      setSnackbarMessage("Wpisz notatkę.");
-                      return;
+                />
+                <View style={styles.modalActionsBetween}>
+                  <Button
+                    mode="outlined"
+                    onPress={() => setQuickActionStep("menu")}
+                    disabled={postBedQuickAction.isPending}
+                  >
+                    Wstecz
+                  </Button>
+                  <Button
+                    mode="contained"
+                    onPress={() => {
+                      const note = quickActionNote.trim();
+                      if (!note) {
+                        setSnackbarMessage("Wpisz notatkę.");
+                        return;
+                      }
+                      handleSubmitBedQuickAction({
+                        actionKind: "NOTE",
+                        note,
+                      });
+                    }}
+                    loading={postBedQuickAction.isPending}
+                    disabled={
+                      postBedQuickAction.isPending ||
+                      isOffline ||
+                      !quickActionNote.trim()
                     }
-                    handleSubmitBedQuickAction({
-                      actionKind: "NOTE",
-                      note,
-                    });
-                  }}
-                  loading={postBedQuickAction.isPending}
-                  disabled={
-                    postBedQuickAction.isPending ||
-                    isOffline ||
-                    !quickActionNote.trim()
-                  }
-                >
-                  Zapisz
-                </Button>
+                  >
+                    Zapisz
+                  </Button>
+                </View>
               </View>
-            </View>
+            </KeyboardAvoidingView>
           ) : null}
         </BottomSheetModal>
 
@@ -1589,15 +1595,6 @@ export default function BedDetailsScreen() {
                   <View style={styles.sectionDivider} />
                   <Text style={styles.subsectionTitle}>Głębokość grządki</Text>
                   <Text style={styles.dimensionSummary}>{depthLabel}</Text>
-                  <View style={styles.metricGrid}>
-                    {bed.depthCm != null ? (
-                      <View style={styles.metricCard}>
-                        <Text style={styles.metricLabel}>Głębokość</Text>
-                        <Text style={styles.metricValue}>{bed.depthCm}</Text>
-                        <Text style={styles.metricUnit}>cm</Text>
-                      </View>
-                    ) : null}
-                  </View>
                 </>
               ) : null}
 
@@ -1620,7 +1617,6 @@ export default function BedDetailsScreen() {
               </View>
 
               <View style={styles.sectionDivider} />
-              <Text style={styles.subsectionTitle}>Gleba</Text>
               <View style={styles.infoRows}>
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Typ gleby</Text>
