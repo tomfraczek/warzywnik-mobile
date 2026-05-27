@@ -333,51 +333,9 @@ export default function ProfileScreen() {
               { value: "system", label: "System" },
             ]}
           />
-
-          <Text style={styles.label}>Jednostki</Text>
-          <View style={styles.unitsRow}>
-            <Button
-              mode={units.temperature === "celsius" ? "contained" : "outlined"}
-              onPress={() => setUnits({ temperature: "celsius" })}
-            >
-              °C
-            </Button>
-            <Button
-              mode={
-                units.temperature === "fahrenheit" ? "contained" : "outlined"
-              }
-              onPress={() => setUnits({ temperature: "fahrenheit" })}
-            >
-              °F
-            </Button>
-            <Button
-              mode={units.precipitation === "mm" ? "contained" : "outlined"}
-              onPress={() => setUnits({ precipitation: "mm" })}
-            >
-              mm
-            </Button>
-            <Button
-              mode={units.precipitation === "in" ? "contained" : "outlined"}
-              onPress={() => setUnits({ precipitation: "in" })}
-            >
-              in
-            </Button>
-            <Button
-              mode={units.area === "m2" ? "contained" : "outlined"}
-              onPress={() => setUnits({ area: "m2" })}
-            >
-              m²
-            </Button>
-            <Button
-              mode={units.area === "ft2" ? "contained" : "outlined"}
-              onPress={() => setUnits({ area: "ft2" })}
-            >
-              ft²
-            </Button>
-          </View>
         </Card>
 
-        <Card title="Subskrypcja">
+        {/* <Card title="Subskrypcja">
           <View style={styles.subscriptionRow}>
             <Text style={styles.label}>Aktualny plan</Text>
             <StatusBadge label="Starter" tone={planTone} />
@@ -388,7 +346,7 @@ export default function ProfileScreen() {
           >
             Zarządzaj planem
           </Button>
-        </Card>
+        </Card> */}
 
         <Card title="Powiadomienia Push">
           <Text style={styles.preferenceDescription}>
