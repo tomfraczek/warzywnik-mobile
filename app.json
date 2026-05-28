@@ -2,7 +2,7 @@
   "expo": {
     "name": "Warzywnik",
     "slug": "warzywnik-mobile",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/logo-with-brand.png",
     "scheme": "warzywnikmobile",
@@ -36,7 +36,7 @@
       ],
       "googleServicesFile": "./google-services.json",
       "package": "com.tomfraczek.warzywnik.mobile",
-      "runtimeVersion": "1.0.0"
+      "runtimeVersion": "1.0.2"
     },
     "web": {
       "bundler": "metro",
