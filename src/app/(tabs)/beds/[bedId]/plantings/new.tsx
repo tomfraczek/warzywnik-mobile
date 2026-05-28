@@ -123,7 +123,7 @@ export default function PlantingCreateScreen() {
         submitLabel="Dodaj do planu"
         isSubmitting={createPlanting.isPending}
         showSowedAt
-        sowedAtHint="Po podaniu tej daty system wyliczy okno zbioru, ostrzeżenia i harmonogram od wskazanego dnia. Jeśli zostawisz puste, obliczenia zaczną się od dnia dzisiejszego."
+        sowedAtHint="-OPCJONALNE- Po podaniu tej daty system wyliczy okno zbioru, ostrzeżenia i harmonogram od wskazanego dnia. Jeśli zostawisz puste, obliczenia zaczną się od dnia dzisiejszego."
         showHeaderIntro
         screenTitle="Zaplanuj uprawę"
         screenSubtitle="Dodaj warzywo do planu grządki."

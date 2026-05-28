@@ -178,8 +178,8 @@ export default function SignInScreen() {
               <Text style={styles.link}>Sign up</Text>
             </Link>
           </View>
-        </View>{" "}
-      </KeyboardAvoidingView>{" "}
+        </View>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
