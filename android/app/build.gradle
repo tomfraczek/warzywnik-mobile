@@ -1,7 +1,6 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
-apply plugin: "com.google.gms.google-services"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
@@ -128,21 +127,6 @@ android {
     }
 }
 
-def googleServicesJson = file("$rootDir/../google-services.json")
-afterEvaluate {
-    if (googleServicesJson.exists()) {
-        tasks.matching { it.name == "preBuild" }.configureEach {
-            doFirst {
-                copy {
-                    from googleServicesJson
-                    into projectDir
-                    rename { "google-services.json" }
-                }
-            }
-        }
-    }
-}
-
 // Apply static values from `gradle.properties` to the `android.packagingOptions`
 // Accepts values in comma delimited lists, example:
 // android.packagingOptions.pickFirsts=/LICENSE,**/picasa.ini
@@ -191,3 +175,5 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+apply plugin: 'com.google.gms.google-services'
