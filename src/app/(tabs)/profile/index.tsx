@@ -14,7 +14,7 @@ import {
   useSettings,
 } from "@/src/context/SettingsProvider";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
-import { isPushDiagnosticsVisible } from "@/src/features/push/diagnostics";
+// import { isPushDiagnosticsVisible } from "@/src/features/push/diagnostics";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { radius, spacing } from "@/src/theme/ui";
 import { useClerk, useUser } from "@clerk/clerk-expo";
@@ -477,7 +477,7 @@ export default function ProfileScreen() {
             </Button>
           </View>
 
-          {isPushDiagnosticsVisible() ? (
+          {/* {isPushDiagnosticsVisible() ? (
             <Button
               mode="outlined"
               icon="bug-outline"
@@ -485,7 +485,7 @@ export default function ProfileScreen() {
             >
               Otwórz diagnostykę push
             </Button>
-          ) : null}
+          ) : null} */}
         </Card>
 
         <Card title="Dane">
