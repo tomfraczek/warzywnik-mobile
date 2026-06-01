@@ -10,6 +10,7 @@ import { Planting } from "@/src/api/queries/plantings/types";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { Vegetable } from "@/src/api/queries/vegetables/types";
 import { vegetableKeys } from "@/src/api/queries/vegetables/vegetableKeys";
+import { AppDatePickerModal } from "@/src/components/AppDatePickerModal";
 import { Screen } from "@/src/components/Screen";
 import { BottomSheetModal } from "@/src/components/ui/BottomSheetModal";
 import { getPlantingStatusLabel } from "@/src/features/plantings/status";
@@ -38,7 +39,6 @@ import {
   Text,
   useTheme,
 } from "react-native-paper";
-import { DatePickerModal } from "react-native-paper-dates";
 
 type TaskTargetType = "bed" | "planting";
 type PlacePickerMode = "bed" | "planting";
@@ -931,16 +931,13 @@ export default function PlannerCreateTaskScreen() {
         </Modal>
       </Portal>
 
-      <DatePickerModal
-        locale="pl"
-        mode="single"
+      <AppDatePickerModal
         visible={showDatePicker}
-        date={dueDate ?? new Date()}
+        date={dueDate ?? undefined}
         onDismiss={() => setShowDatePicker(false)}
-        onConfirm={({ date }) => {
+        onConfirm={(selectedDate) => {
           setShowDatePicker(false);
-          if (!date) return;
-          setDueDate(date);
+          setDueDate(selectedDate);
           setErrors((prev) => ({ ...prev, dueDate: undefined }));
         }}
       />

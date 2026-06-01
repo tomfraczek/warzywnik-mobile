@@ -1,4 +1,5 @@
 import { PostHarvestProposal } from "@/src/api/queries/beds/harvestTypes";
+import { AppDatePickerModal } from "@/src/components/AppDatePickerModal";
 import { memo, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
@@ -10,7 +11,6 @@ import {
   TextInput,
   useTheme,
 } from "react-native-paper";
-import { DatePickerModal } from "react-native-paper-dates";
 
 type TaskSelection = {
   actionTemplateId: string;
@@ -238,9 +238,7 @@ function PostHarvestActionsModalComponent({
         </View>
       </Modal>
 
-      <DatePickerModal
-        locale="pl"
-        mode="single"
+      <AppDatePickerModal
         visible={!!pickerTemplateId}
         date={
           pickerTemplateId
@@ -248,15 +246,15 @@ function PostHarvestActionsModalComponent({
             : new Date()
         }
         onDismiss={() => setPickerTemplateId(null)}
-        onConfirm={({ date }) => {
-          if (!pickerTemplateId || !date) {
+        onConfirm={(selectedDate) => {
+          if (!pickerTemplateId) {
             setPickerTemplateId(null);
             return;
           }
 
           setDueAtByTemplateId((prev) => ({
             ...prev,
-            [pickerTemplateId]: date.toISOString(),
+            [pickerTemplateId]: selectedDate.toISOString(),
           }));
           setPickerTemplateId(null);
         }}

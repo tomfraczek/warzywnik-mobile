@@ -40,6 +40,7 @@ import { useUpdatePlanting } from "@/src/api/queries/plantings/useUpdatePlanting
 import { useGetPlantingQuickActionNotes } from "@/src/api/queries/quickActions/useGetPlantingQuickActionNotes";
 import { usePostPlantingQuickAction } from "@/src/api/queries/quickActions/usePostPlantingQuickAction";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
+import { AppDatePickerModal } from "@/src/components/AppDatePickerModal";
 import { Screen } from "@/src/components/Screen";
 import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { BottomSheetModal } from "@/src/components/ui/BottomSheetModal";
@@ -88,7 +89,6 @@ import {
   TextInput,
   useTheme,
 } from "react-native-paper";
-import { DatePickerModal } from "react-native-paper-dates";
 import { TasksCelebrationCard } from "../../_components/TasksCelebrationCard";
 import { PlantingHarvestResultForm } from "./_components/PlantingHarvestResultForm";
 import { PlantingSeasonSection } from "./_components/PlantingSeasonSection";
@@ -2789,16 +2789,13 @@ export default function PlantingDetailsScreen() {
         </Modal>
       </Portal>
 
-      <DatePickerModal
-        locale="pl"
-        mode="single"
+      <AppDatePickerModal
         visible={observedOpen}
-        date={observedDate ?? new Date()}
+        date={observedDate}
         onDismiss={() => setObservedOpen(false)}
-        onConfirm={({ date }) => {
+        onConfirm={(selectedDate) => {
           setObservedOpen(false);
-          if (!date) return;
-          setObservedAt(date.toISOString());
+          setObservedAt(selectedDate.toISOString());
         }}
       />
 

@@ -1,5 +1,6 @@
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { PlantingFormValues } from "@/src/app/(tabs)/beds/_utils/plantingForm";
+import { AppDatePickerModal } from "@/src/components/AppDatePickerModal";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { memo, useMemo, useState } from "react";
 import {
@@ -14,7 +15,6 @@ import {
   View,
 } from "react-native";
 import { Icon, MD3Theme, useTheme } from "react-native-paper";
-import { DatePickerModal } from "react-native-paper-dates";
 
 const START_METHOD_OPTIONS = [
   {
@@ -409,16 +409,13 @@ function PlantingFormComponent({
                 <Icon source="calendar" size={18} color={palette.secondary} />
               </Pressable>
 
-              <DatePickerModal
-                locale="pl"
-                mode="single"
+              <AppDatePickerModal
                 visible={sowedOpen}
-                date={sowedDate ?? new Date()}
+                date={sowedDate}
                 onDismiss={() => setSowedOpen(false)}
-                onConfirm={({ date }) => {
+                onConfirm={(selectedDate) => {
                   setSowedOpen(false);
-                  if (!date) return;
-                  onChange({ sowedAt: date.toISOString() });
+                  onChange({ sowedAt: selectedDate.toISOString() });
                 }}
               />
 

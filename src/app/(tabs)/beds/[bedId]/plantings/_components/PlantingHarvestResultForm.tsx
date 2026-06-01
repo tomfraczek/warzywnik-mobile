@@ -2,6 +2,7 @@ import { getResponseError } from "@/src/api/axios";
 import { HarvestResultRecord } from "@/src/api/queries/plantings/types";
 import { useCreateHarvestResultRecord } from "@/src/api/queries/plantings/useCreateHarvestResultRecord";
 import { useUpdateHarvestResultRecord } from "@/src/api/queries/plantings/useUpdateHarvestResultRecord";
+import { AppDatePickerModal } from "@/src/components/AppDatePickerModal";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { useEffect, useMemo, useState } from "react";
@@ -14,7 +15,6 @@ import {
   TextInput,
   useTheme,
 } from "react-native-paper";
-import { DatePickerModal } from "react-native-paper-dates";
 
 type Props = {
   visible: boolean;
@@ -231,16 +231,13 @@ export function PlantingHarvestResultForm({
         </ScrollView>
       </Modal>
 
-      <DatePickerModal
-        locale="pl"
-        mode="single"
+      <AppDatePickerModal
         visible={harvestedAtOpen}
         date={harvestedDate}
         onDismiss={() => setHarvestedAtOpen(false)}
-        onConfirm={({ date }) => {
+        onConfirm={(selectedDate) => {
           setHarvestedAtOpen(false);
-          if (!date) return;
-          setHarvestedAt(date.toISOString());
+          setHarvestedAt(selectedDate.toISOString());
         }}
       />
     </Portal>
