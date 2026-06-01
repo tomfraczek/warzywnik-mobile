@@ -348,14 +348,14 @@ export default function ProfileScreen() {
         <Card title="Powiadomienia Push">
           <Text style={styles.preferenceDescription}>
             Powiadomienia przychodzące na telefon pomogą Ci być na bieżąco z
-            ważnymi informacjami o Twoim ogrodzie, zadaniach i pogodzie. Możesz
+            ważnymi informacjami o Twoim ogrodzie, pogodzie i uprawach. Możesz
             dostosować, jakie alerty chcesz otrzymywać i o której godzinie.
           </Text>
           <View style={styles.preferenceRow}>
             <View style={styles.preferenceTextWrap}>
               <Text style={styles.preferenceTitle}>Włącz powiadomienia</Text>
               <Text style={styles.preferenceDescription}>
-                Otrzymuj ważne informacje o zadaniach, pogodzie i uprawach.
+                Otrzymuj ważne informacje o pogodzie, uprawach i ogrodzie.
               </Text>
             </View>
             <Switch
@@ -371,80 +371,143 @@ export default function ProfileScreen() {
 
           <View style={styles.preferenceRow}>
             <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Codzienny plan dnia</Text>
+              <Text style={styles.preferenceDescription}>
+                Otrzymuj jedno powiadomienie z podsumowaniem zadań na dziś.
+              </Text>
+            </View>
+            <Switch
+              value={preferences?.advanced.dailySummaryEnabled ?? false}
+              onValueChange={(value) => {
+                void updateNotificationPreference({
+                  advanced: {
+                    dailySummaryEnabled: value,
+                  },
+                });
+              }}
+              disabled={!notificationsEnabled}
+            />
+          </View>
+
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Sugestie dla upraw</Text>
+              <Text style={styles.preferenceDescription}>
+                Otrzymuj powiadomienia o ważnych momentach, takich jak zbiory
+                lub przesadzanie.
+              </Text>
+            </View>
+            <Switch
+              value={preferences?.advanced.lifecycleSuggestionsEnabled ?? false}
+              onValueChange={(value) => {
+                void updateNotificationPreference({
+                  advanced: {
+                    lifecycleSuggestionsEnabled: value,
+                  },
+                });
+              }}
+              disabled={!notificationsEnabled}
+            />
+          </View>
+
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Alerty pogodowe</Text>
+              <Text style={styles.preferenceDescription}>
+                Otrzymuj powiadomienia o pogodzie, która może wymagać szybkiej
+                reakcji.
+              </Text>
+            </View>
+            <Switch
+              value={preferences?.advanced.weatherAlertsEnabled ?? false}
+              onValueChange={(value) => {
+                void updateNotificationPreference({
+                  advanced: {
+                    weatherAlertsEnabled: value,
+                  },
+                });
+              }}
+              disabled={!notificationsEnabled}
+            />
+          </View>
+
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Ryzyko dla ogrodu</Text>
+              <Text style={styles.preferenceDescription}>
+                Otrzymuj informacje o podwyższonym ryzyku dla upraw, np.
+                przesuszeniu.
+              </Text>
+            </View>
+            <Switch
+              value={preferences?.advanced.gardenRiskEnabled ?? false}
+              onValueChange={(value) => {
+                void updateNotificationPreference({
+                  advanced: {
+                    gardenRiskEnabled: value,
+                  },
+                });
+              }}
+              disabled={!notificationsEnabled}
+            />
+          </View>
+
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Zmiany pogody</Text>
+              <Text style={styles.preferenceDescription}>
+                Otrzymuj informacje o istotnych zmianach statusu pogody.
+              </Text>
+            </View>
+            <Switch
+              value={preferences?.advanced.weatherStatusEnabled ?? false}
+              onValueChange={(value) => {
+                void updateNotificationPreference({
+                  advanced: {
+                    weatherStatusEnabled: value,
+                  },
+                });
+              }}
+              disabled={!notificationsEnabled}
+            />
+          </View>
+
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Nowe artykuły</Text>
+              <Text style={styles.preferenceDescription}>
+                Otrzymuj powiadomienia, gdy w bibliotece pojawi się nowy
+                artykuł.
+              </Text>
+            </View>
+            <Switch
+              value={preferences?.advanced.recommendedArticlesEnabled ?? false}
+              onValueChange={(value) => {
+                void updateNotificationPreference({
+                  advanced: {
+                    recommendedArticlesEnabled: value,
+                  },
+                });
+              }}
+              disabled={!notificationsEnabled}
+            />
+          </View>
+
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
               <Text style={styles.preferenceTitle}>
-                Zadania i przypomnienia
+                Tygodniowe podsumowanie
               </Text>
               <Text style={styles.preferenceDescription}>
-                Informacje o nowych zadaniach, planie dnia i ważnych etapach
-                upraw.
+                Otrzymuj tygodniowe podsumowanie aktywności w ogrodzie.
               </Text>
             </View>
             <Switch
-              value={preferences?.groups.tasksAndRemindersEnabled ?? false}
+              value={preferences?.advanced.weeklyDigestEnabled ?? false}
               onValueChange={(value) => {
                 void updateNotificationPreference({
-                  groups: {
-                    tasksAndRemindersEnabled: value,
-                  },
-                });
-              }}
-              disabled={!notificationsEnabled}
-            />
-          </View>
-
-          <View style={styles.preferenceRow}>
-            <View style={styles.preferenceTextWrap}>
-              <Text style={styles.preferenceTitle}>Pogoda i ryzyko</Text>
-              <Text style={styles.preferenceDescription}>
-                Alerty pogodowe, zmiany ryzyka ogrodu i ważne ostrzeżenia.
-              </Text>
-            </View>
-            <Switch
-              value={preferences?.groups.weatherAndRiskEnabled ?? false}
-              onValueChange={(value) => {
-                void updateNotificationPreference({
-                  groups: {
-                    weatherAndRiskEnabled: value,
-                  },
-                });
-              }}
-              disabled={!notificationsEnabled}
-            />
-          </View>
-
-          <View style={styles.preferenceRow}>
-            <View style={styles.preferenceTextWrap}>
-              <Text style={styles.preferenceTitle}>Porady i artykuły</Text>
-              <Text style={styles.preferenceDescription}>
-                Nowe treści dopasowane do Twoich upraw.
-              </Text>
-            </View>
-            <Switch
-              value={preferences?.groups.articlesAndTipsEnabled ?? false}
-              onValueChange={(value) => {
-                void updateNotificationPreference({
-                  groups: {
-                    articlesAndTipsEnabled: value,
-                  },
-                });
-              }}
-              disabled={!notificationsEnabled}
-            />
-          </View>
-
-          <View style={styles.preferenceRow}>
-            <View style={styles.preferenceTextWrap}>
-              <Text style={styles.preferenceTitle}>Podsumowania</Text>
-              <Text style={styles.preferenceDescription}>
-                Spokojne podsumowania ogrodu, np. tygodniowy przegląd.
-              </Text>
-            </View>
-            <Switch
-              value={preferences?.groups.summariesEnabled ?? false}
-              onValueChange={(value) => {
-                void updateNotificationPreference({
-                  groups: {
-                    summariesEnabled: value,
+                  advanced: {
+                    weeklyDigestEnabled: value,
                   },
                 });
               }}

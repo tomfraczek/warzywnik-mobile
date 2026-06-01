@@ -39,26 +39,13 @@ export type NotificationsSummary = {
   hasCriticalUnread: boolean;
 };
 
-export type NotificationPreferencesIntensity =
-  | "IMPORTANT_ONLY"
-  | "BALANCED"
-  | "ALL";
-
-export type NotificationPreferenceGroups = {
-  tasksAndRemindersEnabled: boolean;
-  weatherAndRiskEnabled: boolean;
-  articlesAndTipsEnabled: boolean;
-  summariesEnabled: boolean;
-};
-
 export type NotificationPreferencesAdvanced = {
-  tasksEnabled: boolean;
   dailySummaryEnabled: boolean;
-  weatherStatusEnabled: boolean;
-  gardenRiskEnabled: boolean;
-  weatherAlertsEnabled: boolean;
-  recommendedArticlesEnabled: boolean;
   lifecycleSuggestionsEnabled: boolean;
+  weatherAlertsEnabled: boolean;
+  gardenRiskEnabled: boolean;
+  weatherStatusEnabled: boolean;
+  recommendedArticlesEnabled: boolean;
   weeklyDigestEnabled: boolean;
 };
 
@@ -66,15 +53,13 @@ export type NotificationPreferencesUi = Record<string, unknown>;
 
 export type NotificationPreferences = {
   notificationsEnabled: boolean;
-  groups: NotificationPreferenceGroups;
   advanced: NotificationPreferencesAdvanced;
   ui: NotificationPreferencesUi;
-  intensity: NotificationPreferencesIntensity;
   notificationHour: number;
 };
 
 export type UpdateNotificationPreferencesDto = {
   notificationsEnabled?: boolean;
-  groups?: Partial<NotificationPreferenceGroups>;
+  advanced?: Partial<NotificationPreferencesAdvanced>;
   notificationHour?: number;
 };

@@ -48,21 +48,13 @@ export function AppDatePickerModal({
         ...defaultCalendarStyles.day_label,
         color: theme.colors.onSurface,
       },
-      day_label_disabled: {
-        ...defaultCalendarStyles.day_label_disabled,
+      disabled_label: {
+        ...defaultCalendarStyles.disabled_label,
         color: theme.colors.onSurfaceDisabled,
       },
       weekday_label: {
         ...defaultCalendarStyles.weekday_label,
         color: theme.colors.onSurfaceVariant,
-      },
-      header_title_text: {
-        ...defaultCalendarStyles.header_title_text,
-        color: theme.colors.onSurface,
-      },
-      header_button_text: {
-        ...defaultCalendarStyles.header_button_text,
-        color: theme.colors.onSurface,
       },
       today: {
         ...defaultCalendarStyles.today,
