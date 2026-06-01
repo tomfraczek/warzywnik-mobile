@@ -120,7 +120,8 @@ const formatNoteDateTime = (value?: string | null) => {
 
 const START_METHOD_LABELS: Record<PlantingStartMethod, string> = {
   DIRECT_SOW: "Siew bezpośredni",
-  TRANSPLANT: "Rozsada",
+  TRANSPLANT: "Własna rozsada",
+  PURCHASED_SEEDLING: "Kupiona flanca / sadzonka",
 };
 
 const PLANTING_STATUS_DESCRIPTIONS: Record<PlantingStatus, string> = {

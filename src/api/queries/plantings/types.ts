@@ -9,7 +9,10 @@ export type PlantingStatus =
   | "FAILED"
   | "CANCELLED";
 
-export type PlantingStartMethod = "DIRECT_SOW" | "TRANSPLANT";
+export type PlantingStartMethod =
+  | "DIRECT_SOW"
+  | "TRANSPLANT"
+  | "PURCHASED_SEEDLING";
 
 export type WarningSeverity = "INFO" | "WARNING" | "CRITICAL";
 

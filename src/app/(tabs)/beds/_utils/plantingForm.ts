@@ -27,7 +27,11 @@ export const plantingToFormValues = (
   vegetableId: planting.vegetableId,
   vegetableName: planting.vegetable?.name ?? planting.vegetableName ?? "",
   startMethod: planting.startMethod ?? "DIRECT_SOW",
-  sowedAt: planting.sowedAt ?? planting.plannedStartDate ?? "",
+  sowedAt:
+    planting.sowedAt ??
+    planting.transplantedAt ??
+    planting.plannedStartDate ??
+    "",
   notes: planting.notes ?? "",
 });
 
@@ -41,6 +45,9 @@ const normalizeNullableString = (value: string) => {
   const trimmed = value.trim();
   return trimmed.length === 0 ? null : trimmed;
 };
+
+const usesTransplantedAt = (startMethod: PlantingStartMethod) =>
+  startMethod === "TRANSPLANT" || startMethod === "PURCHASED_SEEDLING";
 
 export const buildCreatePlantingPayload = (
   bedId: string,
@@ -57,6 +64,9 @@ export const buildCreatePlantingPayload = (
     ...(startDate
       ? {
           sowedAt: startDate,
+          ...(usesTransplantedAt(values.startMethod)
+            ? { transplantedAt: startDate }
+            : {}),
           plannedStartDate: startDate,
           date: startDate,
         }
@@ -69,6 +79,8 @@ export const buildUpdatePlantingPayload = (
   current: PlantingFormValues,
 ): UpdatePlantingDto => {
   const payload: UpdatePlantingDto = {};
+  const currentStartDate = normalizeNullableString(current.sowedAt);
+  const initialStartDate = normalizeNullableString(initial.sowedAt);
 
   if (initial.vegetableId !== current.vegetableId && current.vegetableId) {
     payload.vegetableId = current.vegetableId;
@@ -79,7 +91,7 @@ export const buildUpdatePlantingPayload = (
   }
 
   if (initial.sowedAt !== current.sowedAt) {
-    payload.sowedAt = normalizeNullableString(current.sowedAt);
+    payload.sowedAt = currentStartDate;
     if (payload.sowedAt) {
       payload.plannedStartDate = payload.sowedAt;
     }
@@ -89,8 +101,15 @@ export const buildUpdatePlantingPayload = (
     payload.notes = normalizeNullableString(current.notes);
   }
 
-  if (current.startMethod === "DIRECT_SOW") {
-    payload.transplantedAt = null;
+  const initialTransplantedAt = usesTransplantedAt(initial.startMethod)
+    ? initialStartDate
+    : null;
+  const currentTransplantedAt = usesTransplantedAt(current.startMethod)
+    ? currentStartDate
+    : null;
+
+  if (initialTransplantedAt !== currentTransplantedAt) {
+    payload.transplantedAt = currentTransplantedAt;
   }
 
   return payload;

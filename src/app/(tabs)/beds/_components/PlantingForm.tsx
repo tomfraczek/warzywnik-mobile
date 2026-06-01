@@ -16,6 +16,30 @@ import {
 import { Icon, MD3Theme, useTheme } from "react-native-paper";
 import { DatePickerModal } from "react-native-paper-dates";
 
+const START_METHOD_OPTIONS = [
+  {
+    value: "DIRECT_SOW" as const,
+    icon: "seed-outline",
+    label: "Siew bezpośredni",
+    description:
+      "Wybierz tę opcję, jeśli wysiewasz nasiona bezpośrednio do gruntu.",
+  },
+  {
+    value: "TRANSPLANT" as const,
+    icon: "sprout-outline",
+    label: "Własna rozsada",
+    description:
+      "Wybierz tę opcję, jeśli samodzielnie przygotowujesz rozsadę od nasion.",
+  },
+  {
+    value: "PURCHASED_SEEDLING" as const,
+    icon: "leaf",
+    label: "Kupiona flanca / sadzonka",
+    description:
+      "Wybierz tę opcję, jeśli kupujesz gotową sadzonkę i od razu sadzisz ją w ogrodzie, tunelu lub szklarni.",
+  },
+];
+
 type PlantingFormProps = {
   values: PlantingFormValues;
   onChange: (patch: Partial<PlantingFormValues>) => void;
@@ -119,6 +143,10 @@ function PlantingFormComponent({
     vegetable?.name?.trim() || values.vegetableName?.trim() || null;
   const submitDisabled =
     Boolean(isSubmitting) || isOffline || !!blockingMessage;
+  const startDateLabel =
+    values.startMethod === "PURCHASED_SEEDLING"
+      ? "Data sadzenia"
+      : "Data siewu";
 
   return (
     <KeyboardAvoidingView
@@ -282,118 +310,79 @@ function PlantingFormComponent({
           ) : null}
 
           {values.vegetableId && onClearVegetable ? (
-            <Pressable onPress={onClearVegetable} style={styles.clearAction}>
+            <Pressable
+              onPress={onClearVegetable}
+              style={[
+                styles.clearAction,
+                {
+                  borderColor: palette.errorBorder,
+                },
+              ]}
+            >
               <Text style={[styles.clearText, { color: palette.errorText }]}>
-                Usuń wybór
+                Usuń wybrane warzywo
               </Text>
+              <Icon
+                source="trash-can-outline"
+                size={16}
+                color={palette.errorText}
+              />
             </Pressable>
           ) : null}
 
           <Text style={[styles.label, { color: palette.secondary }]}>
-            Metoda startu *
+            Jak zaczynasz uprawę? *
           </Text>
           <View style={styles.startMethodGrid}>
-            <Pressable
-              style={[
-                styles.startMethodCard,
-                {
-                  backgroundColor:
-                    values.startMethod === "DIRECT_SOW"
-                      ? palette.accentBg
-                      : palette.selectorBg,
-                  borderColor:
-                    values.startMethod === "DIRECT_SOW"
-                      ? palette.accentBorder
-                      : palette.selectorBorder,
-                },
-              ]}
-              onPress={() => onChange({ startMethod: "DIRECT_SOW" })}
-            >
-              <Icon
-                source="seed-outline"
-                size={16}
-                color={
-                  values.startMethod === "DIRECT_SOW"
-                    ? palette.accent
-                    : palette.secondary
-                }
-              />
-              <Text
-                style={[
-                  styles.startMethodTitle,
-                  {
-                    color:
-                      values.startMethod === "DIRECT_SOW"
-                        ? palette.accent
-                        : palette.heading,
-                  },
-                ]}
-              >
-                Siew bezpośredni
-              </Text>
-              <Text
-                style={[
-                  styles.startMethodSubtitle,
-                  { color: palette.secondary },
-                ]}
-              >
-                Nasiona trafiają od razu do grządki
-              </Text>
-            </Pressable>
+            {START_METHOD_OPTIONS.map((option) => {
+              const isSelected = values.startMethod === option.value;
 
-            <Pressable
-              style={[
-                styles.startMethodCard,
-                {
-                  backgroundColor:
-                    values.startMethod === "TRANSPLANT"
-                      ? palette.accentBg
-                      : palette.selectorBg,
-                  borderColor:
-                    values.startMethod === "TRANSPLANT"
-                      ? palette.accentBorder
-                      : palette.selectorBorder,
-                },
-              ]}
-              onPress={() => onChange({ startMethod: "TRANSPLANT" })}
-            >
-              <Icon
-                source="sprout-outline"
-                size={16}
-                color={
-                  values.startMethod === "TRANSPLANT"
-                    ? palette.accent
-                    : palette.secondary
-                }
-              />
-              <Text
-                style={[
-                  styles.startMethodTitle,
-                  {
-                    color:
-                      values.startMethod === "TRANSPLANT"
-                        ? palette.accent
-                        : palette.heading,
-                  },
-                ]}
-              >
-                Rozsada
-              </Text>
-              <Text
-                style={[
-                  styles.startMethodSubtitle,
-                  { color: palette.secondary },
-                ]}
-              >
-                Najpierw przygotowujesz sadzonki
-              </Text>
-            </Pressable>
+              return (
+                <Pressable
+                  key={option.value}
+                  style={[
+                    styles.startMethodCard,
+                    {
+                      backgroundColor: isSelected
+                        ? palette.accentBg
+                        : palette.selectorBg,
+                      borderColor: isSelected
+                        ? palette.accentBorder
+                        : palette.selectorBorder,
+                    },
+                  ]}
+                  onPress={() => onChange({ startMethod: option.value })}
+                >
+                  <Icon
+                    source={option.icon}
+                    size={16}
+                    color={isSelected ? palette.accent : palette.secondary}
+                  />
+                  <Text
+                    style={[
+                      styles.startMethodTitle,
+                      { color: isSelected ? palette.accent : palette.heading },
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.startMethodSubtitle,
+                      { color: palette.secondary },
+                    ]}
+                  >
+                    {option.description}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
 
           {showSowedAt ? (
             <>
               <Text style={[styles.label, { color: palette.secondary }]}>
-                Data siewu
+                {startDateLabel}
               </Text>
               <Pressable
                 style={[
@@ -671,8 +660,13 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   clearAction: {
-    marginTop: -4,
-    alignSelf: "flex-start",
+    marginTop: 2,
+    minHeight: 36,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 6,
   },
   clearText: {
     fontSize: 13,

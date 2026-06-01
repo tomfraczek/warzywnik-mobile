@@ -15,7 +15,8 @@ const formatDate = (value?: string | null) => {
 
 const getStartMethodLabel = (startMethod?: string) => {
   if (startMethod === "DIRECT_SOW") return "Siew bezpośredni";
-  if (startMethod === "TRANSPLANT") return "Rozsada";
+  if (startMethod === "TRANSPLANT") return "Własna rozsada";
+  if (startMethod === "PURCHASED_SEEDLING") return "Kupiona flanca / sadzonka";
   return "Brak";
 };
 
