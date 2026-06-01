@@ -1263,17 +1263,9 @@ export default function BedDetailsScreen() {
                   >
                     Oznacz jako wykonane
                   </Button>
-                  <Button
-                    mode="outlined"
-                    style={styles.taskActionButton}
-                    onPress={() => handleDeleteTask(task)}
-                    disabled={deleteActionTask.isPending || isOffline}
-                  >
-                    Anuluj
-                  </Button>
                   {taskPlantingId ? (
                     <Button
-                      mode="text"
+                      mode="outlined"
                       style={styles.taskActionButton}
                       icon="sprout-outline"
                       onPress={() =>
@@ -1285,6 +1277,15 @@ export default function BedDetailsScreen() {
                       Przejdź do uprawy
                     </Button>
                   ) : null}
+
+                  <Button
+                    mode="elevated"
+                    style={styles.taskActionButton}
+                    onPress={() => handleDeleteTask(task)}
+                    disabled={deleteActionTask.isPending || isOffline}
+                  >
+                    Anuluj
+                  </Button>
                 </View>
               </View>
             );

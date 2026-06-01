@@ -126,17 +126,18 @@ export function PlannerTaskCard({
         {context.canNavigate && onNavigate ? (
           <Button
             mode="outlined"
+            icon="sprout-outline"
             compact
             onPress={() => onNavigate(task)}
             disabled={disableActions}
           >
-            Przejdź
+            Przejdź do uprawy
           </Button>
         ) : null}
 
         {showDelete && onDelete ? (
           <Button
-            mode="text"
+            mode="elevated"
             compact
             onPress={() => onDelete(task)}
             disabled={disableActions}
