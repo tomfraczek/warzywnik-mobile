@@ -59,6 +59,7 @@ type SettingsContextValue = AppSettings & {
   setLocationPreference: (location: StoredLocation | null) => void;
   setProfile: (profile: Partial<ProfileSettings>) => void;
   setPushNotifications: (patch: Partial<PushNotificationsSettings>) => void;
+  resetSettings: () => Promise<void>;
   isReady: boolean;
 };
 
@@ -308,6 +309,15 @@ export function SettingsProvider({ children }: PropsWithChildren) {
     [updateSettings],
   );
 
+  const resetSettings = useCallback(async () => {
+    setSettings(defaultSettings);
+    try {
+      await AsyncStorage.removeItem(SETTINGS_STORAGE_KEY);
+    } catch (error) {
+      console.error("Failed to clear app settings", error);
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       ...settings,
@@ -317,6 +327,7 @@ export function SettingsProvider({ children }: PropsWithChildren) {
       setLocationPreference,
       setProfile,
       setPushNotifications,
+      resetSettings,
       isReady,
     }),
     [
@@ -327,6 +338,7 @@ export function SettingsProvider({ children }: PropsWithChildren) {
       setLocationPreference,
       setProfile,
       setPushNotifications,
+      resetSettings,
       isReady,
     ],
   );
