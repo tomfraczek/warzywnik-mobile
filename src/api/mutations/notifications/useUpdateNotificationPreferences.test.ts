@@ -1,9 +1,9 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
+import { NotificationPreferences } from "../../queries/notifications/types";
 import {
   mergeOptimisticPreferences,
   normalizeUpdatePayload,
 } from "./useUpdateNotificationPreferences";
-import { NotificationPreferences } from "../../queries/notifications/types";
 
 const basePreferences = (): NotificationPreferences => ({
   notificationsEnabled: true,

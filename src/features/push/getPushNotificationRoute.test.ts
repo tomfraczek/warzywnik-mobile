@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { getPushNotificationRoute } from "./getPushNotificationRoute";
 import { parsePushNotificationPayload } from "./parsePushNotificationPayload";
 import { PushNotificationPayload } from "./types";
