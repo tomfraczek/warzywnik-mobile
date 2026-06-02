@@ -28,7 +28,6 @@
     "dayjs": "^1.11.21",
     "expo": "~53.0.12",
     "expo-application": "~6.1.5",
-    "expo-asset": "~11.1.7",
     "expo-auth-session": "^6.2.0",
     "expo-blur": "~14.1.5",
     "expo-clipboard": "~7.1.5",
