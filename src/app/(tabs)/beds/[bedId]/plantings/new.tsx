@@ -109,7 +109,7 @@ export default function PlantingCreateScreen() {
   };
 
   return (
-    <Screen safeAreaEdges={["left", "right", "bottom"]}>
+    <Screen safeAreaEdges={["left", "right"]}>
       <CustomHeader title="Zaplanuj uprawę" showBack />
       <PlantingForm
         values={values}
