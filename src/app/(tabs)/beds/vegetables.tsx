@@ -228,7 +228,7 @@ export default function VegetablePickerScreen() {
   return (
     <Screen
       style={{ backgroundColor: palette.background }}
-      safeAreaEdges={["left", "right", "bottom"]}
+      safeAreaEdges={["left", "right"]}
     >
       <CustomHeader showBack />
 
