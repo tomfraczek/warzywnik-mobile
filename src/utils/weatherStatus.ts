@@ -269,7 +269,6 @@ export const formatWeatherStatusTimeWindow = (
 
   let startsAt = hasValidStart ? formatTime(status.startsAt) : null;
   let endsAt = hasValidEnd ? formatTime(status.endsAt) : null;
-  const validTo = formatTime(status.validTo);
 
   if (hasValidStart && hasValidEnd && startDate && endDate) {
     let safeEnd = endDate;

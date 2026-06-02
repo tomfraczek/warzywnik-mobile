@@ -3,7 +3,12 @@ import { useFonts } from "expo-font";
 import { Image, StyleSheet, View } from "react-native";
 import { MD3Theme, Text, useTheme } from "react-native-paper";
 
-export const AuthFlowLoader = () => {
+type Props = {
+  title?: string;
+  subtitle?: string;
+};
+
+export const AuthFlowLoader = ({ title, subtitle }: Props) => {
   const theme = useTheme<MD3Theme>();
   const [fontsLoaded] = useFonts({
     SpaceMono: require("../../assets/fonts/SpaceMono-Regular.ttf"),
@@ -24,6 +29,8 @@ export const AuthFlowLoader = () => {
           <Text style={[styles.brand, fontsLoaded ? styles.brandLoaded : null]}>
             WARZYWNIK
           </Text>
+          {title ? <Text style={styles.title}>{title}</Text> : null}
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
       </View>
     </Screen>
@@ -67,5 +74,16 @@ const makeStyles = (theme: MD3Theme) =>
     brandLoaded: {
       fontFamily: "SpaceMono",
       fontWeight: "400",
+    },
+    title: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: theme.colors.onBackground,
+      textAlign: "center",
+    },
+    subtitle: {
+      fontSize: 13,
+      color: theme.colors.onSurfaceVariant,
+      textAlign: "center",
     },
   });

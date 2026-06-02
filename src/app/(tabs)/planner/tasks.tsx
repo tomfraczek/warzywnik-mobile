@@ -327,7 +327,7 @@ export default function PlannerTasksScreen() {
               pendingTasksQuery.isRefetching || doneTasksQuery.isRefetching
             }
             onRefresh={() => {
-              const refetchers: Array<Promise<unknown>> = [];
+              const refetchers: Promise<unknown>[] = [];
 
               if (shouldFetchPendingTasks) {
                 refetchers.push(pendingTasksQuery.refetch());

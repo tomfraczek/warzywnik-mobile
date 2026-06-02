@@ -6,6 +6,7 @@ import {
   isSsoAuthInProgress,
 } from "@/src/features/push/authFlowState";
 import { useSignIn, useSSO } from "@clerk/clerk-expo";
+import { AntDesign } from "@expo/vector-icons";
 import * as AuthSession from "expo-auth-session";
 import { Link, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
@@ -132,7 +133,7 @@ export default function SignInScreen() {
   }
 
   const googleIcon = ({ color, size }: { color: string; size: number }) => (
-    <Text style={[styles.googleIcon, { color, fontSize: size }]}>G</Text>
+    <AntDesign name="google" size={size} color={color} />
   );
 
   return (
@@ -220,9 +221,5 @@ const makeStyles = (theme: MD3Theme) =>
       textAlign: "center",
       marginVertical: 4,
       color: theme.colors.onSurfaceVariant,
-    },
-    googleIcon: {
-      fontWeight: "700",
-      marginRight: 2,
     },
   });

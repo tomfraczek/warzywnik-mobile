@@ -1,4 +1,4 @@
-import axios, { AxiosError, isAxiosError } from "axios";
+import { AxiosError, create, isAxiosError } from "axios";
 
 const fallbackApiBaseUrl = "https://warzywnik-app-q8l4o.ondigitalocean.app/v1";
 
@@ -7,7 +7,7 @@ const rawApiBaseUrl =
 
 const apiBaseUrl = rawApiBaseUrl.replace(/\/+$/, "");
 
-export const restClient = axios.create({
+export const restClient = create({
   timeout: 5000,
   baseURL: apiBaseUrl,
 });
