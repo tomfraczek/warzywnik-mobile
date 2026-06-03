@@ -21,6 +21,7 @@ type CustomHeaderProps = {
     | "/(tabs)/profile";
   actions?: HeaderAction[];
   rightAction?: ReactNode;
+  hideBell?: boolean;
 };
 
 export type HeaderAction = {
@@ -40,6 +41,7 @@ export default function CustomHeader({
   backRoute,
   actions,
   rightAction,
+  hideBell = false,
 }: CustomHeaderProps) {
   const theme = useTheme<MD3Theme>();
   const insets = useSafeAreaInsets();
@@ -88,7 +90,7 @@ export default function CustomHeader({
   const visibleActions = (actions ?? []).filter((action) => !action.hidden);
   const isOverlay = overlay ?? variant === "overlay";
   const actionIconColor = isOverlay ? "#FFFFFF" : theme.colors.onSurface;
-  const showNotificationsBell = pathname !== "/notifications";
+  const showNotificationsBell = !hideBell && pathname !== "/notifications";
   const dark = theme.dark;
 
   return (

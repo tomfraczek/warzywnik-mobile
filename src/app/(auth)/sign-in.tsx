@@ -1,12 +1,14 @@
+import { GoogleButton } from "@/src/app/components/GoogleButton";
 import { AuthFlowLoader } from "@/src/components/AuthFlowLoader";
+import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { Screen } from "@/src/components/Screen";
+import { BrandLogo } from "@/src/components/ui/BrandLogo";
 import {
   beginSsoAuth,
   endSsoAuth,
   isSsoAuthInProgress,
 } from "@/src/features/push/authFlowState";
 import { useSignIn, useSSO } from "@clerk/clerk-expo";
-import { AntDesign } from "@expo/vector-icons";
 import * as AuthSession from "expo-auth-session";
 import { Link, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
@@ -19,7 +21,13 @@ import {
   Text,
   View,
 } from "react-native";
-import { Button, MD3Theme, TextInput, useTheme } from "react-native-paper";
+import {
+  Button,
+  Divider,
+  MD3Theme,
+  TextInput,
+  useTheme,
+} from "react-native-paper";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -132,51 +140,64 @@ export default function SignInScreen() {
     );
   }
 
-  const googleIcon = ({ color, size }: { color: string; size: number }) => (
-    <AntDesign name="google" size={size} color={color} />
-  );
-
   return (
-    <Screen safeAreaEdges={["top", "left", "right"]}>
+    <Screen safeAreaEdges={["left", "right", "bottom"]}>
+      <CustomHeader
+        showBack
+        hideBell
+        onBackPress={() => router.replace("/(auth)")}
+        title="Zaloguj się"
+      />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.container}>
-          <Text style={styles.title}>Sign in</Text>
+          <View style={styles.header}>
+            <BrandLogo
+              logoSize={56}
+              wrapperWidth={76}
+              wrapperHeight={56}
+              brandSize={16}
+            />
+            <Text style={styles.subtitle}>Miło Cię widzieć z powrotem!</Text>
+          </View>
 
-          <Button
-            mode="outlined"
-            onPress={onGoogleSignInPress}
-            icon={googleIcon}
-          >
-            Continue with Google
-          </Button>
+          <GoogleButton onPress={onGoogleSignInPress} />
 
-          <Text style={styles.orText}>or</Text>
+          <View style={styles.dividerRow}>
+            <Divider style={styles.divider} />
+            <Text style={styles.orText}>lub</Text>
+            <Divider style={styles.divider} />
+          </View>
 
           <TextInput
-            style={styles.input}
+            mode="outlined"
+            label="Adres e-mail"
             autoCapitalize="none"
+            keyboardType="email-address"
             value={emailAddress}
-            placeholder="Enter email"
             onChangeText={setEmailAddress}
           />
           <TextInput
-            style={styles.input}
+            mode="outlined"
+            label="Hasło"
             value={password}
-            placeholder="Enter password"
             secureTextEntry
             onChangeText={setPassword}
           />
-          <Button mode="contained" onPress={onSignInPress}>
-            Continue
+          <Button
+            mode="contained"
+            onPress={onSignInPress}
+            style={styles.submitButton}
+          >
+            Zaloguj się
           </Button>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Don&apos;t have an account?</Text>
+            <Text style={styles.footerText}>Nie masz konta?</Text>
             <Link href="../sign-up">
-              <Text style={styles.link}>Sign up</Text>
+              <Text style={styles.link}>Zarejestruj się</Text>
             </Link>
           </View>
         </View>
@@ -191,17 +212,35 @@ const makeStyles = (theme: MD3Theme) =>
       flex: 1,
       justifyContent: "center",
       padding: 24,
-      gap: 12,
+      gap: 16,
+    },
+    header: {
+      alignItems: "center",
+      marginBottom: 8,
+      gap: 15,
     },
     title: {
-      fontSize: 24,
-      marginBottom: 12,
-      textAlign: "center",
-      fontWeight: "600",
+      fontSize: 28,
+      fontWeight: "700",
       color: theme.colors.onBackground,
-    },
-    input: {
       marginBottom: 4,
+    },
+    subtitle: {
+      color: theme.colors.onSurfaceVariant,
+      textAlign: "center",
+      fontSize: 18,
+      fontWeight: "700",
+    },
+    dividerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    divider: {
+      flex: 1,
+    },
+    submitButton: {
+      marginTop: 4,
     },
     footer: {
       flexDirection: "row",
@@ -218,8 +257,7 @@ const makeStyles = (theme: MD3Theme) =>
       fontWeight: "500",
     },
     orText: {
-      textAlign: "center",
-      marginVertical: 4,
+      fontSize: 12,
       color: theme.colors.onSurfaceVariant,
     },
   });

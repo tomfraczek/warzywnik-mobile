@@ -1,5 +1,8 @@
+import { GoogleButton } from "@/src/app/components/GoogleButton";
 import { AuthFlowLoader } from "@/src/components/AuthFlowLoader";
+import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { Screen } from "@/src/components/Screen";
+import { BrandLogo } from "@/src/components/ui/BrandLogo";
 import {
   beginSsoAuth,
   endSsoAuth,
@@ -17,7 +20,13 @@ import {
   Text,
   View,
 } from "react-native";
-import { Button, MD3Theme, TextInput, useTheme } from "react-native-paper";
+import {
+  Button,
+  Divider,
+  MD3Theme,
+  TextInput,
+  useTheme,
+} from "react-native-paper";
 
 export default function SignUpScreen() {
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -133,27 +142,38 @@ export default function SignUpScreen() {
     );
   }
 
-  const googleIcon = ({ color, size }: { color: string; size: number }) => (
-    <Text style={[styles.googleIcon, { color, fontSize: size }]}>G</Text>
-  );
-
   if (pendingVerification) {
     return (
-      <Screen>
+      <Screen safeAreaEdges={["left", "right", "bottom"]}>
+        <CustomHeader
+          showBack
+          hideBell
+          onBackPress={() => router.replace("/(auth)")}
+          title="Weryfikacja e-mail"
+        />
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <View style={styles.container}>
-            <Text style={styles.title}>Verify your email</Text>
+            <View style={styles.header}>
+              <Text style={styles.subtitle}>
+                Wpisz kod weryfikacyjny, który wysłaliśmy na Twój adres e-mail.
+              </Text>
+            </View>
             <TextInput
-              style={styles.input}
+              mode="outlined"
+              label="Kod weryfikacyjny"
               value={code}
-              placeholder="Enter your verification code"
-              onChangeText={(code) => setCode(code)}
+              keyboardType="number-pad"
+              onChangeText={(c) => setCode(c)}
             />
-            <Button mode="contained" onPress={onVerifyPress}>
-              Verify
+            <Button
+              mode="contained"
+              onPress={onVerifyPress}
+              style={styles.submitButton}
+            >
+              Zweryfikuj
             </Button>
           </View>
         </KeyboardAvoidingView>
@@ -162,49 +182,68 @@ export default function SignUpScreen() {
   }
 
   return (
-    <Screen safeAreaEdges={["top", "left", "right"]}>
+    <Screen safeAreaEdges={["left", "right", "bottom"]}>
+      <CustomHeader
+        showBack
+        hideBell
+        onBackPress={() => router.replace("/(auth)")}
+        title="Zarejestruj się"
+      />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.container}>
-          <Text style={styles.title}>Sign up</Text>
+          <View style={styles.header}>
+            <BrandLogo
+              logoSize={56}
+              wrapperWidth={76}
+              wrapperHeight={56}
+              brandSize={16}
+            />
+            <Text style={styles.subtitle}>
+              Dołącz i zacznij prowadzić swój ogród!
+            </Text>
+          </View>
 
-          <Button
-            mode="outlined"
-            onPress={onGoogleSignUpPress}
-            icon={googleIcon}
-          >
-            Continue with Google
-          </Button>
+          <GoogleButton onPress={onGoogleSignUpPress} />
 
-          <Text style={styles.orText}>or</Text>
+          <View style={styles.dividerRow}>
+            <Divider style={styles.divider} />
+            <Text style={styles.orText}>lub</Text>
+            <Divider style={styles.divider} />
+          </View>
 
           <TextInput
-            style={styles.input}
+            mode="outlined"
+            label="Adres e-mail"
             autoCapitalize="none"
+            keyboardType="email-address"
             value={emailAddress}
-            placeholder="Enter email"
             onChangeText={(email) => setEmailAddress(email)}
           />
           <TextInput
-            style={styles.input}
+            mode="outlined"
+            label="Hasło"
             value={password}
-            placeholder="Enter password"
             secureTextEntry={true}
-            onChangeText={(password) => setPassword(password)}
+            onChangeText={(p) => setPassword(p)}
           />
-          <Button mode="contained" onPress={onSignUpPress}>
-            Continue
+          <Button
+            mode="contained"
+            onPress={onSignUpPress}
+            style={styles.submitButton}
+          >
+            Zarejestruj się
           </Button>
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account?</Text>
+            <Text style={styles.footerText}>Masz już konto?</Text>
             <Link href="../sign-in">
-              <Text style={styles.link}>Sign in</Text>
+              <Text style={styles.link}>Zaloguj się</Text>
             </Link>
           </View>
-        </View>{" "}
-      </KeyboardAvoidingView>{" "}
+        </View>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
@@ -215,17 +254,35 @@ const makeStyles = (theme: MD3Theme) =>
       flex: 1,
       justifyContent: "center",
       padding: 24,
-      gap: 12,
+      gap: 16,
+    },
+    header: {
+      alignItems: "center",
+      marginBottom: 8,
+      gap: 15,
     },
     title: {
-      fontSize: 24,
-      marginBottom: 12,
-      textAlign: "center",
-      fontWeight: "600",
+      fontSize: 28,
+      fontWeight: "700",
       color: theme.colors.onBackground,
-    },
-    input: {
       marginBottom: 4,
+    },
+    subtitle: {
+      color: theme.colors.onSurfaceVariant,
+      textAlign: "center",
+      fontSize: 18,
+      fontWeight: "700",
+    },
+    dividerRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    divider: {
+      flex: 1,
+    },
+    submitButton: {
+      marginTop: 4,
     },
     footer: {
       flexDirection: "row",
@@ -242,12 +299,7 @@ const makeStyles = (theme: MD3Theme) =>
       fontWeight: "500",
     },
     orText: {
-      textAlign: "center",
-      marginVertical: 4,
+      fontSize: 12,
       color: theme.colors.onSurfaceVariant,
-    },
-    googleIcon: {
-      fontWeight: "700",
-      marginRight: 2,
     },
   });
