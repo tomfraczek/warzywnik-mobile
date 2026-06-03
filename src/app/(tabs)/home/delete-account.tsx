@@ -1,11 +1,9 @@
-import { clientPersister, queryClient } from "@/src/api/queryClient";
 import { useDeleteMyAccount } from "@/src/api/mutations/users/useDeleteMyAccount";
+import { clientPersister, queryClient } from "@/src/api/queryClient";
 import { Screen } from "@/src/components/Screen";
 import { useSettings } from "@/src/context/SettingsProvider";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useClerk } from "@clerk/clerk-expo";
 import { isAxiosError } from "axios";
-import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
   Alert,
@@ -28,7 +26,6 @@ const CONFIRM_WORD = "USUŃ";
 export default function DeleteAccountScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
-  const router = useRouter();
   const { signOut } = useClerk();
   const { resetSettings } = useSettings();
   const deleteMyAccount = useDeleteMyAccount();
@@ -41,21 +38,15 @@ export default function DeleteAccountScreen() {
   );
 
   const cleanupAfterAccountDeletion = async () => {
+    queryClient.clear();
+    await clientPersister.removeClient();
+    await resetSettings();
     try {
       await signOut();
     } catch (error) {
       console.error("Failed to sign out after deleting account", error);
     }
-
-    await resetSettings();
-    queryClient.clear();
-
-    await Promise.allSettled([
-      clientPersister.removeClient(),
-      AsyncStorage.clear(),
-    ]);
-
-    router.replace("/(auth)");
+    // Navigation is handled by AuthBootstrapGate when isSignedIn becomes false
   };
 
   const handleDeleteAccount = async () => {
@@ -65,7 +56,10 @@ export default function DeleteAccountScreen() {
       await deleteMyAccount.mutateAsync();
       await cleanupAfterAccountDeletion();
     } catch (error) {
-      if (isAxiosError(error) && error.response?.status === 401) {
+      if (
+        isAxiosError(error) &&
+        (error.response?.status === 401 || error.response?.status === 404)
+      ) {
         await cleanupAfterAccountDeletion();
         return;
       }

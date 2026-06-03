@@ -2,14 +2,18 @@ import { restClient } from "@/src/api/axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 
+export type BackendThemeMode = "system" | "light" | "dark";
+
 export type MeResponse = {
   id?: string;
   automaticTasksEnabled?: boolean;
+  themeMode?: BackendThemeMode;
   [key: string]: unknown;
 };
 
-type UpdateMePayload = {
-  automaticTasksEnabled: boolean;
+export type UpdateMePayload = {
+  automaticTasksEnabled?: boolean;
+  themeMode?: BackendThemeMode;
 };
 
 const isNotFound = (error: unknown) => {
@@ -17,7 +21,7 @@ const isNotFound = (error: unknown) => {
   return axiosError?.response?.status === 404;
 };
 
-const getMe = async (): Promise<MeResponse> => {
+export const getMe = async (): Promise<MeResponse> => {
   try {
     const { data } = await restClient.get<MeResponse>("/me");
     return data;
@@ -29,7 +33,7 @@ const getMe = async (): Promise<MeResponse> => {
 };
 
 export const updateMe = async (
-  payload: UpdateMePayload,
+  payload: Partial<UpdateMePayload>,
 ): Promise<MeResponse> => {
   try {
     const { data } = await restClient.patch<MeResponse>("/me", payload);

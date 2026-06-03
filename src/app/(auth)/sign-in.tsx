@@ -11,7 +11,6 @@ import {
 import { useSignIn, useSSO } from "@clerk/clerk-expo";
 import * as AuthSession from "expo-auth-session";
 import { Link, useRouter } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
 import React from "react";
 import {
   Alert,
@@ -29,8 +28,6 @@ import {
   useTheme,
 } from "react-native-paper";
 
-WebBrowser.maybeCompleteAuthSession();
-
 export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
   const router = useRouter();
@@ -44,6 +41,8 @@ export default function SignInScreen() {
 
   const [emailAddress, setEmailAddress] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [loginError, setLoginError] = React.useState<string | null>(null);
   const [isGoogleAuthLoading, setIsGoogleAuthLoading] = React.useState(
     isSsoAuthInProgress(),
   );
@@ -51,6 +50,7 @@ export default function SignInScreen() {
   const onSignInPress = async () => {
     if (!isLoaded) return;
 
+    setLoginError(null);
     try {
       const signInAttempt = await signIn.create({
         identifier: emailAddress,
@@ -59,11 +59,22 @@ export default function SignInScreen() {
 
       if (signInAttempt.status === "complete") {
         await setActive({ session: signInAttempt.createdSessionId });
-        router.replace("/(tabs)/home");
       } else {
         console.error(JSON.stringify(signInAttempt, null, 2));
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      const clerkErr = err as { errors?: { code: string }[] };
+      const code = clerkErr?.errors?.[0]?.code ?? "";
+      if (
+        code === "form_password_incorrect" ||
+        code === "form_param_format_invalid" ||
+        code === "form_identifier_not_found" ||
+        code === "session_exists"
+      ) {
+        setLoginError("Nieprawidłowy adres e-mail lub hasło.");
+      } else {
+        setLoginError("Wystąpił błąd. Spróbuj ponownie.");
+      }
       console.error(JSON.stringify(err, null, 2));
     }
   };
@@ -87,7 +98,6 @@ export default function SignInScreen() {
       if (createdSessionId) {
         await (setActiveFromSSO ?? setActive)!({ session: createdSessionId });
         endSsoAuth();
-        router.replace("/(tabs)/home");
       } else {
         endSsoAuth();
         setIsGoogleAuthLoading(false);
@@ -132,12 +142,7 @@ export default function SignInScreen() {
   };
 
   if (isGoogleAuthLoading) {
-    return (
-      <AuthFlowLoader
-        title="Logowanie przez Google"
-        subtitle="Ładujemy Twoje dane i zaraz przeniesiemy Cię do aplikacji."
-      />
-    );
+    return <AuthFlowLoader />;
   }
 
   return (
@@ -177,15 +182,32 @@ export default function SignInScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
             value={emailAddress}
-            onChangeText={setEmailAddress}
+            error={!!loginError}
+            onChangeText={(v) => {
+              setEmailAddress(v);
+              setLoginError(null);
+            }}
           />
           <TextInput
             mode="outlined"
             label="Hasło"
             value={password}
-            secureTextEntry
-            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            onChangeText={(v) => {
+              setPassword(v);
+              setLoginError(null);
+            }}
+            error={!!loginError}
+            right={
+              <TextInput.Icon
+                icon={showPassword ? "eye-off" : "eye"}
+                onPress={() => setShowPassword((v) => !v)}
+              />
+            }
           />
+          {loginError ? (
+            <Text style={styles.errorText}>{loginError}</Text>
+          ) : null}
           <Button
             mode="contained"
             onPress={onSignInPress}
@@ -241,6 +263,11 @@ const makeStyles = (theme: MD3Theme) =>
     },
     submitButton: {
       marginTop: 4,
+    },
+    errorText: {
+      fontSize: 13,
+      color: theme.colors.error,
+      marginTop: -8,
     },
     footer: {
       flexDirection: "row",

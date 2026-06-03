@@ -20,6 +20,7 @@ import {
   Provider as PaperProvider,
 } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { getMe } from "../api/queries/users/useUpdateMe";
 import { clientPersister, queryClient } from "../api/queryClient";
 import { SettingsProvider, useSettings } from "../context/SettingsProvider";
 
@@ -118,13 +119,25 @@ function AuthBootstrapGate() {
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
   const { user, isLoaded: isUserLoaded } = useUser();
-  const { profile, setProfile, isReady: areSettingsReady } = useSettings();
+  const {
+    profile,
+    setProfile,
+    setThemeMode,
+    isReady: areSettingsReady,
+  } = useSettings();
   const router = useRouter();
   const segments = useSegments();
   const pathname = usePathname();
   const isHandlingAuthError = useRef(false);
+  const wasSignedInRef = useRef(false);
+  const hasBootstrappedThemeRef = useRef(false);
+  const profileNameRef = useRef(profile.name);
   const [ready, setReady] = useState(false);
   const [isNavigationReady, setIsNavigationReady] = useState(false);
+
+  useEffect(() => {
+    profileNameRef.current = profile.name;
+  });
 
   useEffect(() => {
     setIsNavigationReady(true);
@@ -134,30 +147,53 @@ function AuthBootstrapGate() {
     if (!isLoaded) return;
 
     if (!isSignedIn) {
+      if (wasSignedInRef.current) {
+        wasSignedInRef.current = false;
+        hasBootstrappedThemeRef.current = false;
+        queryClient.clear();
+        void clientPersister.removeClient();
+        setProfile({ name: "", avatarId: null });
+      }
       setAuthTokenProvider(async () => null);
       setReady(true);
       return;
     }
 
+    wasSignedInRef.current = true;
     setAuthTokenProvider(async () => (await getToken()) ?? null);
 
     setAuthErrorHandler(async (_status) => {
       if (isHandlingAuthError.current) return;
       isHandlingAuthError.current = true;
       try {
+        queryClient.clear();
+        await clientPersister.removeClient();
+        setProfile({ name: "", avatarId: null });
         await signOut();
       } catch (error) {
         console.error("Sign out after auth error failed:", error);
       } finally {
-        queryClient.clear();
-        await clientPersister.removeClient();
-        router.replace("/(auth)");
         isHandlingAuthError.current = false;
       }
     });
 
     setReady(true);
-  }, [getToken, isLoaded, isSignedIn, router, signOut]);
+  }, [getToken, isLoaded, isSignedIn, setProfile, router, signOut]);
+
+  useEffect(() => {
+    if (!isSignedIn || !ready || hasBootstrappedThemeRef.current) return;
+
+    hasBootstrappedThemeRef.current = true;
+
+    getMe()
+      .then((me) => {
+        if (!me.themeMode) return;
+        setThemeMode(me.themeMode);
+      })
+      .catch((err) => {
+        console.warn("Failed to bootstrap themeMode from backend", err);
+      });
+  }, [isSignedIn, ready, setThemeMode]);
 
   useEffect(() => {
     if (!isLoaded || !isNavigationReady || !areSettingsReady) return;
@@ -169,14 +205,25 @@ function AuthBootstrapGate() {
       if (ssoInProgress) {
         return;
       }
-      if (!inAuthGroup && pathname !== "/(auth)") {
+      if (!inAuthGroup) {
         router.replace("/(auth)");
       }
       return;
     }
 
+    // Wait for Clerk user data before deciding where to navigate — otherwise
+    // profile.name may be empty even though auto-fill will populate it shortly.
+    if (!isUserLoaded) return;
+
     if (inAuthGroup || pathname === "/") {
-      const shouldOpenProfileEdit = profile.name.trim().length === 0;
+      const hasClerkName = !!(
+        user?.firstName?.trim() ||
+        user?.fullName?.trim() ||
+        user?.primaryEmailAddress?.emailAddress ||
+        user?.emailAddresses?.[0]?.emailAddress
+      );
+      const nameIsSet = profileNameRef.current.trim().length > 0;
+      const shouldOpenProfileEdit = !nameIsSet && !hasClerkName;
       router.replace(
         shouldOpenProfileEdit ? "/(tabs)/profile/profile-edit" : "/(tabs)/home",
       );
@@ -186,10 +233,14 @@ function AuthBootstrapGate() {
     isLoaded,
     isNavigationReady,
     isSignedIn,
+    isUserLoaded,
     pathname,
-    profile.name,
     router,
     segments,
+    user?.emailAddresses,
+    user?.firstName,
+    user?.fullName,
+    user?.primaryEmailAddress?.emailAddress,
   ]);
 
   useEffect(() => {

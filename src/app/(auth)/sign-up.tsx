@@ -40,22 +40,47 @@ export default function SignUpScreen() {
   });
 
   const [emailAddress, setEmailAddress] = React.useState("");
+  const [emailError, setEmailError] = React.useState<string | null>(null);
   const [password, setPassword] = React.useState("");
+  const [passwordError, setPasswordError] = React.useState<string | null>(null);
   const [pendingVerification, setPendingVerification] = React.useState(false);
   const [code, setCode] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
   const [isGoogleAuthLoading, setIsGoogleAuthLoading] = React.useState(
     isSsoAuthInProgress(),
   );
 
+  const validatePassword = (p: string): string | null => {
+    if (p.length < 8) return "Hasło musi mieć co najmniej 8 znaków.";
+    if (!/[a-z]/.test(p)) return "Hasło musi zawierać małą literę.";
+    if (!/[A-Z]/.test(p)) return "Hasło musi zawierać wielką literę.";
+    if (!/[0-9]/.test(p)) return "Hasło musi zawierać cyfrę.";
+    if (!/[^a-zA-Z0-9]/.test(p)) return "Hasło musi zawierać znak specjalny.";
+    return null;
+  };
+
   const onSignUpPress = async () => {
     if (!isLoaded) return;
+
+    const error = validatePassword(password);
+    if (error) {
+      setPasswordError(error);
+      return;
+    }
+    setPasswordError(null);
 
     try {
       await signUp.create({ emailAddress, password });
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
       setPendingVerification(true);
     } catch (err) {
-      console.error(JSON.stringify(err, null, 2));
+      const clerkErr = err as { errors?: { code: string }[] };
+      const code = clerkErr?.errors?.[0]?.code ?? "";
+      if (code === "form_identifier_exists") {
+        setEmailError("Proszę użyć innego adresu e-mail.");
+      } else {
+        console.error(JSON.stringify(err, null, 2));
+      }
     }
   };
 
@@ -78,7 +103,6 @@ export default function SignUpScreen() {
       if (createdSessionId) {
         await (setActiveFromSSO ?? setActive)!({ session: createdSessionId });
         endSsoAuth();
-        router.replace("/(tabs)/home");
       } else {
         endSsoAuth();
         setIsGoogleAuthLoading(false);
@@ -124,7 +148,6 @@ export default function SignUpScreen() {
 
       if (signUpAttempt.status === "complete") {
         await setActive({ session: signUpAttempt.createdSessionId });
-        router.replace("/(tabs)/home");
       } else {
         console.error(JSON.stringify(signUpAttempt, null, 2));
       }
@@ -134,12 +157,7 @@ export default function SignUpScreen() {
   };
 
   if (isGoogleAuthLoading) {
-    return (
-      <AuthFlowLoader
-        title="Logowanie przez Google"
-        subtitle="Ładujemy Twoje dane i zaraz przeniesiemy Cię do aplikacji."
-      />
-    );
+    return <AuthFlowLoader />;
   }
 
   if (pendingVerification) {
@@ -220,15 +238,35 @@ export default function SignUpScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
             value={emailAddress}
-            onChangeText={(email) => setEmailAddress(email)}
+            error={!!emailError}
+            onChangeText={(email) => {
+              setEmailAddress(email);
+              if (emailError) setEmailError(null);
+            }}
           />
+          {emailError ? (
+            <Text style={styles.errorText}>{emailError}</Text>
+          ) : null}
           <TextInput
             mode="outlined"
             label="Hasło"
             value={password}
-            secureTextEntry={true}
-            onChangeText={(p) => setPassword(p)}
+            secureTextEntry={!showPassword}
+            onChangeText={(p) => {
+              setPassword(p);
+              if (passwordError) setPasswordError(validatePassword(p));
+            }}
+            error={!!passwordError}
+            right={
+              <TextInput.Icon
+                icon={showPassword ? "eye-off" : "eye"}
+                onPress={() => setShowPassword((v) => !v)}
+              />
+            }
           />
+          {passwordError ? (
+            <Text style={styles.errorText}>{passwordError}</Text>
+          ) : null}
           <Button
             mode="contained"
             onPress={onSignUpPress}
@@ -301,5 +339,10 @@ const makeStyles = (theme: MD3Theme) =>
     orText: {
       fontSize: 12,
       color: theme.colors.onSurfaceVariant,
+    },
+    errorText: {
+      fontSize: 12,
+      color: theme.colors.error,
+      marginTop: -8,
     },
   });

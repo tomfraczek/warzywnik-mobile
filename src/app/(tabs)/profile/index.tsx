@@ -4,6 +4,8 @@ import { useGeoSearch } from "@/src/api/queries/geo/useGeoSearch";
 import { useUpdateUserLocation } from "@/src/api/queries/geo/useUpdateUserLocation";
 import { UpdateNotificationPreferencesDto } from "@/src/api/queries/notifications/types";
 import { useGetNotificationPreferences } from "@/src/api/queries/notifications/useGetNotificationPreferences";
+import { updateMe } from "@/src/api/queries/users/useUpdateMe";
+import { queryClient } from "@/src/api/queryClient";
 import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
@@ -196,12 +198,12 @@ export default function ProfileScreen() {
 
   const handleSignOut = useCallback(async () => {
     try {
+      await queryClient.cancelQueries();
       await signOut();
-      router.replace("/");
     } catch {
       Alert.alert("Błąd", "Nie udało się wylogować.");
     }
-  }, [router, signOut]);
+  }, [signOut]);
 
   const updateNotificationPreference = useCallback(
     async (patch: UpdateNotificationPreferencesDto) => {
@@ -323,7 +325,13 @@ export default function ProfileScreen() {
           <Text style={styles.label}>Motyw</Text>
           <SegmentedButtons
             value={themeMode}
-            onValueChange={(value) => setThemeMode(value as ThemeMode)}
+            onValueChange={(value) => {
+              const mode = value as ThemeMode;
+              setThemeMode(mode);
+              updateMe({ themeMode: mode }).catch((err) => {
+                console.warn("Failed to sync themeMode to backend", err);
+              });
+            }}
             buttons={[
               { value: "light", label: "Jasny" },
               { value: "dark", label: "Ciemny" },
