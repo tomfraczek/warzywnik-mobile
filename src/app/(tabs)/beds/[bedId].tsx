@@ -377,9 +377,10 @@ export default function BedDetailsScreen() {
     [plantingPages?.pages],
   );
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
-  const [plantingsFilter, setPlantingsFilter] = useState<
-    "planned" | "active" | "ended"
-  >("active");
+  const [plantingsFilter, setPlantingsFilter] = useState<"planned" | "active">(
+    "active",
+  );
+  const [endedModalVisible, setEndedModalVisible] = useState(false);
   const [promptQueue, setPromptQueue] = useState<HarvestPromptItem[]>([]);
   const [lastPromptSignature, setLastPromptSignature] = useState("");
   const [postHarvestModalVisible, setPostHarvestModalVisible] = useState(false);
@@ -486,13 +487,8 @@ export default function BedDetailsScreen() {
     [plantings],
   );
   const filteredPlantings = useMemo(
-    () =>
-      plantingsFilter === "planned"
-        ? plannedPlantings
-        : plantingsFilter === "active"
-          ? activePlantings
-          : endedPlantings,
-    [plannedPlantings, activePlantings, endedPlantings, plantingsFilter],
+    () => (plantingsFilter === "planned" ? plannedPlantings : activePlantings),
+    [plannedPlantings, activePlantings, plantingsFilter],
   );
 
   const activeTasks = useMemo(() => pendingTasks, [pendingTasks]);
@@ -1001,44 +997,50 @@ export default function BedDetailsScreen() {
         />
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Twoje warzywa</Text>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>Twoje warzywa</Text>
+            {endedPlantings.length > 0 ? (
+              <Pressable
+                onPress={() => setEndedModalVisible(true)}
+                style={styles.endedModalTrigger}
+              >
+                <Text
+                  style={[
+                    styles.endedModalTriggerText,
+                    { color: palette.accent },
+                  ]}
+                >
+                  Zobacz zakończone ({endedPlantings.length})
+                </Text>
+                <Icon source="history" size={14} color={palette.accent} />
+              </Pressable>
+            ) : null}
+          </View>
 
           <SegmentedButtons
             value={plantingsFilter}
             onValueChange={(value) =>
-              setPlantingsFilter(value as "planned" | "active" | "ended")
+              setPlantingsFilter(value as "planned" | "active")
             }
             buttons={[
-              {
-                value: "planned",
-                label: `Planowane (${plannedPlantings.length})`,
-                style: [
-                  styles.segmentedButtonItem,
-                  plantingsFilter === "planned"
-                    ? styles.segmentedButtonItemActive
-                    : null,
-                ],
-                checkedColor: palette.accent,
-                uncheckedColor: palette.secondary,
-              },
-              {
-                value: "ended",
-                label: `Zakończone (${endedPlantings.length})`,
-                style: [
-                  styles.segmentedButtonItem,
-                  plantingsFilter === "ended"
-                    ? styles.segmentedButtonItemActive
-                    : null,
-                ],
-                checkedColor: palette.accent,
-                uncheckedColor: palette.secondary,
-              },
               {
                 value: "active",
                 label: `Aktywne (${activePlantings.length})`,
                 style: [
                   styles.segmentedButtonItem,
                   plantingsFilter === "active"
+                    ? styles.segmentedButtonItemActive
+                    : null,
+                ],
+                checkedColor: palette.accent,
+                uncheckedColor: palette.secondary,
+              },
+              {
+                value: "planned",
+                label: `Planowane (${plannedPlantings.length})`,
+                style: [
+                  styles.segmentedButtonItem,
+                  plantingsFilter === "planned"
                     ? styles.segmentedButtonItemActive
                     : null,
                 ],
@@ -1073,9 +1075,7 @@ export default function BedDetailsScreen() {
             <Text style={styles.valueText}>
               {plantingsFilter === "planned"
                 ? "Brak planowanych upraw w tej grządce."
-                : plantingsFilter === "active"
-                  ? "Brak aktywnych upraw w tej grządce."
-                  : "Brak zakończonych upraw w tej grządce."}
+                : "Brak aktywnych upraw w tej grządce."}
             </Text>
           ) : null}
 
@@ -1118,6 +1118,57 @@ export default function BedDetailsScreen() {
             </Pressable>
           ) : null}
         </View>
+
+        {/* ── Modal: zakończone uprawy ── */}
+        <Portal>
+          <Modal
+            visible={endedModalVisible}
+            onDismiss={() => setEndedModalVisible(false)}
+            contentContainerStyle={[
+              styles.endedModal,
+              { backgroundColor: palette.cardBg },
+            ]}
+          >
+            <View style={styles.endedModalHeader}>
+              <Text
+                style={[styles.endedModalTitle, { color: palette.heading }]}
+              >
+                Zakończone uprawy
+              </Text>
+              <IconButton
+                icon="close"
+                size={20}
+                onPress={() => setEndedModalVisible(false)}
+                iconColor={palette.secondary}
+              />
+            </View>
+            {endedPlantings.length === 0 ? (
+              <Text style={[styles.valueText, { color: palette.secondary }]}>
+                Brak zakończonych upraw.
+              </Text>
+            ) : (
+              <ScrollView
+                style={styles.endedModalList}
+                showsVerticalScrollIndicator={false}
+              >
+                {endedPlantings.map((planting: Planting, idx: number) => (
+                  <PlantingRow
+                    key={planting.id}
+                    planting={planting}
+                    isFirst={idx === 0}
+                    hasAttention={false}
+                    onPress={() => {
+                      setEndedModalVisible(false);
+                      router.push(
+                        `/(tabs)/beds/${bed.id}/plantings/${planting.id}`,
+                      );
+                    }}
+                  />
+                ))}
+              </ScrollView>
+            )}
+          </Modal>
+        </Portal>
 
         {hasSoilAnalysisData ? (
           <View style={styles.section}>
@@ -1880,13 +1931,41 @@ const makeStyles = (theme: MD3Theme) => {
     sectionTitleRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
+      justifyContent: "space-between",
+      marginBottom: 12,
     },
     sectionTitle: {
       fontSize: 19,
       fontWeight: "700",
       color: palette.heading,
+    },
+    endedModalTrigger: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    endedModalTriggerText: {
+      fontSize: 13,
+      fontWeight: "600",
+    },
+    endedModal: {
+      margin: 20,
+      borderRadius: 16,
+      padding: 20,
+      maxHeight: "80%",
+    },
+    endedModalHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
       marginBottom: 12,
+    },
+    endedModalTitle: {
+      fontSize: 17,
+      fontWeight: "700",
+    },
+    endedModalList: {
+      flexGrow: 0,
     },
     sectionTitleInHeader: {
       marginBottom: 0,

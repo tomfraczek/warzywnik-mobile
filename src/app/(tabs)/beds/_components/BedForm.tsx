@@ -37,6 +37,7 @@ function buildPalette(dark: boolean) {
     soilBg: dark ? "#1E2822" : "#F0F5F0",
     soilBorder: dark ? "#2B3830" : "#D6E4D8",
     errorText: dark ? "#E8857A" : "#C0392B",
+    errorBorder: dark ? "#4A3336" : "#F2D3D8",
   };
 }
 
@@ -307,10 +308,18 @@ function BedFormComponent({
             </Text>
           </Pressable>
           {values.soilId && onClearSoil ? (
-            <Pressable style={s.clearSoilBtn} onPress={onClearSoil}>
+            <Pressable
+              onPress={onClearSoil}
+              style={[s.clearSoilBtn, { borderColor: palette.errorBorder }]}
+            >
               <Text style={[s.clearSoilText, { color: palette.errorText }]}>
                 Usuń wybraną glebę
               </Text>
+              <Icon
+                source="trash-can-outline"
+                size={16}
+                color={palette.errorText}
+              />
             </Pressable>
           ) : null}
         </SectionCard>
@@ -513,12 +522,17 @@ const s = StyleSheet.create({
     marginLeft: 8,
   },
   clearSoilBtn: {
-    marginTop: 10,
-    alignSelf: "flex-start",
+    marginTop: 2,
+    minHeight: 36,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 6,
   },
   clearSoilText: {
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   // switch rows
   switchRow: {

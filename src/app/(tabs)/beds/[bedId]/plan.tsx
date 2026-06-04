@@ -19,9 +19,10 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
-import { Snackbar } from "react-native-paper";
+import { MD3Theme, Snackbar, useTheme } from "react-native-paper";
 import { AddManualChecklistItemSheet } from "../_components/plan/AddManualChecklistItemSheet";
 import { BedPlanHeaderCard } from "../_components/plan/BedPlanHeaderCard";
 import { EditManualChecklistItemSheet } from "../_components/plan/EditManualChecklistItemSheet";
@@ -36,6 +37,8 @@ export default function BedPlanScreen() {
   const resolvedBedId = Array.isArray(bedId) ? bedId[0] : bedId;
   const router = useRouter();
   const isOffline = useIsOffline();
+  const theme = useTheme<MD3Theme>();
+  const secondaryCta = theme.dark ? "#4C7FB1" : "#356FA5";
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [addSheetVisible, setAddSheetVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<PlanChecklistItem | null>(
@@ -257,6 +260,17 @@ export default function BedPlanScreen() {
             disabled={isOffline}
           />
 
+          <View>
+            {/* <PrimaryActionButton
+              label="Wyjdź"
+              color={secondaryCta}
+              onPress={() => router.back()}
+            /> */}
+            <Text style={styles.exitHint}>
+              Plan grządki jest dostępny z poziomu ekranu grządki.
+            </Text>
+          </View>
+
           <PlannedPlantingsList
             items={bedPlanQuery.data.plannedPlantings}
             onPressPlanting={(plantingId) =>
@@ -339,5 +353,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 28,
     gap: 14,
+  },
+  exitHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#97A29B",
+    textAlign: "center",
+    lineHeight: 17,
   },
 });

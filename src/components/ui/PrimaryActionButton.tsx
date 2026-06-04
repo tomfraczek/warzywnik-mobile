@@ -15,7 +15,7 @@ import {
 
 type PrimaryActionButtonProps = {
   label: string;
-  icon: string;
+  icon?: string;
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
@@ -52,9 +52,9 @@ export function PrimaryActionButton({
       <View style={styles.inner}>
         {loading ? (
           <ActivityIndicator size={20} color="#FFFFFF" />
-        ) : (
+        ) : icon ? (
           <Icon source={icon} size={22} color="#FFFFFF" />
-        )}
+        ) : null}
         <Text style={styles.text}>{label}</Text>
       </View>
     </Pressable>

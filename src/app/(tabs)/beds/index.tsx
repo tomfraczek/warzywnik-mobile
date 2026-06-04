@@ -5,6 +5,7 @@ import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { PrimaryScreenHeading } from "@/src/components/navigation/PrimaryScreenHeading";
 import { Screen } from "@/src/components/Screen";
 import { isPlantingActiveLifecycleStatus } from "@/src/features/plantings/status";
+import { pluralize } from "@/src/utils/pluralize";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
@@ -269,7 +270,8 @@ function BedCard({
           <View style={[s.chip, { backgroundColor: palette.chipBg }]}>
             <Icon source="sprout-outline" size={13} color={palette.meta} />
             <Text style={[s.chipText, { color: palette.meta }]}>
-              {activePlantings} {activePlantings === 1 ? "uprawa" : "uprawy"}
+              {activePlantings}{" "}
+              {pluralize("uprawa", "uprawy", "upraw", activePlantings)}
             </Text>
           </View>
         ) : null}
