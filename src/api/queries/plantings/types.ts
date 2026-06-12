@@ -1,7 +1,5 @@
 export type PlantingStatus =
   | "NEW"
-  | "SEEDLING_PREPARED"
-  | "SEEDLING_READY_FOR_TRANSPLANT"
   | "IN_GROUND"
   | "READY_FOR_FINAL_HARVEST"
   | "HARVESTED"

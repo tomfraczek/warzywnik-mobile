@@ -266,8 +266,6 @@ const parsePlantingStatus = (value: unknown): PlantingStatus | null => {
   const normalized = value.trim().toUpperCase();
   const validStatuses: PlantingStatus[] = [
     "NEW",
-    "SEEDLING_PREPARED",
-    "SEEDLING_READY_FOR_TRANSPLANT",
     "IN_GROUND",
     "READY_FOR_FINAL_HARVEST",
     "HARVESTED",

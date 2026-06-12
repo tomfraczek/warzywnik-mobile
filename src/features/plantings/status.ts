@@ -2,8 +2,6 @@ import { PlantingStatus } from "@/src/api/queries/plantings/types";
 
 export const PLANTING_STATUS_LABELS: Record<PlantingStatus, string> = {
   NEW: "Planowana",
-  SEEDLING_PREPARED: "Rozsada przygotowana",
-  SEEDLING_READY_FOR_TRANSPLANT: "Rozsada gotowa do przesadzenia",
   IN_GROUND: "W gruncie",
   READY_FOR_FINAL_HARVEST: "Gotowa do zbioru",
   HARVESTED: "Zebrana",
@@ -23,16 +21,6 @@ const STATUS_TONES_LIGHT: Record<PlantingStatus, StatusTone> = {
     backgroundColor: "#F3F4F6",
     borderColor: "#E5E7EB",
     textColor: "#5F6670",
-  },
-  SEEDLING_PREPARED: {
-    backgroundColor: "#EAF8F1",
-    borderColor: "#D6EEE1",
-    textColor: "#3B7B5F",
-  },
-  SEEDLING_READY_FOR_TRANSPLANT: {
-    backgroundColor: "#EEF7EE",
-    borderColor: "#DDECDD",
-    textColor: "#53745E",
   },
   IN_GROUND: {
     backgroundColor: "#E7F4EA",
@@ -71,16 +59,6 @@ const STATUS_TONES_DARK: Record<PlantingStatus, StatusTone> = {
     backgroundColor: "#2A2D31",
     borderColor: "#3A3E44",
     textColor: "#B7BCC3",
-  },
-  SEEDLING_PREPARED: {
-    backgroundColor: "#1F2C25",
-    borderColor: "#2D4136",
-    textColor: "#9CCAB2",
-  },
-  SEEDLING_READY_FOR_TRANSPLANT: {
-    backgroundColor: "#232D26",
-    borderColor: "#334035",
-    textColor: "#A8BFAF",
   },
   IN_GROUND: {
     backgroundColor: "#1D2C22",
@@ -127,13 +105,7 @@ export const getPlantingStatusTone = (
 
 export const isPlantingActiveLifecycleStatus = (
   status: PlantingStatus,
-): boolean =>
-  [
-    "SEEDLING_PREPARED",
-    "SEEDLING_READY_FOR_TRANSPLANT",
-    "IN_GROUND",
-    "READY_FOR_FINAL_HARVEST",
-  ].includes(status);
+): boolean => ["IN_GROUND", "READY_FOR_FINAL_HARVEST"].includes(status);
 
 export const isPlantingPlannedStatus = (status: PlantingStatus): boolean =>
   status === "NEW";

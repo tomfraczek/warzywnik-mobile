@@ -126,9 +126,6 @@ const START_METHOD_LABELS: Record<PlantingStartMethod, string> = {
 
 const PLANTING_STATUS_DESCRIPTIONS: Record<PlantingStatus, string> = {
   NEW: "Ta uprawa jest zaplanowana i jeszcze nie została rozpoczęta.",
-  SEEDLING_PREPARED: "Przygotowano rozsadę lub miejsce do rozpoczęcia uprawy.",
-  SEEDLING_READY_FOR_TRANSPLANT:
-    "Rozsada jest gotowa do przesadzenia na miejsce docelowe.",
   IN_GROUND: "Uprawa znajduje się już w gruncie i jest w trakcie wzrostu.",
   READY_FOR_FINAL_HARVEST: "Rośliny są gotowe do końcowego zbioru.",
   HARVESTED: "Zbiory zostały wykonane.",
@@ -158,11 +155,6 @@ const DIRECT_SOW_GROWTH_STEPS: GrowthStep[] = [
 
 const TRANSPLANT_GROWTH_STEPS: GrowthStep[] = [
   { key: "NEW", label: "Planowana" },
-  { key: "SEEDLING_PREPARED", label: "Rozsada przygotowana" },
-  {
-    key: "SEEDLING_READY_FOR_TRANSPLANT",
-    label: "Rozsada gotowa do przesadzenia",
-  },
   { key: "IN_GROUND", label: "Wsadzenie do gruntu" },
   { key: "READY_FOR_FINAL_HARVEST", label: "Gotowe do zbioru" },
   { key: "HARVESTED", label: "Zbiory" },
@@ -307,6 +299,8 @@ export default function PlantingDetailsScreen() {
     useState<HarvestResultRecord | null>(null);
 
   const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [startPlantingConfirmModalVisible, setStartPlantingConfirmModalVisible] =
+    useState(false);
   const [
     confirmStartPlantingModalVisible,
     setConfirmStartPlantingModalVisible,
@@ -777,6 +771,21 @@ export default function PlantingDetailsScreen() {
     setStatusErrorMessage(null);
     setSelectedStatus(null);
     setStatusModalVisible(true);
+  };
+
+  const handleStartPlantingDirect = async () => {
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
+    try {
+      await updatePlanting.mutateAsync({ status: "IN_GROUND" });
+      await Promise.allSettled([refetch(), refetchPlantingTasks()]);
+      setStartPlantingConfirmModalVisible(false);
+      setSnackbarMessage("Uprawa została rozpoczęta.");
+    } catch (err) {
+      setSnackbarMessage(String(getResponseError(err)));
+    }
   };
 
   const openQuickActionModal = () => {
@@ -1333,7 +1342,7 @@ export default function PlantingDetailsScreen() {
         <View style={styles.actionButtonsGroup}>
           {isPlannedPlanting ? (
             <PrimaryActionButton
-              onPress={openStatusModal}
+              onPress={() => setStartPlantingConfirmModalVisible(true)}
               icon="play-circle-outline"
               label="Rozpocznij uprawę"
               color={palette.accent}
@@ -2035,6 +2044,41 @@ export default function PlantingDetailsScreen() {
           <Button mode="contained" onPress={() => setTaskInfoTask(null)}>
             Zamknij
           </Button>
+        </Modal>
+      </Portal>
+
+      <Portal>
+        <Modal
+          visible={startPlantingConfirmModalVisible}
+          onDismiss={() => {
+            if (updatePlanting.isPending) return;
+            setStartPlantingConfirmModalVisible(false);
+          }}
+          contentContainerStyle={styles.statusModal}
+        >
+          <Text style={styles.modalTitle}>Rozpocząć uprawę?</Text>
+          <Text style={styles.statusModalHint}>
+            Status uprawy zmieni się na &bdquo;W gruncie&rdquo;.
+          </Text>
+          <View style={styles.modalActionsBetween}>
+            <Button
+              mode="outlined"
+              onPress={() => setStartPlantingConfirmModalVisible(false)}
+              disabled={updatePlanting.isPending}
+              style={{ flex: 1 }}
+            >
+              Anuluj
+            </Button>
+            <Button
+              mode="contained"
+              onPress={() => void handleStartPlantingDirect()}
+              loading={updatePlanting.isPending}
+              disabled={updatePlanting.isPending}
+              style={{ flex: 1 }}
+            >
+              Rozpocznij
+            </Button>
+          </View>
         </Modal>
       </Portal>
 
