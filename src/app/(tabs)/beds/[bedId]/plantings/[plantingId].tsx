@@ -293,6 +293,9 @@ export default function PlantingDetailsScreen() {
   const [actionsVisible, setActionsVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [taskIdsCompleting, setTaskIdsCompleting] = useState<string[]>([]);
+  const [optimisticHiddenTaskIds, setOptimisticHiddenTaskIds] = useState<
+    string[]
+  >([]);
   const [taskInfoTask, setTaskInfoTask] = useState<ActionTask | null>(null);
   const [harvestFormVisible, setHarvestFormVisible] = useState(false);
   const [editingHarvestRecord, setEditingHarvestRecord] =
@@ -516,11 +519,19 @@ export default function PlantingDetailsScreen() {
   const visiblePlantingTasks = useMemo(
     () =>
       plantingTasks.filter((task) => {
+        if (optimisticHiddenTaskIds.includes(task.id)) return false;
         const dueDateKey = isoToDateOnly(task.dueAt);
         if (!dueDateKey) return true;
         return dueDateKey >= todayKey;
       }),
-    [plantingTasks, todayKey],
+    [plantingTasks, todayKey, optimisticHiddenTaskIds],
+  );
+  const effectivePlantingTasks = useMemo(
+    () =>
+      plantingTasks.filter(
+        (task) => !optimisticHiddenTaskIds.includes(task.id),
+      ),
+    [plantingTasks, optimisticHiddenTaskIds],
   );
   const hiddenOverdueTasksCount = useMemo(
     () =>
@@ -542,12 +553,16 @@ export default function PlantingDetailsScreen() {
   const isTasksLoading = isPlantingTasksLoading;
 
   useEffect(() => {
-    if (taskIdsCompleting.length === 0) return;
-    const visibleTaskIds = new Set(plantingTasks.map((task) => task.id));
+    if (taskIdsCompleting.length === 0 && optimisticHiddenTaskIds.length === 0)
+      return;
+    const existingTaskIds = new Set(plantingTasks.map((task) => task.id));
     setTaskIdsCompleting((prev) =>
-      prev.filter((taskId) => visibleTaskIds.has(taskId)),
+      prev.filter((taskId) => existingTaskIds.has(taskId)),
     );
-  }, [plantingTasks, taskIdsCompleting.length]);
+    setOptimisticHiddenTaskIds((prev) =>
+      prev.filter((taskId) => existingTaskIds.has(taskId)),
+    );
+  }, [plantingTasks, taskIdsCompleting.length, optimisticHiddenTaskIds.length]);
 
   const vegetableName = isVegetableLoading
     ? "Ładowanie..."
@@ -861,6 +876,7 @@ export default function PlantingDetailsScreen() {
       planting.status === "NEW" && selectedStatus !== "NEW";
 
     if (shouldConfirmPlanArchive) {
+      setStatusModalVisible(false);
       setConfirmStartPlantingModalVisible(true);
       return;
     }
@@ -904,6 +920,9 @@ export default function PlantingDetailsScreen() {
       return;
     }
 
+    setOptimisticHiddenTaskIds((prev) =>
+      prev.includes(taskId) ? prev : [...prev, taskId],
+    );
     setTaskIdsCompleting((prev) =>
       prev.includes(taskId) ? prev : [...prev, taskId],
     );
@@ -916,6 +935,7 @@ export default function PlantingDetailsScreen() {
       setSnackbarMessage("Zadanie wykonane");
       await Promise.allSettled([refetchPlantingTasks(), refetch()]);
     } catch (err) {
+      setOptimisticHiddenTaskIds((prev) => prev.filter((id) => id !== taskId));
       setTaskIdsCompleting((prev) => prev.filter((id) => id !== taskId));
       Alert.alert("Błąd", String(getResponseError(err)));
     }
@@ -926,6 +946,11 @@ export default function PlantingDetailsScreen() {
       Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
       return;
     }
+
+    setOptimisticHiddenTaskIds((prev) =>
+      prev.includes(taskId) ? prev : [...prev, taskId],
+    );
+
     try {
       await updateActionTask.mutateAsync({
         id: taskId,
@@ -934,6 +959,7 @@ export default function PlantingDetailsScreen() {
       setSnackbarMessage("Zadanie anulowane.");
       await Promise.allSettled([refetchPlantingTasks(), refetch()]);
     } catch (err) {
+      setOptimisticHiddenTaskIds((prev) => prev.filter((id) => id !== taskId));
       Alert.alert("Błąd", String(getResponseError(err)));
     }
   };
@@ -1576,11 +1602,14 @@ export default function PlantingDetailsScreen() {
               </View>
             ) : null}
 
-            {!isTasksLoading && !tasksError && plantingTasks.length === 0 ? (
+            {!isTasksLoading &&
+            !tasksError &&
+            effectivePlantingTasks.length === 0 ? (
               <TasksCelebrationCard />
             ) : null}
 
-            {plantingTasks.length > 0 && visiblePlantingTasks.length === 0 ? (
+            {effectivePlantingTasks.length > 0 &&
+            visiblePlantingTasks.length === 0 ? (
               <Text style={styles.emptyText}>
                 Brak aktywnych zadań. Zaległe zadania są ukryte.
               </Text>
@@ -2085,7 +2114,10 @@ export default function PlantingDetailsScreen() {
       <Portal>
         <Modal
           visible={confirmStartPlantingModalVisible}
-          onDismiss={() => setConfirmStartPlantingModalVisible(false)}
+          onDismiss={() => {
+            setConfirmStartPlantingModalVisible(false);
+            setStatusModalVisible(true);
+          }}
           contentContainerStyle={styles.statusModal}
         >
           <Text style={styles.modalTitle}>Rozpocząć uprawę?</Text>
@@ -2096,7 +2128,10 @@ export default function PlantingDetailsScreen() {
           <View style={styles.modalActionsBetween}>
             <Button
               mode="outlined"
-              onPress={() => setConfirmStartPlantingModalVisible(false)}
+              onPress={() => {
+                setConfirmStartPlantingModalVisible(false);
+                setStatusModalVisible(true);
+              }}
               style={{ flex: 1 }}
             >
               Anuluj
