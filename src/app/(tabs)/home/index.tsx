@@ -5,6 +5,7 @@ import { WeatherStatusLevel } from "@/src/api/queries/users/meTypes";
 import { useGetMyWeather } from "@/src/api/queries/users/useGetMyWeather";
 import { NotificationsBellButton } from "@/src/components/navigation/NotificationsBellButton";
 import { Screen } from "@/src/components/Screen";
+import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
 import { ArticlePreviewCard } from "@/src/components/ui/ArticlePreviewCard";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
@@ -22,7 +23,8 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
@@ -213,7 +215,60 @@ export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
-  const { profile, location } = useSettings();
+  const { profile, location, tutorials, setTutorials } = useSettings();
+
+  const scrollViewRef = useRef<ScrollView>(null);
+  const notificationsRef = useRef<View>(null);
+  const weatherCardRef = useRef<View>(null);
+  const weatherStatusRef = useRef<View>(null);
+  const gardenRiskRef = useRef<View>(null);
+  const vegetablesSectionRef = useRef<View>(null);
+  const articlesSectionRef = useRef<View>(null);
+
+  const vegetablesScrollY = useRef(0);
+  const articlesScrollY = useRef(0);
+
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (tutorials.enabled && !tutorials.homeSeen) {
+        setShowTutorial(true);
+      }
+    }, [tutorials.enabled, tutorials.homeSeen]),
+  );
+
+  const handleTutorialDismiss = useCallback(
+    (dontShowAgain: boolean) => {
+      setShowTutorial(false);
+      if (dontShowAgain) {
+        setTutorials({ homeSeen: true });
+      }
+    },
+    [setTutorials],
+  );
+
+  const beforeStepMeasure = useCallback(
+    (stepIndex: number): Promise<void> =>
+      new Promise((resolve) => {
+        if (stepIndex === 4 && scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({
+            y: Math.max(0, vegetablesScrollY.current - 100),
+            animated: true,
+          });
+          setTimeout(resolve, 500);
+        } else if (stepIndex === 5 && scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({
+            y: Math.max(0, articlesScrollY.current - 100),
+            animated: true,
+          });
+          setTimeout(resolve, 500);
+        } else {
+          setTimeout(resolve, 300);
+        }
+      }),
+    [],
+  );
 
   const {
     data: weatherData,
@@ -268,6 +323,7 @@ export default function HomeScreen() {
   return (
     <Screen safeAreaEdges={["top", "left", "right"]}>
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         style={{ flex: 1 }}
@@ -279,13 +335,19 @@ export default function HomeScreen() {
                 Cześć{profile.name ? `, ${profile.name}` : ""}!
               </Text>
             </View>
-            <NotificationsBellButton
-              iconColor={theme.colors.onSurface}
-              borderColor={theme.colors.outlineVariant}
-              backgroundColor={theme.colors.surface}
-              pressedBackgroundColor={theme.colors.surfaceVariant}
-              style={styles.notificationsBellButton}
-            />
+            <View
+              ref={notificationsRef}
+              collapsable={false}
+              testID="home-notifications-bell"
+            >
+              <NotificationsBellButton
+                iconColor={theme.colors.onSurface}
+                borderColor={theme.colors.outlineVariant}
+                backgroundColor={theme.colors.surface}
+                pressedBackgroundColor={theme.colors.surfaceVariant}
+                style={styles.notificationsBellButton}
+              />
+            </View>
           </View>
           <StatusBadge
             label={
@@ -315,6 +377,11 @@ export default function HomeScreen() {
           </View>
         ) : (
           <>
+            <View
+              ref={weatherCardRef}
+              collapsable={false}
+              testID="home-weather-card"
+            >
             <Pressable onPress={() => router.push("/(tabs)/home/weather")}>
               <Card title="Pogoda teraz" subtitle={weatherSubtitle}>
                 {isWeatherError && !weatherData ? (
@@ -392,6 +459,7 @@ export default function HomeScreen() {
                 )}
               </Card>
             </Pressable>
+            </View>
 
             {!isWeatherError && weatherStatus
               ? (() => {
@@ -401,7 +469,12 @@ export default function HomeScreen() {
                   );
 
                   return (
-                    <View style={[styles.weatherStatusCard, toneStyles.card]}>
+                    <View
+                      ref={weatherStatusRef}
+                      collapsable={false}
+                      testID="home-weather-status-card"
+                      style={[styles.weatherStatusCard, toneStyles.card]}
+                    >
                       <Text style={styles.weatherStatusSectionTitle}>
                         Status pogody
                       </Text>
@@ -460,6 +533,9 @@ export default function HomeScreen() {
 
                   return (
                     <View
+                      ref={gardenRiskRef}
+                      collapsable={false}
+                      testID="home-garden-risk-card"
                       style={[
                         styles.gardenRiskCard,
                         styles.weatherStatusCard,
@@ -515,7 +591,15 @@ export default function HomeScreen() {
               : null}
 
             {/* ── Popularne warzywa ── */}
-            <View style={styles.libSection}>
+            <View
+              ref={vegetablesSectionRef}
+              collapsable={false}
+              testID="home-vegetables-section"
+              style={styles.libSection}
+              onLayout={(e) => {
+                vegetablesScrollY.current = e.nativeEvent.layout.y;
+              }}
+            >
               <HomeSectionHeader
                 title="Popularne warzywa w tym sezonie"
                 actionLabel="Zobacz wszystkie"
@@ -544,7 +628,15 @@ export default function HomeScreen() {
             </View>
 
             {/* ── Polecane artykuły ── */}
-            <View style={styles.libSection}>
+            <View
+              ref={articlesSectionRef}
+              collapsable={false}
+              testID="home-articles-section"
+              style={styles.libSection}
+              onLayout={(e) => {
+                articlesScrollY.current = e.nativeEvent.layout.y;
+              }}
+            >
               <HomeSectionHeader
                 title="Polecane artykuły"
                 actionLabel="Zobacz wszystkie"
@@ -577,6 +669,56 @@ export default function HomeScreen() {
           </>
         )}
       </ScrollView>
+
+      <CoachMarkOverlay
+        visible={showTutorial}
+        onDismiss={handleTutorialDismiss}
+        beforeStepMeasure={beforeStepMeasure}
+        steps={[
+          {
+            ref: notificationsRef,
+            title: "Powiadomienia",
+            description:
+              "Tu pojawią się alerty i przypomnienia dotyczące Twojego ogrodu.",
+            placement: "bottom",
+          },
+          {
+            ref: weatherCardRef,
+            title: "Pogoda w Twojej okolicy",
+            description:
+              "Dotknij, aby zobaczyć pełną prognozę — temperaturę, opady i wiatr na kolejne dni.",
+            placement: "bottom",
+          },
+          {
+            ref: weatherStatusRef,
+            title: "Status pogody",
+            description:
+              "Kolor i etykieta (Spokojnie / Obserwuj / Ostrzeżenie / Pilny alert) pokazują ogólny stan pogody dla Twojej okolicy.",
+            placement: "bottom",
+          },
+          {
+            ref: gardenRiskRef,
+            title: "Ryzyko dla ogrodu",
+            description:
+              "Tu zobaczysz, czy Twoim roślinom grozi mróz, upał lub silny wiatr. Dotknij linku, aby zobaczyć pełne alerty.",
+            placement: "bottom",
+          },
+          {
+            ref: vegetablesSectionRef,
+            title: "Popularne warzywa sezonu",
+            description:
+              "Odkryj, co inni hodują w tym sezonie. Dotknij \"Zobacz wszystkie\", aby przejść do pełnej biblioteki.",
+            placement: "bottom",
+          },
+          {
+            ref: articlesSectionRef,
+            title: "Porady ogrodnicze",
+            description:
+              "Artykuły dobrane do sezonu i Twojej lokalizacji. Dotknij, aby czytać.",
+            placement: "top",
+          },
+        ]}
+      />
     </Screen>
   );
 }

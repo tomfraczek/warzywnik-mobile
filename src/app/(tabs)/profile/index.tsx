@@ -57,6 +57,8 @@ export default function ProfileScreen() {
     setLanguagePreference,
     location,
     setLocationPreference,
+    tutorials,
+    setTutorials,
   } = useSettings();
   const updateLocation = useUpdateUserLocation();
   const [snackbar, setSnackbar] = useState<string | null>(null);
@@ -557,6 +559,43 @@ export default function ProfileScreen() {
               Otwórz diagnostykę push
             </Button>
           ) : null} */}
+        </Card>
+
+        <Card title="Tutoriale">
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Pokazuj tutoriale</Text>
+              <Text style={styles.preferenceDescription}>
+                Wyświetlaj podpowiedzi przy pierwszym wejściu na ekran.
+              </Text>
+            </View>
+            <Switch
+              value={tutorials.enabled}
+              onValueChange={(value) => {
+                setTutorials({ enabled: value });
+              }}
+            />
+          </View>
+
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Ekran główny</Text>
+              <Text style={styles.preferenceDescription}>
+                Obejrzyj tutorial ekranu głównego ponownie.
+              </Text>
+            </View>
+            <Button
+              compact
+              mode="outlined"
+              disabled={!tutorials.enabled}
+              onPress={() => {
+                setTutorials({ homeSeen: false });
+                router.navigate("/(tabs)/home");
+              }}
+            >
+              Powtórz
+            </Button>
+          </View>
         </Card>
 
         <Card title="Dane">
