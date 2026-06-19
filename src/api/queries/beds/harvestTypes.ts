@@ -42,3 +42,9 @@ export type CreateBedActionTaskItemDto = {
 export type CreateBedActionTasksBulkDto = {
   items: CreateBedActionTaskItemDto[];
 };
+
+export type PostHarvestTaskSelection = {
+  actionTemplateId: string;
+  dueDate?: string;
+  target?: string;
+};

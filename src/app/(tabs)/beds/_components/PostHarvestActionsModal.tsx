@@ -1,4 +1,7 @@
-import { PostHarvestProposal } from "@/src/api/queries/beds/harvestTypes";
+import {
+  PostHarvestProposal,
+  PostHarvestTaskSelection,
+} from "@/src/api/queries/beds/harvestTypes";
 import { AppDatePickerModal } from "@/src/components/AppDatePickerModal";
 import { memo, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -12,17 +15,12 @@ import {
   useTheme,
 } from "react-native-paper";
 
-type TaskSelection = {
-  actionTemplateId: string;
-  dueDate?: string;
-};
-
 type PostHarvestActionsModalProps = {
   visible: boolean;
   actions: PostHarvestProposal[];
   isSubmitting?: boolean;
   onCancel: () => void;
-  onSubmit: (selection: TaskSelection[]) => void;
+  onSubmit: (selection: PostHarvestTaskSelection[]) => void;
 };
 
 const resolveTemplateId = (proposal: PostHarvestProposal) =>
@@ -225,6 +223,7 @@ function PostHarvestActionsModalComponent({
                   actionTemplateId: action.resolvedTemplateId as string,
                   dueDate:
                     dueAtByTemplateId[action.resolvedTemplateId as string],
+                  target: action.actionTemplate.target,
                 }));
 
               onSubmit(selection);

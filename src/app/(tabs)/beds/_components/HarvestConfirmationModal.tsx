@@ -43,7 +43,7 @@ function HarvestConfirmationModalComponent({
             disabled={isSubmitting}
             style={styles.actionButton}
           >
-            NO
+            Nie
           </Button>
           <Button
             mode="contained"
@@ -52,7 +52,7 @@ function HarvestConfirmationModalComponent({
             disabled={isSubmitting}
             style={styles.actionButton}
           >
-            YES
+            Tak
           </Button>
         </View>
       </Modal>

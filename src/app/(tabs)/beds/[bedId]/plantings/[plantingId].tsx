@@ -580,6 +580,18 @@ export default function PlantingDetailsScreen() {
   const actionBtnsRef = useRef<View | null>(null);
   const growthTimelineRef = useRef<View | null>(null);
   const growthTimelineY = useRef(0);
+  const tasksRef = useRef<View | null>(null);
+  const tasksSectionY = useRef(0);
+  const notesRef = useRef<View | null>(null);
+  const notesSectionY = useRef(0);
+  const seasonRef = useRef<View | null>(null);
+  const seasonSectionY = useRef(0);
+  const problemsRef = useRef<View | null>(null);
+  const problemsSectionY = useRef(0);
+  const timelineRef = useRef<View | null>(null);
+  const timelineSectionY = useRef(0);
+  const harvestResultsRef = useRef<View | null>(null);
+  const harvestSectionY = useRef(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -600,15 +612,20 @@ export default function PlantingDetailsScreen() {
   const handleBeforeStepMeasure = useCallback(
     (stepIndex: number): Promise<void> =>
       new Promise((resolve) => {
-        if (stepIndex === 2) {
-          scrollViewRef.current?.scrollTo({
-            y: Math.max(0, growthTimelineY.current - 80),
-            animated: true,
-          });
-          setTimeout(resolve, 500);
-        } else {
-          setTimeout(resolve, 300);
-        }
+        const sectionYs = [
+          0,                            // 0: heroCard — top
+          0,                            // 1: actionBtns — top
+          growthTimelineY.current,      // 2: growthTimeline
+          tasksSectionY.current,        // 3: zadania
+          notesSectionY.current,        // 4: notatki
+          seasonSectionY.current,       // 5: podsumowanie sezonu
+          problemsSectionY.current,     // 6: problemy
+          timelineSectionY.current,     // 7: historia sezonu
+          harvestSectionY.current,      // 8: wyniki zbiorów
+        ];
+        const y = sectionYs[stepIndex] ?? 0;
+        scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
+        setTimeout(resolve, y > 0 ? 500 : 300);
       }),
     [],
   );
@@ -1335,7 +1352,7 @@ export default function PlantingDetailsScreen() {
             />
           </View>
 
-          <View ref={heroCardRef} collapsable={false}>
+          <View ref={heroCardRef} collapsable={false} style={styles.heroCardWrap}>
           <Surface style={styles.heroCard} elevation={0}>
             <View style={styles.heroHeadingBlock}>
               <Text
@@ -1614,6 +1631,11 @@ export default function PlantingDetailsScreen() {
           </Surface>
         ) : null}
 
+        <View
+          ref={tasksRef}
+          collapsable={false}
+          onLayout={(e) => { tasksSectionY.current = e.nativeEvent.layout.y; }}
+        >
         {isPlannedPlanting ? (
           <Surface style={styles.section} elevation={0}>
             <Text style={styles.sectionTitle}>Zadania</Text>
@@ -1744,7 +1766,13 @@ export default function PlantingDetailsScreen() {
             })}
           </Surface>
         )}
+        </View>
 
+        <View
+          ref={notesRef}
+          collapsable={false}
+          onLayout={(e) => { notesSectionY.current = e.nativeEvent.layout.y; }}
+        >
         <Surface style={styles.section} elevation={0}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Notatki</Text>
@@ -1781,7 +1809,21 @@ export default function PlantingDetailsScreen() {
           {!plantingQuickNotesQuery.isLoading &&
           !plantingQuickNotesQuery.error &&
           plantingQuickNotesPreview.length === 0 ? (
-            <Text style={styles.emptyText}>Brak notatek.</Text>
+            <View style={styles.harvestEmptyState}>
+              <Text style={styles.emptyText}>
+                Nie dodano jeszcze żadnych notatek do tej uprawy.
+              </Text>
+              <Button
+                mode="outlined"
+                onPress={() => {
+                  setQuickActionStep("note");
+                  setQuickActionNote("");
+                  setQuickActionModalVisible(true);
+                }}
+              >
+                Dodaj notatkę
+              </Button>
+            </View>
           ) : null}
 
           {plantingQuickNotesPreview.map((note) => (
@@ -1798,11 +1840,24 @@ export default function PlantingDetailsScreen() {
             </View>
           ))}
         </Surface>
+        </View>
 
+        <View
+          ref={seasonRef}
+          collapsable={false}
+          style={{ gap: 20 }}
+          onLayout={(e) => { seasonSectionY.current = e.nativeEvent.layout.y; }}
+        >
         {resolvedPlantingId ? (
           <PlantingSeasonSection plantingId={resolvedPlantingId} />
         ) : null}
+        </View>
 
+        <View
+          ref={problemsRef}
+          collapsable={false}
+          onLayout={(e) => { problemsSectionY.current = e.nativeEvent.layout.y; }}
+        >
         <Surface style={styles.section} elevation={0}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Problemy</Text>
@@ -2031,11 +2086,23 @@ export default function PlantingDetailsScreen() {
             ))
           )}
         </Surface>
+        </View>
 
+        <View
+          ref={timelineRef}
+          collapsable={false}
+          onLayout={(e) => { timelineSectionY.current = e.nativeEvent.layout.y; }}
+        >
         {resolvedPlantingId ? (
           <PlantingTimelineSection plantingId={resolvedPlantingId} />
         ) : null}
+        </View>
 
+        <View
+          ref={harvestResultsRef}
+          collapsable={false}
+          onLayout={(e) => { harvestSectionY.current = e.nativeEvent.layout.y; }}
+        >
         <Surface style={styles.section} elevation={0}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Wyniki zbiorów</Text>
@@ -2090,8 +2157,24 @@ export default function PlantingDetailsScreen() {
                 </Pressable>
               </View>
             </>
-          ) : null}
+          ) : (
+            <View style={styles.harvestEmptyState}>
+              <Text style={styles.emptyText}>
+                Nie dodano jeszcze żadnych wyników zbioru.
+              </Text>
+              <Button
+                mode="outlined"
+                onPress={() => {
+                  setEditingHarvestRecord(null);
+                  setHarvestFormVisible(true);
+                }}
+              >
+                Dodaj rekord
+              </Button>
+            </View>
+          )}
         </Surface>
+        </View>
 
         <View style={styles.metaBlock}>
           {planting.createdAt ? (
@@ -2988,6 +3071,48 @@ export default function PlantingDetailsScreen() {
               "Śledź postęp uprawy od planowania przez siew, wzrost aż po zbiory i uprzątnięcie.",
             placement: "top",
           },
+          {
+            ref: tasksRef,
+            title: "Zadania",
+            description:
+              "Zadania przypisane do tej uprawy. Możesz oznaczyć je jako wykonane lub anulować — aplikacja generuje je automatycznie.",
+            placement: "top",
+          },
+          {
+            ref: notesRef,
+            title: "Notatki",
+            description:
+              "Zapisuj obserwacje przy uprawie. Użyj przycisku \"Wykonaj akcję\", aby szybko dodać notatkę bez opuszczania ekranu.",
+            placement: "top",
+          },
+          {
+            ref: seasonRef,
+            title: "Podsumowanie sezonu",
+            description:
+              "Statystyki bieżącego sezonu — czas trwania, łączny plon i jakość zbiorów w liczbach.",
+            placement: "top",
+          },
+          {
+            ref: problemsRef,
+            title: "Problemy",
+            description:
+              "Rejestruj choroby i szkodniki wykryte w tej uprawie. Śledź ich status i porównuj z poprzednimi sezonami.",
+            placement: "top",
+          },
+          {
+            ref: timelineRef,
+            title: "Historia sezonu",
+            description:
+              "Chronologiczny dziennik wszystkich zdarzeń: zmiany statusu, notatki, zadania i akcje wykonane przy tej uprawie.",
+            placement: "top",
+          },
+          {
+            ref: harvestResultsRef,
+            title: "Wyniki zbiorów",
+            description:
+              "Zapisuj kolejne zbiory — ilość, jakość i notatki. Śledzisz tu łączny plon i średnią jakość całego sezonu.",
+            placement: "top",
+          },
         ]}
       />
     </Screen>
@@ -3051,6 +3176,10 @@ const makeStyles = (theme: MD3Theme) =>
       fontWeight: "500",
       color: buildPalette(theme.dark).secondary,
     },
+    heroCardWrap: {
+      marginHorizontal: 16,
+      marginTop: -44,
+    },
     heroCard: {
       borderWidth: 1,
       borderColor: buildPalette(theme.dark).cardBorder,
@@ -3058,8 +3187,6 @@ const makeStyles = (theme: MD3Theme) =>
       padding: 18,
       backgroundColor: buildPalette(theme.dark).cardBg,
       gap: 12,
-      marginHorizontal: 16,
-      marginTop: -44,
       shadowColor: "#000",
       shadowOpacity: theme.dark ? 0.3 : 0.08,
       shadowRadius: 16,
@@ -3769,6 +3896,11 @@ const makeStyles = (theme: MD3Theme) =>
       fontSize: 14,
       color: buildPalette(theme.dark).accent,
       fontWeight: "600",
+    },
+    harvestEmptyState: {
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 8,
     },
     warningList: {
       gap: 12,

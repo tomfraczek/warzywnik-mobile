@@ -1,3 +1,4 @@
+import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Icon, MD3Theme, useTheme } from "react-native-paper";
 
@@ -11,10 +12,12 @@ const buildPalette = (dark: boolean) => ({
 
 type TasksCelebrationCardProps = {
   title?: string;
+  footer?: React.ReactNode;
 };
 
 export function TasksCelebrationCard({
   title = "Jesteś na bieżąco",
+  footer,
 }: TasksCelebrationCardProps) {
   const theme = useTheme<MD3Theme>();
   const palette = buildPalette(theme.dark);
@@ -40,6 +43,7 @@ export function TasksCelebrationCard({
         <Icon source="party-popper" size={22} color={palette.accent} />
         <Text style={styles.text}>{title}</Text>
       </View>
+      {footer ? <View style={styles.footer}>{footer}</View> : null}
     </View>
   );
 }
@@ -91,5 +95,9 @@ const makeStyles = (palette: ReturnType<typeof buildPalette>) =>
       fontSize: 15,
       fontWeight: "700",
       color: palette.accent,
+    },
+    footer: {
+      marginTop: 10,
+      alignItems: "center",
     },
   });

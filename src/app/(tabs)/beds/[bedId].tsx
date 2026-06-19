@@ -11,9 +11,9 @@ import { useUpdateActionTask } from "@/src/api/queries/actionTasks/useUpdateActi
 import { useGetBedPlan } from "@/src/api/queries/bedPlan/useGetBedPlan";
 import { bedKeys } from "@/src/api/queries/beds/bedKeys";
 import {
-  CreateBedActionTaskItemDto,
   HarvestPromptItem,
   PostHarvestProposal,
+  PostHarvestTaskSelection,
 } from "@/src/api/queries/beds/harvestTypes";
 import { Bed } from "@/src/api/queries/beds/types";
 import { useCreateBedActionTasksBulk } from "@/src/api/queries/beds/useCreateBedActionTasksBulk";
@@ -23,6 +23,7 @@ import { useGetBedHarvestPrompts } from "@/src/api/queries/beds/useGetBedHarvest
 import { useUpdateBed } from "@/src/api/queries/beds/useUpdateBed";
 import { Planting } from "@/src/api/queries/plantings/types";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
+import { useCreatePlantingActionTasksBulk } from "@/src/api/queries/plantings/useCreatePlantingActionTasksBulk";
 import { usePostHarvestConfirmation } from "@/src/api/queries/plantings/usePostHarvestConfirmation";
 import { useGetBedQuickActionNotes } from "@/src/api/queries/quickActions/useGetBedQuickActionNotes";
 import { usePostBedQuickAction } from "@/src/api/queries/quickActions/usePostBedQuickAction";
@@ -399,6 +400,9 @@ export default function BedDetailsScreen() {
   const [postHarvestActions, setPostHarvestActions] = useState<
     PostHarvestProposal[]
   >([]);
+  const [harvestPlantingId, setHarvestPlantingId] = useState<string | null>(
+    null,
+  );
   const [deleteConfirmationStep, setDeleteConfirmationStep] = useState(false);
 
   const harvestPrompts = useMemo(
@@ -467,6 +471,8 @@ export default function BedDetailsScreen() {
   const createBedActionTasksBulk = useCreateBedActionTasksBulk(
     resolvedBedId ?? null,
   );
+  const createPlantingActionTasksBulk =
+    useCreatePlantingActionTasksBulk(harvestPlantingId);
 
   const harvestConfirmationVisible =
     !!activeHarvestPrompt && !postHarvestModalVisible;
@@ -530,8 +536,14 @@ export default function BedDetailsScreen() {
   const addVegetableRef = useRef<View | null>(null);
   const plantingsSectionRef = useRef<View | null>(null);
   const tasksSectionRef = useRef<View | null>(null);
+  const notesSectionRef = useRef<View | null>(null);
+  const historySectionRef = useRef<View | null>(null);
+  const seasonHistoryRef = useRef<View | null>(null);
   const plantingsSectionY = useRef(0);
   const tasksSectionY = useRef(0);
+  const notesSectionY = useRef(0);
+  const historySectionY = useRef(0);
+  const seasonHistoryY = useRef(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -554,21 +566,18 @@ export default function BedDetailsScreen() {
   const handleBeforeStepMeasure = useCallback(
     (stepIndex: number): Promise<void> => {
       return new Promise((resolve) => {
-        if (stepIndex === 2) {
-          scrollViewRef.current?.scrollTo({
-            y: Math.max(0, plantingsSectionY.current - 80),
-            animated: true,
-          });
-          setTimeout(resolve, 500);
-        } else if (stepIndex === 3) {
-          scrollViewRef.current?.scrollTo({
-            y: Math.max(0, tasksSectionY.current - 80),
-            animated: true,
-          });
-          setTimeout(resolve, 500);
-        } else {
-          setTimeout(resolve, 300);
-        }
+        const sectionYs = [
+          0,                              // 0: heroCard
+          0,                              // 1: addVegetable
+          plantingsSectionY.current,      // 2: warzywa
+          tasksSectionY.current,          // 3: zadania
+          notesSectionY.current,          // 4: notatki
+          historySectionY.current,        // 5: historia zabiegów
+          seasonHistoryY.current,         // 6: historia upraw
+        ];
+        const y = sectionYs[stepIndex] ?? 0;
+        scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
+        setTimeout(resolve, y > 0 ? 500 : 300);
       });
     },
     [],
@@ -603,6 +612,7 @@ export default function BedDetailsScreen() {
       });
       setPromptQueue((prev) => prev.slice(1));
       setPostHarvestActions(response.proposals ?? []);
+      setHarvestPlantingId(response.plantingId ?? null);
       setPostHarvestModalVisible(true);
     } catch (err) {
       Alert.alert("Błąd", String(getResponseError(err)));
@@ -610,7 +620,7 @@ export default function BedDetailsScreen() {
   };
 
   const handleCreatePostHarvestTasks = async (
-    tasks: CreateBedActionTaskItemDto[],
+    tasks: PostHarvestTaskSelection[],
   ) => {
     if (!resolvedBedId) return;
     if (isOffline) {
@@ -618,20 +628,69 @@ export default function BedDetailsScreen() {
       return;
     }
 
-    try {
-      await createBedActionTasksBulk.mutateAsync({
-        items: tasks,
-      });
-      setPostHarvestModalVisible(false);
-      setPostHarvestActions([]);
-      setSnackbarMessage("Dodano zadania po zbiorach");
-      await refetchHarvestPrompts();
-      await refetchPendingBedTasks();
-      await refetchHistoryBedTasks();
-      await refetchPlantings();
-    } catch {
-      Alert.alert("Błąd", "Nie udało się dodać zadań po zbiorach");
+    const bedTasks = tasks.filter(
+      (t) => !t.target || t.target === "bed",
+    );
+    const plantingTasks = tasks.filter((t) => t.target === "planting");
+
+    let bedSuccess = bedTasks.length === 0;
+    let plantingSuccess = plantingTasks.length === 0;
+
+    if (bedTasks.length > 0) {
+      try {
+        await createBedActionTasksBulk.mutateAsync({
+          items: bedTasks.map(({ actionTemplateId, dueDate }) => ({
+            actionTemplateId,
+            dueDate,
+          })),
+        });
+        bedSuccess = true;
+      } catch {
+        bedSuccess = false;
+      }
     }
+
+    if (plantingTasks.length > 0) {
+      if (!harvestPlantingId) {
+        plantingSuccess = false;
+      } else {
+        try {
+          await createPlantingActionTasksBulk.mutateAsync({
+            items: plantingTasks.map(({ actionTemplateId, dueDate }) => ({
+              actionTemplateId,
+              dueDate,
+            })),
+          });
+          plantingSuccess = true;
+        } catch {
+          plantingSuccess = false;
+        }
+      }
+    }
+
+    const anySuccess = bedSuccess || plantingSuccess;
+    const allSuccess = bedSuccess && plantingSuccess;
+
+    if (!anySuccess) {
+      Alert.alert("Błąd", "Nie udało się dodać zadań po zbiorach");
+      return;
+    }
+
+    setPostHarvestModalVisible(false);
+    setPostHarvestActions([]);
+
+    await Promise.allSettled([
+      refetchHarvestPrompts(),
+      refetchPendingBedTasks(),
+      refetchHistoryBedTasks(),
+      refetchPlantings(),
+    ]);
+
+    setSnackbarMessage(
+      allSuccess
+        ? "Dodano zadania po zbiorach"
+        : "Część zadań po zbiorach nie została dodana",
+    );
   };
 
   const pendingTasksKey = actionTaskKeys.bed(
@@ -1015,24 +1074,13 @@ export default function BedDetailsScreen() {
           </View>
         </View>
 
-        <PrimaryActionButton
-          onPress={openQuickActionModal}
-          icon="lightning-bolt-outline"
-          label="Wykonaj akcję"
-          color={palette.accent}
-          disabled={isOffline || postBedQuickAction.isPending}
-          loading={postBedQuickAction.isPending}
-          style={styles.quickActionButton}
-        />
-
-        <View ref={addVegetableRef} collapsable={false}>
+        <View ref={addVegetableRef} collapsable={false} style={styles.addVegetableButton}>
           <PrimaryActionButton
             onPress={() => router.push(`/(tabs)/beds/${bed.id}/plantings/new`)}
             icon="sprout-outline"
             label="Dodaj warzywo"
             color={palette.secondaryCta}
             disabled={isOffline}
-            style={styles.addVegetableButton}
           />
         </View>
 
@@ -1292,12 +1340,24 @@ export default function BedDetailsScreen() {
           onLayout={(e) => { tasksSectionY.current = e.nativeEvent.layout.y; }}
         >
           <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, styles.sectionTitleInHeader]}>
-              Zadania
-            </Text>
-            {hasAttentionItems ? (
-              <Icon source="alert" size={18} color={palette.warning} />
-            ) : null}
+            <View style={styles.sectionHeaderLeft}>
+              <Text style={[styles.sectionTitle, styles.sectionTitleInHeader]}>
+                Zadania
+              </Text>
+              {hasAttentionItems ? (
+                <Icon source="alert" size={18} color={palette.warning} />
+              ) : null}
+            </View>
+            <Pressable
+              style={styles.linkButton}
+              onPress={() =>
+                router.push(
+                  `/(tabs)/planner/create-task?target=bed&bedId=${bed.id}`,
+                )
+              }
+            >
+              <Text style={styles.linkButtonText}>Dodaj zadanie</Text>
+            </Pressable>
           </View>
 
           {isTasksLoading ? <ActivityIndicator /> : null}
@@ -1322,7 +1382,20 @@ export default function BedDetailsScreen() {
           ) : null}
 
           {!isTasksLoading && !tasksError && activeTasks.length === 0 ? (
-            <TasksCelebrationCard />
+            <TasksCelebrationCard
+              footer={
+                <Button
+                  mode="outlined"
+                  onPress={() =>
+                    router.push(
+                      `/(tabs)/planner/create-task?target=bed&bedId=${bed.id}`,
+                    )
+                  }
+                >
+                  Dodaj zadanie
+                </Button>
+              }
+            />
           ) : null}
 
           {activeTasks.map((task) => {
@@ -1413,17 +1486,34 @@ export default function BedDetailsScreen() {
           })}
         </View>
 
-        <View style={styles.section}>
+        <View
+          ref={notesSectionRef}
+          collapsable={false}
+          style={styles.section}
+          onLayout={(e) => { notesSectionY.current = e.nativeEvent.layout.y; }}
+        >
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Notatki</Text>
-            {bedQuickNotes.length > 0 ? (
+            <View style={styles.sectionHeaderRight}>
+              {bedQuickNotes.length > 0 ? (
+                <Pressable
+                  style={styles.linkButton}
+                  onPress={() => router.push(`/(tabs)/beds/${bed.id}/notes`)}
+                >
+                  <Text style={styles.linkButtonText}>Zobacz wszystkie</Text>
+                </Pressable>
+              ) : null}
               <Pressable
                 style={styles.linkButton}
-                onPress={() => router.push(`/(tabs)/beds/${bed.id}/notes`)}
+                onPress={() => {
+                  setQuickActionStep("note");
+                  setQuickActionNote("");
+                  setQuickActionModalVisible(true);
+                }}
               >
-                <Text style={styles.linkButtonText}>Zobacz wszystkie</Text>
+                <Text style={styles.linkButtonText}>Dodaj notatkę</Text>
               </Pressable>
-            ) : null}
+            </View>
           </View>
 
           {bedQuickNotesQuery.isLoading ? <ActivityIndicator /> : null}
@@ -1445,7 +1535,21 @@ export default function BedDetailsScreen() {
           {!bedQuickNotesQuery.isLoading &&
           !bedQuickNotesQuery.error &&
           bedQuickNotesPreview.length === 0 ? (
-            <Text style={styles.valueText}>Brak notatek.</Text>
+            <View style={styles.emptyStateCenter}>
+              <Text style={styles.valueText}>
+                Nie dodano jeszcze żadnych notatek do tej grządki.
+              </Text>
+              <Button
+                mode="outlined"
+                onPress={() => {
+                  setQuickActionStep("note");
+                  setQuickActionNote("");
+                  setQuickActionModalVisible(true);
+                }}
+              >
+                Dodaj notatkę
+              </Button>
+            </View>
           ) : null}
 
           {bedQuickNotesPreview.map((note) => (
@@ -1463,7 +1567,12 @@ export default function BedDetailsScreen() {
           ))}
         </View>
 
-        <View style={styles.section}>
+        <View
+          ref={historySectionRef}
+          collapsable={false}
+          style={styles.section}
+          onLayout={(e) => { historySectionY.current = e.nativeEvent.layout.y; }}
+        >
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Historia zabiegów</Text>
             {historyTasks.length > 4 ? (
@@ -1492,7 +1601,7 @@ export default function BedDetailsScreen() {
           {!isBedHistoryTasksLoading &&
           !bedTasksError &&
           historyPreviewTasks.length === 0 ? (
-            <Text style={styles.valueText}>Brak historii zabiegów.</Text>
+            <Text style={styles.valueText}>Zapis wykonanych zabiegów pojawi się tutaj.</Text>
           ) : null}
 
           {historyPreviewTasks.map((task) => (
@@ -1526,19 +1635,25 @@ export default function BedDetailsScreen() {
           ))}
         </View>
 
-        {resolvedBedId ? (
-          <BedSeasonHistorySection
-            bedId={resolvedBedId}
-            maxItems={3}
-            showSeeAllLink
-            onPressSeeAll={() => router.push(`/(tabs)/beds/${bed.id}/history`)}
-          />
-        ) : (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Historia upraw</Text>
-            <Text style={styles.valueText}>Brak danych grządki.</Text>
-          </View>
-        )}
+        <View
+          ref={seasonHistoryRef}
+          collapsable={false}
+          onLayout={(e) => { seasonHistoryY.current = e.nativeEvent.layout.y; }}
+        >
+          {resolvedBedId ? (
+            <BedSeasonHistorySection
+              bedId={resolvedBedId}
+              maxItems={3}
+              showSeeAllLink
+              onPressSeeAll={() => router.push(`/(tabs)/beds/${bed.id}/history`)}
+            />
+          ) : (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Historia upraw</Text>
+              <Text style={styles.valueText}>Brak danych grządki.</Text>
+            </View>
+          )}
+        </View>
 
         <View style={styles.metaSection}>
           {formatMetaDate(bed.createdAt) ? (
@@ -1904,6 +2019,27 @@ export default function BedDetailsScreen() {
               "Aplikacja sugeruje zadania do wykonania, np. podlewanie czy nawożenie. Możesz je oznaczać jako wykonane lub anulować.",
             placement: "top",
           },
+          {
+            ref: notesSectionRef,
+            title: "Notatki",
+            description:
+              "Zapisuj obserwacje, spostrzeżenia i wskazówki dotyczące tej grządki. Notatki pomagają śledzić historię upraw.",
+            placement: "top",
+          },
+          {
+            ref: historySectionRef,
+            title: "Historia zabiegów",
+            description:
+              "Tu znajdziesz zapis wykonanych zadań — podlewań, nawożeń i innych zabiegów. Dobra historia to klucz do lepszych zbiorów.",
+            placement: "top",
+          },
+          {
+            ref: seasonHistoryRef,
+            title: "Historia upraw",
+            description:
+              "Przegląd poprzednich sezonów — co rosło w tej grządce, kiedy i z jakim wynikiem. Pomaga planować rotację upraw.",
+            placement: "top",
+          },
         ]}
       />
     </Screen>
@@ -2033,6 +2169,21 @@ const makeStyles = (theme: MD3Theme) => {
       alignItems: "center",
       justifyContent: "space-between",
       marginBottom: 10,
+    },
+    sectionHeaderLeft: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    sectionHeaderRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    emptyStateCenter: {
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 8,
     },
     sectionTitleRow: {
       flexDirection: "row",
