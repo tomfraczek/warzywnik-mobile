@@ -37,8 +37,13 @@ type Props = {
 };
 
 const PADDING = 8;
+const BORDER_RADIUS = 16;
 const TOOLTIP_MARGIN = 14;
 const TOOLTIP_HEIGHT_ESTIMATE = 220;
+// Large expansion used for the border-trick scrim.
+// Inner content hole gets borderRadius = SCRIM_EXTRA + BORDER_RADIUS,
+// borderWidth = SCRIM_EXTRA  →  inner radius = (SCRIM_EXTRA + BORDER_RADIUS) - SCRIM_EXTRA = BORDER_RADIUS.
+const SCRIM_EXTRA = 2000;
 
 const computeTooltipTop = (
   hl: HighlightRect | null,
@@ -77,7 +82,7 @@ export function CoachMarkOverlay({
   const [stepIndex, setStepIndex] = useState(0);
   const [highlight, setHighlight] = useState<HighlightRect | null>(null);
   const [dontShowAgain, setDontShowAgain] = useState(false);
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { height: screenHeight } = useWindowDimensions();
   const { top: safeTop, left: safeLeft } = useSafeAreaInsets();
 
   const animTop = useSharedValue(screenHeight / 2 - TOOLTIP_HEIGHT_ESTIMATE / 2);
@@ -162,51 +167,27 @@ export function CoachMarkOverlay({
       visible
       animationType="fade"
       statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={handleSkip}
     >
       <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
         {hl ? (
           <>
-            {/* top */}
+            {/* Single bordered view — the transparent inner hole has BORDER_RADIUS rounded
+                corners (inner radius = borderRadius - borderWidth = SCRIM_EXTRA + BORDER_RADIUS - SCRIM_EXTRA).
+                The border extends SCRIM_EXTRA beyond the hole in all directions, covering the
+                entire screen (including the Android system navigation bar). */}
             <View
+              pointerEvents="none"
               style={[
-                styles.overlay,
-                { top: 0, left: 0, right: 0, height: Math.max(0, hl.y - PADDING) },
-              ]}
-            />
-            {/* bottom */}
-            <View
-              style={[
-                styles.overlay,
+                styles.scrim,
                 {
-                  top: hl.y + hl.height + PADDING,
-                  left: 0,
-                  right: 0,
-                  height: screenHeight - (hl.y + hl.height + PADDING),
-                },
-              ]}
-            />
-            {/* left */}
-            <View
-              style={[
-                styles.overlay,
-                {
-                  top: hl.y - PADDING,
-                  left: 0,
-                  width: Math.max(0, hl.x - PADDING),
-                  height: hl.height + PADDING * 2,
-                },
-              ]}
-            />
-            {/* right */}
-            <View
-              style={[
-                styles.overlay,
-                {
-                  top: hl.y - PADDING,
-                  left: hl.x + hl.width + PADDING,
-                  width: screenWidth - (hl.x + hl.width + PADDING),
-                  height: hl.height + PADDING * 2,
+                  top: hl.y - PADDING - SCRIM_EXTRA,
+                  left: hl.x - PADDING - SCRIM_EXTRA,
+                  width: hl.width + PADDING * 2 + SCRIM_EXTRA * 2,
+                  height: hl.height + PADDING * 2 + SCRIM_EXTRA * 2,
+                  borderWidth: SCRIM_EXTRA,
+                  borderRadius: SCRIM_EXTRA + BORDER_RADIUS,
                 },
               ]}
             />
@@ -287,9 +268,14 @@ const styles = StyleSheet.create({
     position: "absolute",
     backgroundColor: "rgba(0,0,0,0.62)",
   },
+  scrim: {
+    position: "absolute",
+    backgroundColor: "transparent",
+    borderColor: "rgba(0,0,0,0.62)",
+  },
   highlightRing: {
     position: "absolute",
-    borderRadius: 14,
+    borderRadius: BORDER_RADIUS,
     borderWidth: 2,
     borderColor: "rgba(255,255,255,0.55)",
   },

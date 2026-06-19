@@ -223,8 +223,7 @@ export default function HomeScreen() {
   const weatherStatusRef = useRef<View>(null);
   const gardenRiskRef = useRef<View>(null);
   const vegetablesSectionRef = useRef<View>(null);
-  const articlesSectionRef = useRef<View>(null);
-
+  const articlesHighlightRef = useRef<View>(null);
   const vegetablesScrollY = useRef(0);
   const articlesScrollY = useRef(0);
 
@@ -629,7 +628,6 @@ export default function HomeScreen() {
 
             {/* ── Polecane artykuły ── */}
             <View
-              ref={articlesSectionRef}
               collapsable={false}
               testID="home-articles-section"
               style={styles.libSection}
@@ -637,20 +635,36 @@ export default function HomeScreen() {
                 articlesScrollY.current = e.nativeEvent.layout.y;
               }}
             >
-              <HomeSectionHeader
-                title="Polecane artykuły"
-                actionLabel="Zobacz wszystkie"
-                onActionPress={() => router.push("/(tabs)/education/articles")}
-              />
-              {articlesLoading ? (
-                <View style={styles.loadingWrap}>
-                  <ActivityIndicator size="small" />
-                </View>
-              ) : tips.length > 0 ? (
-                <View style={styles.articleList}>
-                  {tips.map((article) => (
+              {/* tutorial ref: header + first article only */}
+              <View ref={articlesHighlightRef} collapsable={false}>
+                <HomeSectionHeader
+                  title="Polecane artykuły"
+                  actionLabel="Zobacz wszystkie"
+                  onActionPress={() => router.push("/(tabs)/education/articles")}
+                />
+                {articlesLoading ? (
+                  <View style={styles.loadingWrap}>
+                    <ActivityIndicator size="small" />
+                  </View>
+                ) : tips.length > 0 ? (
+                  <ArticlePreviewCard
+                    item={tips[0]}
+                    onPressIn={() =>
+                      prefetchArticleCover(tips[0].coverImageUrl)
+                    }
+                    onPress={() =>
+                      router.push({
+                        pathname: "/(tabs)/education/articles/[id]",
+                        params: { id: tips[0].id, fromHome: "1" },
+                      })
+                    }
+                  />
+                ) : null}
+              </View>
+              {!articlesLoading &&
+                tips.slice(1).map((article) => (
+                  <View key={article.id} style={styles.articleListItem}>
                     <ArticlePreviewCard
-                      key={article.id}
                       item={article}
                       onPressIn={() =>
                         prefetchArticleCover(article.coverImageUrl)
@@ -662,9 +676,8 @@ export default function HomeScreen() {
                         })
                       }
                     />
-                  ))}
-                </View>
-              ) : null}
+                  </View>
+                ))}
             </View>
           </>
         )}
@@ -711,7 +724,7 @@ export default function HomeScreen() {
             placement: "bottom",
           },
           {
-            ref: articlesSectionRef,
+            ref: articlesHighlightRef,
             title: "Porady ogrodnicze",
             description:
               "Artykuły dobrane do sezonu i Twojej lokalizacji. Dotknij, aby czytać.",
@@ -1010,6 +1023,9 @@ const makeStyles = (theme: MD3Theme) =>
     },
     articleList: {
       gap: spacing.md,
+    },
+    articleListItem: {
+      marginTop: spacing.md,
     },
     actions: {
       gap: spacing.sm,

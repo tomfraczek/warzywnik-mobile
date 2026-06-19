@@ -8,9 +8,12 @@ import { getFavoriteDetailParam } from "@/src/api/queries/favorites/utils";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { PrimaryScreenHeading } from "@/src/components/navigation/PrimaryScreenHeading";
 import { Screen } from "@/src/components/Screen";
+import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
+import { useSettings } from "@/src/context/SettingsProvider";
+import { useFocusEffect } from "@react-navigation/native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Icon, MD3Theme, Text, useTheme } from "react-native-paper";
 
@@ -348,6 +351,46 @@ export default function EducationScreen() {
   const { data: favoritesData, isLoading: isFavoritesLoading } =
     useGetFavoritesGrouped();
 
+  const { tutorials, setTutorials } = useSettings();
+  const [showTutorial, setShowTutorial] = useState(false);
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const categoriesRef = useRef<View | null>(null);
+  const favoritesRef = useRef<View | null>(null);
+  const favoritesSectionY = useRef(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (tutorials.enabled && !tutorials.educationSeen) {
+        setShowTutorial(true);
+      }
+    }, [tutorials.enabled, tutorials.educationSeen]),
+  );
+
+  const handleTutorialDismiss = useCallback(
+    (dontShowAgain: boolean) => {
+      setShowTutorial(false);
+      if (dontShowAgain) setTutorials({ educationSeen: true });
+    },
+    [setTutorials],
+  );
+
+  const handleBeforeStepMeasure = useCallback(
+    (stepIndex: number): Promise<void> =>
+      new Promise((resolve) => {
+        if (stepIndex === 1) {
+          scrollViewRef.current?.scrollTo({
+            y: Math.max(0, favoritesSectionY.current - 80),
+            animated: true,
+          });
+          setTimeout(resolve, 500);
+        } else {
+          scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+          setTimeout(resolve, 300);
+        }
+      }),
+    [],
+  );
+
   const favoritesPreview = useMemo((): FavoriteItem[] => {
     if (!favoritesData) return [];
     return Object.values(favoritesData)
@@ -376,6 +419,7 @@ export default function EducationScreen() {
   return (
     <Screen safeAreaEdges={["top", "left", "right"]} style={styles.screen}>
       <ScrollView
+        ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
       >
@@ -383,7 +427,7 @@ export default function EducationScreen() {
           title="Biblioteka"
           subtitle="Kategorie, ulubione i poradniki dla Twojego ogrodu."
         />
-        <View style={styles.section}>
+        <View ref={categoriesRef} collapsable={false} style={styles.section}>
           <Text style={styles.sectionHeading}>Kategorie</Text>
           {filteredSections.length > 0 ? (
             <TwoColumnGrid>
@@ -401,102 +445,132 @@ export default function EducationScreen() {
         </View>
 
         {/* ── Ulubione ── */}
-        {(hasFavorites || isFavoritesLoading) && (
-          <View style={styles.section}>
-            <SectionHeader
-              title="Ulubione"
-              actionLabel="Zobacz wszystkie"
-              onActionPress={() =>
-                router.push("/(tabs)/education/favorites" as any)
-              }
-            />
-            {isFavoritesLoading ? (
-              <TwoColumnGrid>
-                {Array.from({ length: 4 }).map((_, idx) => (
-                  <FavoriteTileSkeleton
-                    key={`fav-skel-${idx}`}
-                    typeLabel={idx % 2 === 0 ? "Artykuł" : "Warzywo"}
-                  />
-                ))}
-              </TwoColumnGrid>
-            ) : (
-              <TwoColumnGrid>
-                {favoritesPreview.map((item) => {
-                  const cfg = FAVORITE_TYPE_CONFIG[item.targetType];
-                  if (item.targetType === "VEGETABLE") {
-                    return (
-                      <FavoriteVegetableTile
-                        key={item.id}
-                        item={item}
-                        onPress={(detailParam) =>
-                          detailParam
-                            ? router.push(`${cfg.route}/${detailParam}` as any)
-                            : router.push(cfg.route as any)
-                        }
-                      />
-                    );
-                  }
-                  if (item.targetType === "ARTICLE") {
-                    return (
-                      <FavoriteArticleTile
-                        key={item.id}
-                        item={item}
-                        onPress={() =>
-                          router.push({
-                            pathname: "/(tabs)/education/articles/[id]",
-                            params: { id: item.targetSlug },
-                          })
-                        }
-                      />
-                    );
-                  }
+        <View
+          collapsable={false}
+          style={styles.section}
+          onLayout={(e) => { favoritesSectionY.current = e.nativeEvent.layout.y; }}
+        >
+          <View ref={favoritesRef} collapsable={false}>
+          <SectionHeader
+            title="Ulubione"
+            actionLabel={hasFavorites ? "Zobacz wszystkie" : undefined}
+            onActionPress={
+              hasFavorites
+                ? () => router.push("/(tabs)/education/favorites" as any)
+                : undefined
+            }
+          />
+          {isFavoritesLoading ? (
+            <TwoColumnGrid>
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <FavoriteTileSkeleton
+                  key={`fav-skel-${idx}`}
+                  typeLabel={idx % 2 === 0 ? "Artykuł" : "Warzywo"}
+                />
+              ))}
+            </TwoColumnGrid>
+          ) : hasFavorites ? (
+            <TwoColumnGrid>
+              {favoritesPreview.map((item) => {
+                const cfg = FAVORITE_TYPE_CONFIG[item.targetType];
+                if (item.targetType === "VEGETABLE") {
                   return (
-                    <Pressable
+                    <FavoriteVegetableTile
                       key={item.id}
-                      onPress={() => {
-                        const detailParam = getFavoriteDetailParam(item);
-                        if (detailParam) {
-                          router.push(`${cfg.route}/${detailParam}` as any);
-                          return;
-                        }
-                        router.push(cfg.route as any);
-                      }}
-                      hitSlop={4}
-                    >
-                      <View style={sharedStyles.favTile}>
-                        <View
-                          style={[
-                            sharedStyles.favTileIconWrap,
-                            {
-                              backgroundColor:
-                                FAVORITE_TYPE_BG[item.targetType],
-                            },
-                          ]}
-                        >
-                          <Icon
-                            source={cfg.icon}
-                            size={28}
-                            color={FAVORITE_TYPE_TINT[item.targetType]}
-                          />
-                        </View>
-                        <Text
-                          style={sharedStyles.favTileLabel}
-                          numberOfLines={2}
-                        >
-                          {item.name ?? formatSlug(item.targetSlug)}
-                        </Text>
-                        <Text style={sharedStyles.favTileType}>
-                          {cfg.label}
-                        </Text>
-                      </View>
-                    </Pressable>
+                      item={item}
+                      onPress={(detailParam) =>
+                        detailParam
+                          ? router.push(`${cfg.route}/${detailParam}` as any)
+                          : router.push(cfg.route as any)
+                      }
+                    />
                   );
-                })}
-              </TwoColumnGrid>
-            )}
+                }
+                if (item.targetType === "ARTICLE") {
+                  return (
+                    <FavoriteArticleTile
+                      key={item.id}
+                      item={item}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/(tabs)/education/articles/[id]",
+                          params: { id: item.targetSlug },
+                        })
+                      }
+                    />
+                  );
+                }
+                return (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => {
+                      const detailParam = getFavoriteDetailParam(item);
+                      if (detailParam) {
+                        router.push(`${cfg.route}/${detailParam}` as any);
+                        return;
+                      }
+                      router.push(cfg.route as any);
+                    }}
+                    hitSlop={4}
+                  >
+                    <View style={sharedStyles.favTile}>
+                      <View
+                        style={[
+                          sharedStyles.favTileIconWrap,
+                          {
+                            backgroundColor:
+                              FAVORITE_TYPE_BG[item.targetType],
+                          },
+                        ]}
+                      >
+                        <Icon
+                          source={cfg.icon}
+                          size={28}
+                          color={FAVORITE_TYPE_TINT[item.targetType]}
+                        />
+                      </View>
+                      <Text
+                        style={sharedStyles.favTileLabel}
+                        numberOfLines={2}
+                      >
+                        {item.name ?? formatSlug(item.targetSlug)}
+                      </Text>
+                      <Text style={sharedStyles.favTileType}>
+                        {cfg.label}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </TwoColumnGrid>
+          ) : (
+            <EmptySectionState message="Tu pojawią się pozycje, które dodasz do ulubionych — warzywa, artykuły, choroby i więcej." />
+          )}
           </View>
-        )}
+        </View>
       </ScrollView>
+
+      <CoachMarkOverlay
+        visible={showTutorial}
+        onDismiss={handleTutorialDismiss}
+        beforeStepMeasure={handleBeforeStepMeasure}
+        steps={[
+          {
+            ref: categoriesRef,
+            title: "Kategorie wiedzy",
+            description:
+              "Przeglądaj bazy wiedzy o warzywach, glebach, chorobach, szkodnikach, nawozach i artykułach ogrodniczych.",
+            placement: "bottom",
+          },
+          {
+            ref: favoritesRef,
+            title: "Ulubione",
+            description:
+              "Zapisuj warzywa, artykuły i inne pozycje do ulubionych — znajdziesz je tu szybko przy kolejnej wizycie.",
+            placement: "top",
+          },
+        ]}
+      />
     </Screen>
   );
 }

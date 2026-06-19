@@ -41,7 +41,7 @@ export default function CustomHeader({
   backRoute,
   actions,
   rightAction,
-  hideBell = false,
+  hideBell = true,
 }: CustomHeaderProps) {
   const theme = useTheme<MD3Theme>();
   const insets = useSafeAreaInsets();

@@ -216,6 +216,10 @@ export default function SignInScreen() {
             Zaloguj się
           </Button>
 
+          <Link href="../forgot-password" style={styles.forgotLink}>
+            <Text style={styles.forgotLinkText}>Zapomniałem hasła</Text>
+          </Link>
+
           <View style={styles.footer}>
             <Text style={styles.footerText}>Nie masz konta?</Text>
             <Link href="../sign-up">
@@ -268,6 +272,15 @@ const makeStyles = (theme: MD3Theme) =>
       fontSize: 13,
       color: theme.colors.error,
       marginTop: -8,
+    },
+    forgotLink: {
+      alignSelf: "center",
+      marginTop: -4,
+    },
+    forgotLinkText: {
+      color: theme.colors.primary,
+      fontSize: 14,
+      fontWeight: "500",
     },
     footer: {
       flexDirection: "row",

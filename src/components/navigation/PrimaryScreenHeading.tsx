@@ -1,4 +1,3 @@
-import { NotificationsBellButton } from "@/src/components/navigation/NotificationsBellButton";
 import { StyleSheet, View } from "react-native";
 import { MD3Theme, Text, useTheme } from "react-native-paper";
 
@@ -16,17 +15,7 @@ export function PrimaryScreenHeading({
 
   return (
     <View style={styles.container}>
-      <View style={styles.row}>
-        <View style={styles.titleWrap}>
-          <Text style={styles.title}>{title}</Text>
-        </View>
-        <NotificationsBellButton
-          iconColor={theme.colors.onSurface}
-          borderColor={theme.colors.outlineVariant}
-          backgroundColor={theme.colors.surface}
-          pressedBackgroundColor={theme.colors.surfaceVariant}
-        />
-      </View>
+      <Text style={styles.title}>{title}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
     </View>
   );
@@ -37,16 +26,6 @@ const makeStyles = (theme: MD3Theme) =>
     container: {
       gap: 4,
       marginBottom: 18,
-    },
-    row: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
-    },
-    titleWrap: {
-      flex: 1,
-      minWidth: 0,
     },
     title: {
       fontSize: 28,

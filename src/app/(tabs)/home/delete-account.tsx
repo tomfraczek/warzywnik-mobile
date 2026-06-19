@@ -2,7 +2,7 @@ import { useDeleteMyAccount } from "@/src/api/mutations/users/useDeleteMyAccount
 import { clientPersister, queryClient } from "@/src/api/queryClient";
 import { Screen } from "@/src/components/Screen";
 import { useSettings } from "@/src/context/SettingsProvider";
-import { useClerk } from "@clerk/clerk-expo";
+import { useClerk, useUser } from "@clerk/clerk-expo";
 import { isAxiosError } from "axios";
 import { useMemo, useState } from "react";
 import {
@@ -27,6 +27,7 @@ export default function DeleteAccountScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const { signOut } = useClerk();
+  const { user } = useUser();
   const { resetSettings } = useSettings();
   const deleteMyAccount = useDeleteMyAccount();
   const [confirmation, setConfirmation] = useState("");
@@ -54,6 +55,7 @@ export default function DeleteAccountScreen() {
 
     try {
       await deleteMyAccount.mutateAsync();
+      await user?.delete();
       await cleanupAfterAccountDeletion();
     } catch (error) {
       if (

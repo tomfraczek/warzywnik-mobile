@@ -46,6 +46,11 @@ export type PushNotificationsSettings = {
 export type TutorialSettings = {
   enabled: boolean;
   homeSeen: boolean;
+  bedsSeen: boolean;
+  bedDetailSeen: boolean;
+  plannerSeen: boolean;
+  educationSeen: boolean;
+  plantingSeen: boolean;
 };
 
 export type AppSettings = {
@@ -92,6 +97,11 @@ const defaultSettings: AppSettings = {
   tutorials: {
     enabled: true,
     homeSeen: false,
+    bedsSeen: false,
+    bedDetailSeen: false,
+    plannerSeen: false,
+    educationSeen: false,
+    plantingSeen: false,
   },
 };
 
@@ -218,6 +228,26 @@ const parseSettings = (raw: string | null): AppSettings => {
           typeof tutorialsCandidate?.homeSeen === "boolean"
             ? tutorialsCandidate.homeSeen
             : defaultSettings.tutorials.homeSeen,
+        bedsSeen:
+          typeof tutorialsCandidate?.bedsSeen === "boolean"
+            ? tutorialsCandidate.bedsSeen
+            : defaultSettings.tutorials.bedsSeen,
+        bedDetailSeen:
+          typeof tutorialsCandidate?.bedDetailSeen === "boolean"
+            ? tutorialsCandidate.bedDetailSeen
+            : defaultSettings.tutorials.bedDetailSeen,
+        plannerSeen:
+          typeof tutorialsCandidate?.plannerSeen === "boolean"
+            ? tutorialsCandidate.plannerSeen
+            : defaultSettings.tutorials.plannerSeen,
+        educationSeen:
+          typeof tutorialsCandidate?.educationSeen === "boolean"
+            ? tutorialsCandidate.educationSeen
+            : defaultSettings.tutorials.educationSeen,
+        plantingSeen:
+          typeof tutorialsCandidate?.plantingSeen === "boolean"
+            ? tutorialsCandidate.plantingSeen
+            : defaultSettings.tutorials.plantingSeen,
       },
     };
   } catch (error) {

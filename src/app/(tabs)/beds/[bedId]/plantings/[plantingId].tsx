@@ -43,6 +43,8 @@ import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { AppDatePickerModal } from "@/src/components/AppDatePickerModal";
 import { Screen } from "@/src/components/Screen";
 import CustomHeader from "@/src/components/navigation/CustomHeader";
+import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
+import { useSettings } from "@/src/context/SettingsProvider";
 import { BottomSheetModal } from "@/src/components/ui/BottomSheetModal";
 import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
@@ -61,8 +63,9 @@ import { getTodayKey } from "@/src/utils/date";
 import { formatQualityRating, formatYield } from "@/src/utils/learningMappers";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
+import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -569,6 +572,46 @@ export default function PlantingDetailsScreen() {
     : (vegetable?.name ?? (vegetableError ? "Brak danych" : "Brak danych"));
 
   const isOffline = useIsOffline();
+
+  const { tutorials, setTutorials } = useSettings();
+  const [showTutorial, setShowTutorial] = useState(false);
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const heroCardRef = useRef<View | null>(null);
+  const actionBtnsRef = useRef<View | null>(null);
+  const growthTimelineRef = useRef<View | null>(null);
+  const growthTimelineY = useRef(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (tutorials.enabled && !tutorials.plantingSeen && !isLoading && planting) {
+        setShowTutorial(true);
+      }
+    }, [tutorials.enabled, tutorials.plantingSeen, isLoading, planting]),
+  );
+
+  const handleTutorialDismiss = useCallback(
+    (dontShowAgain: boolean) => {
+      setShowTutorial(false);
+      if (dontShowAgain) setTutorials({ plantingSeen: true });
+    },
+    [setTutorials],
+  );
+
+  const handleBeforeStepMeasure = useCallback(
+    (stepIndex: number): Promise<void> =>
+      new Promise((resolve) => {
+        if (stepIndex === 2) {
+          scrollViewRef.current?.scrollTo({
+            y: Math.max(0, growthTimelineY.current - 80),
+            animated: true,
+          });
+          setTimeout(resolve, 500);
+        } else {
+          setTimeout(resolve, 300);
+        }
+      }),
+    [],
+  );
 
   const statusLabel = planting ? getPlantingStatusLabel(planting.status) : "—";
   const isPlannedPlanting = planting?.status === "NEW";
@@ -1244,6 +1287,7 @@ export default function PlantingDetailsScreen() {
       safeAreaEdges={["left", "right"]}
     >
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.container}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
@@ -1291,6 +1335,7 @@ export default function PlantingDetailsScreen() {
             />
           </View>
 
+          <View ref={heroCardRef} collapsable={false}>
           <Surface style={styles.heroCard} elevation={0}>
             <View style={styles.heroHeadingBlock}>
               <Text
@@ -1363,9 +1408,10 @@ export default function PlantingDetailsScreen() {
               <Text style={styles.heroBedValue}>{plantingBedLabel}</Text>
             </View>
           </Surface>
+          </View>
         </View>
 
-        <View style={styles.actionButtonsGroup}>
+        <View ref={actionBtnsRef} collapsable={false} style={styles.actionButtonsGroup}>
           {isPlannedPlanting ? (
             <PrimaryActionButton
               onPress={() => setStartPlantingConfirmModalVisible(true)}
@@ -1415,6 +1461,11 @@ export default function PlantingDetailsScreen() {
         ) : null}
 
         {growthTimelineSteps.length > 0 ? (
+          <View
+            ref={growthTimelineRef}
+            collapsable={false}
+            onLayout={(e) => { growthTimelineY.current = e.nativeEvent.layout.y; }}
+          >
           <Surface style={styles.section} elevation={0}>
             <Text style={styles.sectionTitle}>Etapy wzrostu</Text>
             <View style={styles.growthTimelineList}>
@@ -1498,6 +1549,7 @@ export default function PlantingDetailsScreen() {
               })}
             </View>
           </Surface>
+          </View>
         ) : null}
 
         {planting.notes ? (
@@ -2909,6 +2961,35 @@ export default function PlantingDetailsScreen() {
           {snackbarMessage}
         </Snackbar>
       </Portal>
+
+      <CoachMarkOverlay
+        visible={showTutorial}
+        onDismiss={handleTutorialDismiss}
+        beforeStepMeasure={handleBeforeStepMeasure}
+        steps={[
+          {
+            ref: heroCardRef,
+            title: "Twoja uprawa",
+            description:
+              "Tu znajdziesz informacje o uprawie: warzywo, aktualny status i oczekiwane okno zbioru.",
+            placement: "bottom",
+          },
+          {
+            ref: actionBtnsRef,
+            title: "Zarządzaj uprawą",
+            description:
+              "Wykonaj szybką akcję, zmień status uprawy lub zaplanuj zadania — wszystko w jednym miejscu.",
+            placement: "bottom",
+          },
+          {
+            ref: growthTimelineRef,
+            title: "Etapy wzrostu",
+            description:
+              "Śledź postęp uprawy od planowania przez siew, wzrost aż po zbiory i uprzątnięcie.",
+            placement: "top",
+          },
+        ]}
+      />
     </Screen>
   );
 }

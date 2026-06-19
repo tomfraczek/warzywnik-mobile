@@ -43,7 +43,6 @@ function SummaryMetric({ label, value }: { label: string; value: number }) {
 const makeStyles = (theme: MD3Theme) =>
   StyleSheet.create({
     card: {
-      marginHorizontal: spacing.md,
       borderRadius: 22,
       borderWidth: 1,
       borderColor: theme.colors.outlineVariant,

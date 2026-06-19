@@ -1,9 +1,13 @@
 import { Screen } from "@/src/components/Screen";
 import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
+import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
+import { useSettings } from "@/src/context/SettingsProvider";
 import { getTaskNavigationTarget } from "@/src/features/tasks/taskRouting";
 import { spacing } from "@/src/theme/ui";
 import { pluralize } from "@/src/utils/pluralize";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
+import { useCallback, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, MD3Theme, Text, useTheme } from "react-native-paper";
 import { PlannerDayGroup } from "./_components/PlannerDayGroup";
@@ -27,6 +31,49 @@ export default function PlannerScreen() {
 
   const overview = usePlannerOverview(30);
   const actions = usePlannerActions();
+
+  const { tutorials, setTutorials } = useSettings();
+  const [showTutorial, setShowTutorial] = useState(false);
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const summaryCardRef = useRef<View | null>(null);
+  const addTaskRef = useRef<View | null>(null);
+  const todaySectionRef = useRef<View | null>(null);
+  const todaySectionY = useRef(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (tutorials.enabled && !tutorials.plannerSeen) {
+        setShowTutorial(true);
+      }
+    }, [tutorials.enabled, tutorials.plannerSeen]),
+  );
+
+  const handleTutorialDismiss = useCallback(
+    (dontShowAgain: boolean) => {
+      setShowTutorial(false);
+      if (dontShowAgain) {
+        setTutorials({ plannerSeen: true });
+      }
+    },
+    [setTutorials],
+  );
+
+  const handleBeforeStepMeasure = useCallback(
+    (stepIndex: number): Promise<void> =>
+      new Promise((resolve) => {
+        if (stepIndex === 2) {
+          scrollViewRef.current?.scrollTo({
+            y: Math.max(0, todaySectionY.current - 80),
+            animated: true,
+          });
+          setTimeout(resolve, 500);
+        } else {
+          scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+          setTimeout(resolve, 300);
+        }
+      }),
+    [],
+  );
 
   const headerSubtitle = (() => {
     if (overview.isOffline) return "Pokazujemy ostatnio zapisany plan";
@@ -116,6 +163,7 @@ export default function PlannerScreen() {
   return (
     <Screen safeAreaEdges={["top", "left", "right"]}>
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
@@ -126,21 +174,28 @@ export default function PlannerScreen() {
 
         {overview.isOffline ? <PlannerOfflineBanner /> : null}
 
-        <PlannerSummaryCard
-          todayCount={overview.summary.todayCount}
-          overdueCount={overview.summary.overdueCount}
-          harvestCount={overview.summary.harvestCount}
-        />
+        <View ref={summaryCardRef} collapsable={false} style={styles.cardWrapper}>
+          <PlannerSummaryCard
+            todayCount={overview.summary.todayCount}
+            overdueCount={overview.summary.overdueCount}
+            harvestCount={overview.summary.harvestCount}
+          />
+        </View>
 
-        <PrimaryActionButton
-          onPress={() => router.push("/(tabs)/planner/create-task")}
-          icon="plus"
-          label="Dodaj własne zadanie"
-          color={theme.colors.primary}
-          style={styles.addOwnTaskButton}
-        />
+        <View ref={addTaskRef} collapsable={false} style={styles.cardWrapper}>
+          <PrimaryActionButton
+            onPress={() => router.push("/(tabs)/planner/create-task")}
+            icon="plus"
+            label="Dodaj własne zadanie"
+            color={theme.colors.primary}
+          />
+        </View>
 
-        <PlannerSection title="Do zrobienia dzisiaj">
+        <View
+          collapsable={false}
+          onLayout={(e) => { todaySectionY.current = e.nativeEvent.layout.y; }}
+        >
+        <PlannerSection title="Do zrobienia dzisiaj" containerRef={todaySectionRef}>
           {overview.isLoading ? (
             <PlannerEmptyState
               title="Ładujemy plan dnia"
@@ -179,6 +234,7 @@ export default function PlannerScreen() {
             </>
           )}
         </PlannerSection>
+        </View>
 
         {overview.overdueTasks.length > 0 ? (
           <PlannerSection
@@ -325,6 +381,35 @@ export default function PlannerScreen() {
           ) : null}
         </PlannerSection>
       </ScrollView>
+
+      <CoachMarkOverlay
+        visible={showTutorial}
+        onDismiss={handleTutorialDismiss}
+        beforeStepMeasure={handleBeforeStepMeasure}
+        steps={[
+          {
+            ref: summaryCardRef,
+            title: "Plan na dziś",
+            description:
+              "Widzisz tu liczbę zadań na dziś, zaległych i zbliżających się zbiorów — szybki przegląd stanu ogrodu.",
+            placement: "bottom",
+          },
+          {
+            ref: addTaskRef,
+            title: "Dodaj własne zadanie",
+            description:
+              "Możesz ręcznie dodać dowolne zadanie do swojego planu — np. zakup nasion, przesadzanie czy oprysk.",
+            placement: "bottom",
+          },
+          {
+            ref: todaySectionRef,
+            title: "Zadania do zrobienia",
+            description:
+              "Zadania pogrupowane są według terminu — na dziś, na jutro i na ten tydzień. Aplikacja sama sugeruje co i kiedy zrobić.",
+            placement: "top",
+          },
+        ]}
+      />
     </Screen>
   );
 }
@@ -349,7 +434,7 @@ const makeStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurface,
       textAlign: "center",
     },
-    addOwnTaskButton: {
+    cardWrapper: {
       marginHorizontal: spacing.md,
     },
   });

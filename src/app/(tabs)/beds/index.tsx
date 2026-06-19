@@ -4,10 +4,13 @@ import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { PrimaryScreenHeading } from "@/src/components/navigation/PrimaryScreenHeading";
 import { Screen } from "@/src/components/Screen";
+import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
+import { useSettings } from "@/src/context/SettingsProvider";
 import { isPlantingActiveLifecycleStatus } from "@/src/features/plantings/status";
 import { pluralize } from "@/src/utils/pluralize";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
 import {
   FlatList,
   Pressable,
@@ -144,11 +147,13 @@ function BedCard({
   activePlantings,
   palette,
   onPress,
+  wrapperRef,
 }: {
   bed: Bed;
   activePlantings: number;
   palette: ReturnType<typeof buildPalette>;
   onPress: () => void;
+  wrapperRef?: RefObject<View | null>;
 }) {
   const env = bed.cultivationEnvironment;
   const { data: pendingTasksData } = useGetBedActionTasks(
@@ -182,13 +187,14 @@ function BedCard({
     .join(" · ");
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        s.card,
-        { backgroundColor: palette.cardBg, borderColor: palette.cardBorder },
-      ]}
-    >
+    <View ref={wrapperRef} collapsable={false}>
+      <Pressable
+        onPress={onPress}
+        style={[
+          s.card,
+          { backgroundColor: palette.cardBg, borderColor: palette.cardBorder },
+        ]}
+      >
       {/* top row: name + status */}
       <View style={s.cardTopRow}>
         <View style={s.bedNameWrap}>
@@ -285,10 +291,11 @@ function BedCard({
       ) : null}
 
       {/* chevron hint */}
-      <View style={s.chevronRow}>
-        <Icon source="chevron-right" size={18} color={palette.cardBorder} />
-      </View>
-    </Pressable>
+        <View style={s.chevronRow}>
+          <Icon source="chevron-right" size={18} color={palette.cardBorder} />
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
@@ -353,12 +360,14 @@ function FilterChips({
 function EmptyState({
   palette,
   onAdd,
+  wrapperRef,
 }: {
   palette: ReturnType<typeof buildPalette>;
   onAdd: () => void;
+  wrapperRef?: RefObject<View | null>;
 }) {
   return (
-    <View style={s.emptyWrap}>
+    <View ref={wrapperRef} collapsable={false} style={s.emptyWrap}>
       <View style={[s.emptyIconWrap, { backgroundColor: palette.accentBg }]}>
         <Icon source="sprout-outline" size={36} color={palette.accent} />
       </View>
@@ -388,6 +397,31 @@ export default function BedsListScreen() {
   const [searchInput, setSearchInput] = useState("");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
   const debouncedSearch = useDebouncedValue(searchInput, 350);
+
+  const { tutorials, setTutorials } = useSettings();
+  const [showTutorial, setShowTutorial] = useState(false);
+  const addBtnRef = useRef<View | null>(null);
+  const filterChipsRef = useRef<View | null>(null);
+  const firstBedCardRef = useRef<View | null>(null);
+  const emptyStateRef = useRef<View | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (tutorials.enabled && !tutorials.bedsSeen) {
+        setShowTutorial(true);
+      }
+    }, [tutorials.enabled, tutorials.bedsSeen]),
+  );
+
+  const handleTutorialDismiss = useCallback(
+    (dontShowAgain: boolean) => {
+      setShowTutorial(false);
+      if (dontShowAgain) {
+        setTutorials({ bedsSeen: true });
+      }
+    },
+    [setTutorials],
+  );
 
   const isActiveParam =
     activeFilter === "active"
@@ -434,6 +468,43 @@ export default function BedsListScreen() {
   }, [plantingsQuery.data?.pages]);
 
   const isLoading = bedsQuery.isLoading && visibleBeds.length === 0;
+
+  const tutorialSteps = useMemo(
+    () => [
+      {
+        ref: addBtnRef,
+        title: "Dodaj grządkę",
+        description:
+          "Tutaj tworzysz nową grządkę — możesz podać jej nazwę, środowisko uprawy i inne szczegóły.",
+        placement: "bottom" as const,
+      },
+      {
+        ref: filterChipsRef,
+        title: "Filtruj grządki",
+        description:
+          "Przełączaj między wszystkimi, aktywnymi i nieaktywnymi grządkami, aby szybko znaleźć to, czego szukasz.",
+        placement: "bottom" as const,
+      },
+      beds.length > 0
+        ? {
+            ref: firstBedCardRef,
+            title: "Karta grządki",
+            description:
+              "Dotknij kartę, aby zobaczyć szczegóły, uprawy i zadania przypisane do tej grządki.",
+            placement: "bottom" as const,
+          }
+        : {
+            ref: emptyStateRef,
+            title: "Tu pojawią się Twoje grządki",
+            description:
+              "Każda dodana grządka będzie widoczna tutaj jako karta. Dotknij kartę, aby zarządzać uprawami i zadaniami.",
+            placement: "top" as const,
+          },
+    ],
+    // refs are stable — only beds.length determines which variant of step 3 to use
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [beds.length],
+  );
 
   return (
     <Screen
@@ -498,28 +569,32 @@ export default function BedsListScreen() {
                   </Text>
                 ) : null}
               </View>
-              <Pressable
-                style={[
-                  s.addBtn,
-                  {
-                    backgroundColor: palette.accentBg,
-                    borderColor: palette.accentBorder,
-                  },
-                ]}
-                onPress={() => router.push("/(tabs)/beds/new")}
-              >
-                <Icon source="plus" size={16} color={palette.accent} />
-                <Text style={[s.addBtnText, { color: palette.accent }]}>
-                  Dodaj
-                </Text>
-              </Pressable>
+              <View ref={addBtnRef} collapsable={false}>
+                <Pressable
+                  style={[
+                    s.addBtn,
+                    {
+                      backgroundColor: palette.accentBg,
+                      borderColor: palette.accentBorder,
+                    },
+                  ]}
+                  onPress={() => router.push("/(tabs)/beds/new")}
+                >
+                  <Icon source="plus" size={16} color={palette.accent} />
+                  <Text style={[s.addBtnText, { color: palette.accent }]}>
+                    Dodaj
+                  </Text>
+                </Pressable>
+              </View>
             </View>
 
-            <FilterChips
-              value={activeFilter}
-              onChange={setActiveFilter}
-              palette={palette}
-            />
+            <View ref={filterChipsRef} collapsable={false} style={s.filterChipsWrapper}>
+              <FilterChips
+                value={activeFilter}
+                onChange={setActiveFilter}
+                palette={palette}
+              />
+            </View>
 
             {/* skeleton loading */}
             {isLoading ? (
@@ -531,12 +606,13 @@ export default function BedsListScreen() {
             ) : null}
           </View>
         }
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <BedCard
             bed={item}
             activePlantings={activePlantingsCountByBed.get(item.id) ?? 0}
             palette={palette}
             onPress={() => router.push(`/(tabs)/beds/${item.id}`)}
+            wrapperRef={index === 0 ? firstBedCardRef : undefined}
           />
         )}
         ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
@@ -545,9 +621,16 @@ export default function BedsListScreen() {
             <EmptyState
               palette={palette}
               onAdd={() => router.push("/(tabs)/beds/new")}
+              wrapperRef={emptyStateRef}
             />
           ) : null
         }
+      />
+
+      <CoachMarkOverlay
+        visible={showTutorial}
+        onDismiss={handleTutorialDismiss}
+        steps={tutorialSteps}
       />
     </Screen>
   );
@@ -616,10 +699,13 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
+  filterChipsWrapper: {
+    alignSelf: "flex-start",
+    marginBottom: 16,
+  },
   filterRow: {
     flexDirection: "row",
     gap: 8,
-    marginBottom: 16,
   },
   filterChip: {
     paddingHorizontal: 14,

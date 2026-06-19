@@ -34,6 +34,8 @@ import { PostHarvestActionsModal } from "@/src/app/(tabs)/beds/_components/PostH
 import { TasksCelebrationCard } from "@/src/app/(tabs)/beds/_components/TasksCelebrationCard";
 import { Screen } from "@/src/components/Screen";
 import CustomHeader from "@/src/components/navigation/CustomHeader";
+import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
+import { useSettings } from "@/src/context/SettingsProvider";
 import { BottomSheetModal } from "@/src/components/ui/BottomSheetModal";
 import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
@@ -56,10 +58,11 @@ import {
 } from "@/src/features/tasks/taskPresentation";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { pluralize } from "@/src/utils/pluralize";
+import { useFocusEffect } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -520,6 +523,57 @@ export default function BedDetailsScreen() {
 
   const isOffline = useIsOffline();
 
+  const { tutorials, setTutorials } = useSettings();
+  const [showTutorial, setShowTutorial] = useState(false);
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const heroCardRef = useRef<View | null>(null);
+  const addVegetableRef = useRef<View | null>(null);
+  const plantingsSectionRef = useRef<View | null>(null);
+  const tasksSectionRef = useRef<View | null>(null);
+  const plantingsSectionY = useRef(0);
+  const tasksSectionY = useRef(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (tutorials.enabled && !tutorials.bedDetailSeen && !isLoading && bed) {
+        setShowTutorial(true);
+      }
+    }, [tutorials.enabled, tutorials.bedDetailSeen, isLoading, bed]),
+  );
+
+  const handleTutorialDismiss = useCallback(
+    (dontShowAgain: boolean) => {
+      setShowTutorial(false);
+      if (dontShowAgain) {
+        setTutorials({ bedDetailSeen: true });
+      }
+    },
+    [setTutorials],
+  );
+
+  const handleBeforeStepMeasure = useCallback(
+    (stepIndex: number): Promise<void> => {
+      return new Promise((resolve) => {
+        if (stepIndex === 2) {
+          scrollViewRef.current?.scrollTo({
+            y: Math.max(0, plantingsSectionY.current - 80),
+            animated: true,
+          });
+          setTimeout(resolve, 500);
+        } else if (stepIndex === 3) {
+          scrollViewRef.current?.scrollTo({
+            y: Math.max(0, tasksSectionY.current - 80),
+            animated: true,
+          });
+          setTimeout(resolve, 500);
+        } else {
+          setTimeout(resolve, 300);
+        }
+      });
+    },
+    [],
+  );
+
   const handleHarvestNo = async () => {
     if (!activeHarvestPrompt) return;
     if (isOffline) {
@@ -869,8 +923,12 @@ export default function BedDetailsScreen() {
           },
         ]}
       />
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.heroCard}>
+      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
+        <View
+          ref={heroCardRef}
+          collapsable={false}
+          style={styles.heroCard}
+        >
           <View style={styles.heroTopRow}>
             <View
               style={[styles.entityTag, { backgroundColor: palette.accentBg }]}
@@ -967,14 +1025,16 @@ export default function BedDetailsScreen() {
           style={styles.quickActionButton}
         />
 
-        <PrimaryActionButton
-          onPress={() => router.push(`/(tabs)/beds/${bed.id}/plantings/new`)}
-          icon="sprout-outline"
-          label="Dodaj warzywo"
-          color={palette.secondaryCta}
-          disabled={isOffline}
-          style={styles.addVegetableButton}
-        />
+        <View ref={addVegetableRef} collapsable={false}>
+          <PrimaryActionButton
+            onPress={() => router.push(`/(tabs)/beds/${bed.id}/plantings/new`)}
+            icon="sprout-outline"
+            label="Dodaj warzywo"
+            color={palette.secondaryCta}
+            disabled={isOffline}
+            style={styles.addVegetableButton}
+          />
+        </View>
 
         <BedPlanEntryCard
           plannedPlantingsCount={
@@ -996,7 +1056,12 @@ export default function BedDetailsScreen() {
           disabled={isOffline}
         />
 
-        <View style={styles.section}>
+        <View
+          ref={plantingsSectionRef}
+          collapsable={false}
+          style={styles.section}
+          onLayout={(e) => { plantingsSectionY.current = e.nativeEvent.layout.y; }}
+        >
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionTitle}>Twoje warzywa</Text>
             {endedPlantings.length > 0 ? (
@@ -1220,7 +1285,12 @@ export default function BedDetailsScreen() {
           </View>
         ) : null}
 
-        <View style={styles.section}>
+        <View
+          ref={tasksSectionRef}
+          collapsable={false}
+          style={styles.section}
+          onLayout={(e) => { tasksSectionY.current = e.nativeEvent.layout.y; }}
+        >
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionTitle, styles.sectionTitleInHeader]}>
               Zadania
@@ -1800,6 +1870,42 @@ export default function BedDetailsScreen() {
           {snackbarMessage}
         </Snackbar>
       </Portal>
+
+      <CoachMarkOverlay
+        visible={showTutorial}
+        onDismiss={handleTutorialDismiss}
+        beforeStepMeasure={handleBeforeStepMeasure}
+        steps={[
+          {
+            ref: heroCardRef,
+            title: "Twoja grządka",
+            description:
+              "Tutaj widzisz wszystkie informacje o grządce — nazwę, status, środowisko uprawy i typ gleby.",
+            placement: "bottom",
+          },
+          {
+            ref: addVegetableRef,
+            title: "Dodaj warzywo",
+            description:
+              "Dotknij, aby dodać warzywo do tej grządki i zaplanować jego uprawę.",
+            placement: "bottom",
+          },
+          {
+            ref: plantingsSectionRef,
+            title: "Twoje warzywa",
+            description:
+              "Tu znajdziesz aktywne i planowane uprawy w tej grządce. Dotknij wiersz, aby zobaczyć szczegóły.",
+            placement: "top",
+          },
+          {
+            ref: tasksSectionRef,
+            title: "Zadania",
+            description:
+              "Aplikacja sugeruje zadania do wykonania, np. podlewanie czy nawożenie. Możesz je oznaczać jako wykonane lub anulować.",
+            placement: "top",
+          },
+        ]}
+      />
     </Screen>
   );
 }

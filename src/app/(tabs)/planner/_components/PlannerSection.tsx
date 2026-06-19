@@ -1,5 +1,5 @@
 import { spacing } from "@/src/theme/ui";
-import { PropsWithChildren, ReactNode } from "react";
+import { PropsWithChildren, ReactNode, RefObject } from "react";
 import { StyleSheet, View } from "react-native";
 import { MD3Theme, Text, useTheme } from "react-native-paper";
 
@@ -7,6 +7,7 @@ type PlannerSectionProps = PropsWithChildren<{
   title: string;
   subtitle?: string;
   rightSlot?: ReactNode;
+  containerRef?: RefObject<View | null>;
 }>;
 
 export function PlannerSection({
@@ -14,12 +15,13 @@ export function PlannerSection({
   subtitle,
   rightSlot,
   children,
+  containerRef,
 }: PlannerSectionProps) {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} ref={containerRef} collapsable={false}>
       <View style={styles.headerRow}>
         <View style={styles.headerTextWrap}>
           <Text style={styles.title}>{title}</Text>
@@ -37,13 +39,13 @@ const makeStyles = (theme: MD3Theme) =>
     container: {
       gap: spacing.sm,
       marginTop: spacing.lg,
+      marginHorizontal: spacing.md,
     },
     headerRow: {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       gap: spacing.sm,
-      paddingHorizontal: spacing.md,
     },
     headerTextWrap: {
       flex: 1,
@@ -60,6 +62,5 @@ const makeStyles = (theme: MD3Theme) =>
     },
     content: {
       gap: spacing.sm,
-      paddingHorizontal: spacing.md,
     },
   });

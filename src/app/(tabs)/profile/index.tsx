@@ -596,6 +596,104 @@ export default function ProfileScreen() {
               Powtórz
             </Button>
           </View>
+
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Grządki</Text>
+              <Text style={styles.preferenceDescription}>
+                Obejrzyj tutorial ekranu grządek ponownie.
+              </Text>
+            </View>
+            <Button
+              compact
+              mode="outlined"
+              disabled={!tutorials.enabled}
+              onPress={() => {
+                setTutorials({ bedsSeen: false });
+                router.navigate("/(tabs)/beds");
+              }}
+            >
+              Powtórz
+            </Button>
+          </View>
+
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Szczegóły grządki</Text>
+              <Text style={styles.preferenceDescription}>
+                Obejrzyj tutorial ekranu szczegółów grządki ponownie.
+              </Text>
+            </View>
+            <Button
+              compact
+              mode="outlined"
+              disabled={!tutorials.enabled}
+              onPress={() => {
+                setTutorials({ bedDetailSeen: false });
+              }}
+            >
+              Resetuj
+            </Button>
+          </View>
+
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Kalendarz</Text>
+              <Text style={styles.preferenceDescription}>
+                Obejrzyj tutorial ekranu kalendarza ponownie.
+              </Text>
+            </View>
+            <Button
+              compact
+              mode="outlined"
+              disabled={!tutorials.enabled}
+              onPress={() => {
+                setTutorials({ plannerSeen: false });
+                router.navigate("/(tabs)/planner");
+              }}
+            >
+              Powtórz
+            </Button>
+          </View>
+
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Biblioteka</Text>
+              <Text style={styles.preferenceDescription}>
+                Obejrzyj tutorial ekranu biblioteki ponownie.
+              </Text>
+            </View>
+            <Button
+              compact
+              mode="outlined"
+              disabled={!tutorials.enabled}
+              onPress={() => {
+                setTutorials({ educationSeen: false });
+                router.navigate("/(tabs)/education");
+              }}
+            >
+              Powtórz
+            </Button>
+          </View>
+
+          <View style={styles.preferenceRow}>
+            <View style={styles.preferenceTextWrap}>
+              <Text style={styles.preferenceTitle}>Szczegóły uprawy</Text>
+              <Text style={styles.preferenceDescription}>
+                Obejrzyj tutorial ekranu uprawy ponownie.
+              </Text>
+            </View>
+            <Button
+              compact
+              mode="outlined"
+              disabled={!tutorials.enabled}
+              onPress={() => {
+                setTutorials({ plantingSeen: false });
+              }}
+            >
+              Resetuj
+            </Button>
+          </View>
         </Card>
 
         <Card title="Dane">
