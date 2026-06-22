@@ -22,8 +22,8 @@ import { useGetBed } from "@/src/api/queries/beds/useGetBed";
 import { useGetBedHarvestPrompts } from "@/src/api/queries/beds/useGetBedHarvestPrompts";
 import { useUpdateBed } from "@/src/api/queries/beds/useUpdateBed";
 import { Planting } from "@/src/api/queries/plantings/types";
-import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { useCreatePlantingActionTasksBulk } from "@/src/api/queries/plantings/useCreatePlantingActionTasksBulk";
+import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
 import { usePostHarvestConfirmation } from "@/src/api/queries/plantings/usePostHarvestConfirmation";
 import { useGetBedQuickActionNotes } from "@/src/api/queries/quickActions/useGetBedQuickActionNotes";
 import { usePostBedQuickAction } from "@/src/api/queries/quickActions/usePostBedQuickAction";
@@ -36,10 +36,10 @@ import { TasksCelebrationCard } from "@/src/app/(tabs)/beds/_components/TasksCel
 import { Screen } from "@/src/components/Screen";
 import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
-import { useSettings } from "@/src/context/SettingsProvider";
 import { BottomSheetModal } from "@/src/components/ui/BottomSheetModal";
 import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
+import { useSettings } from "@/src/context/SettingsProvider";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import {
   getPlantingStatusLabel,
@@ -129,16 +129,6 @@ const CULTIVATION_ENVIRONMENT_LABELS: Record<string, string> = {
 const formatSlug = (slug: string) =>
   slug.replace(/-/g, " ").replace(/(^|\s)\p{L}/gu, (m) => m.toUpperCase());
 
-const formatMetaDate = (value?: string | null) => {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat("pl-PL", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  }).format(date);
-};
 
 const getSoilSlugLabel = (bed: Bed) => {
   if (!("soilSlug" in bed)) return null;
@@ -567,16 +557,19 @@ export default function BedDetailsScreen() {
     (stepIndex: number): Promise<void> => {
       return new Promise((resolve) => {
         const sectionYs = [
-          0,                              // 0: heroCard
-          0,                              // 1: addVegetable
-          plantingsSectionY.current,      // 2: warzywa
-          tasksSectionY.current,          // 3: zadania
-          notesSectionY.current,          // 4: notatki
-          historySectionY.current,        // 5: historia zabiegów
-          seasonHistoryY.current,         // 6: historia upraw
+          0, // 0: heroCard
+          0, // 1: addVegetable
+          plantingsSectionY.current, // 2: warzywa
+          tasksSectionY.current, // 3: zadania
+          notesSectionY.current, // 4: notatki
+          historySectionY.current, // 5: historia zabiegów
+          seasonHistoryY.current, // 6: historia upraw
         ];
         const y = sectionYs[stepIndex] ?? 0;
-        scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
+        scrollViewRef.current?.scrollTo({
+          y: Math.max(0, y - 80),
+          animated: true,
+        });
         setTimeout(resolve, y > 0 ? 500 : 300);
       });
     },
@@ -628,9 +621,7 @@ export default function BedDetailsScreen() {
       return;
     }
 
-    const bedTasks = tasks.filter(
-      (t) => !t.target || t.target === "bed",
-    );
+    const bedTasks = tasks.filter((t) => !t.target || t.target === "bed");
     const plantingTasks = tasks.filter((t) => t.target === "planting");
 
     let bedSuccess = bedTasks.length === 0;
@@ -983,11 +974,7 @@ export default function BedDetailsScreen() {
         ]}
       />
       <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
-        <View
-          ref={heroCardRef}
-          collapsable={false}
-          style={styles.heroCard}
-        >
+        <View ref={heroCardRef} collapsable={false} style={styles.heroCard}>
           <View style={styles.heroTopRow}>
             <View
               style={[styles.entityTag, { backgroundColor: palette.accentBg }]}
@@ -1074,7 +1061,11 @@ export default function BedDetailsScreen() {
           </View>
         </View>
 
-        <View ref={addVegetableRef} collapsable={false} style={styles.addVegetableButton}>
+        <View
+          ref={addVegetableRef}
+          collapsable={false}
+          style={styles.addVegetableButton}
+        >
           <PrimaryActionButton
             onPress={() => router.push(`/(tabs)/beds/${bed.id}/plantings/new`)}
             icon="sprout-outline"
@@ -1108,7 +1099,9 @@ export default function BedDetailsScreen() {
           ref={plantingsSectionRef}
           collapsable={false}
           style={styles.section}
-          onLayout={(e) => { plantingsSectionY.current = e.nativeEvent.layout.y; }}
+          onLayout={(e) => {
+            plantingsSectionY.current = e.nativeEvent.layout.y;
+          }}
         >
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionTitle}>Twoje warzywa</Text>
@@ -1123,7 +1116,7 @@ export default function BedDetailsScreen() {
                     { color: palette.accent },
                   ]}
                 >
-                  Zobacz zakończone ({endedPlantings.length})
+                  Zakończone ({endedPlantings.length})
                 </Text>
                 <Icon source="history" size={14} color={palette.accent} />
               </Pressable>
@@ -1337,7 +1330,9 @@ export default function BedDetailsScreen() {
           ref={tasksSectionRef}
           collapsable={false}
           style={styles.section}
-          onLayout={(e) => { tasksSectionY.current = e.nativeEvent.layout.y; }}
+          onLayout={(e) => {
+            tasksSectionY.current = e.nativeEvent.layout.y;
+          }}
         >
           <View style={styles.sectionHeaderRow}>
             <View style={styles.sectionHeaderLeft}>
@@ -1490,7 +1485,9 @@ export default function BedDetailsScreen() {
           ref={notesSectionRef}
           collapsable={false}
           style={styles.section}
-          onLayout={(e) => { notesSectionY.current = e.nativeEvent.layout.y; }}
+          onLayout={(e) => {
+            notesSectionY.current = e.nativeEvent.layout.y;
+          }}
         >
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Notatki</Text>
@@ -1571,7 +1568,9 @@ export default function BedDetailsScreen() {
           ref={historySectionRef}
           collapsable={false}
           style={styles.section}
-          onLayout={(e) => { historySectionY.current = e.nativeEvent.layout.y; }}
+          onLayout={(e) => {
+            historySectionY.current = e.nativeEvent.layout.y;
+          }}
         >
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Historia zabiegów</Text>
@@ -1601,7 +1600,9 @@ export default function BedDetailsScreen() {
           {!isBedHistoryTasksLoading &&
           !bedTasksError &&
           historyPreviewTasks.length === 0 ? (
-            <Text style={styles.valueText}>Zapis wykonanych zabiegów pojawi się tutaj.</Text>
+            <Text style={styles.valueText}>
+              Zapis wykonanych zabiegów pojawi się tutaj.
+            </Text>
           ) : null}
 
           {historyPreviewTasks.map((task) => (
@@ -1638,14 +1639,18 @@ export default function BedDetailsScreen() {
         <View
           ref={seasonHistoryRef}
           collapsable={false}
-          onLayout={(e) => { seasonHistoryY.current = e.nativeEvent.layout.y; }}
+          onLayout={(e) => {
+            seasonHistoryY.current = e.nativeEvent.layout.y;
+          }}
         >
           {resolvedBedId ? (
             <BedSeasonHistorySection
               bedId={resolvedBedId}
               maxItems={3}
               showSeeAllLink
-              onPressSeeAll={() => router.push(`/(tabs)/beds/${bed.id}/history`)}
+              onPressSeeAll={() =>
+                router.push(`/(tabs)/beds/${bed.id}/history`)
+              }
             />
           ) : (
             <View style={styles.section}>
@@ -1655,18 +1660,6 @@ export default function BedDetailsScreen() {
           )}
         </View>
 
-        <View style={styles.metaSection}>
-          {formatMetaDate(bed.createdAt) ? (
-            <Text style={styles.metaText}>
-              Utworzono: {formatMetaDate(bed.createdAt)}
-            </Text>
-          ) : null}
-          {formatMetaDate(bed.updatedAt) ? (
-            <Text style={styles.metaText}>
-              Zaktualizowano: {formatMetaDate(bed.updatedAt)}
-            </Text>
-          ) : null}
-        </View>
 
         <HarvestConfirmationModal
           visible={harvestConfirmationVisible}

@@ -518,23 +518,6 @@ export default function SoilDetailsScreen() {
           </SectionCard>
         ) : null}
 
-        {/* metadata */}
-        {soil.createdAt || soil.updatedAt ? (
-          <View style={s.metaBlock}>
-            {soil.createdAt ? (
-              <Text style={[s.metaText, { color: palette.meta }]}>
-                Utworzono:{" "}
-                {new Date(soil.createdAt).toLocaleDateString("pl-PL")}
-              </Text>
-            ) : null}
-            {soil.updatedAt ? (
-              <Text style={[s.metaText, { color: palette.meta }]}>
-                Zaktualizowano:{" "}
-                {new Date(soil.updatedAt).toLocaleDateString("pl-PL")}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
       </ScrollView>
     </Screen>
   );

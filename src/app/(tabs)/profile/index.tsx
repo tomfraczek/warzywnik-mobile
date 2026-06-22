@@ -20,6 +20,7 @@ import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { radius, spacing } from "@/src/theme/ui";
 import { useClerk, useUser } from "@clerk/clerk-expo";
+import Constants from "expo-constants";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -716,6 +717,10 @@ export default function ProfileScreen() {
             Usuń konto
           </Button>
         </Card>
+
+        <Text style={styles.versionText}>
+          Wersja: {Constants.expoConfig?.version ?? "—"}
+        </Text>
       </ScrollView>
       <Snackbar visible={Boolean(snackbar)} onDismiss={() => setSnackbar(null)}>
         {snackbar}
@@ -843,5 +848,11 @@ const makeStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurface,
       minWidth: 64,
       textAlign: "center",
+    },
+    versionText: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+      textAlign: "center",
+      paddingBottom: spacing.sm,
     },
   });

@@ -1,4 +1,5 @@
 import { BedPlanResponse } from "@/src/api/queries/bedPlan/types";
+import { pluralize } from "@/src/utils/pluralize";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ActivityIndicator, Icon } from "react-native-paper";
 
@@ -43,10 +44,37 @@ export function BedPlanHeaderCard({
       </Text>
 
       <View style={styles.summaryRow}>
-        <Text style={styles.metric}>{data.plannedPlantings.length} uprawy</Text>
-        <Text style={styles.metric}>{data.summary.pending} oczekuje</Text>
-        <Text style={styles.metric}>{data.summary.done} gotowe</Text>
-        <Text style={styles.metric}>{data.summary.skipped} pominięte</Text>
+        <Text style={styles.metric}>
+          {data.plannedPlantings.length}{" "}
+          {pluralize("uprawa", "uprawy", "upraw", data.plannedPlantings.length)}
+        </Text>
+        <Text style={styles.metric}>
+          {data.summary.pending}{" "}
+          {pluralize(
+            "zadanie oczekuje",
+            "zadania oczekują",
+            "zadań oczekuje",
+            data.summary.pending,
+          )}
+        </Text>
+        <Text style={styles.metric}>
+          {data.summary.done}{" "}
+          {pluralize(
+            "zadanie gotowe",
+            "zadania gotowe",
+            "zadań gotowych",
+            data.summary.done,
+          )}
+        </Text>
+        <Text style={styles.metric}>
+          {data.summary.skipped}{" "}
+          {pluralize(
+            "zadanie pominięte",
+            "zadania pominięte",
+            "zadań pominiętych",
+            data.summary.skipped,
+          )}
+        </Text>
       </View>
 
       <View style={styles.progressTrack}>

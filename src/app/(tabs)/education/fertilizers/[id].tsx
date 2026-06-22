@@ -657,22 +657,6 @@ export default function FertilizerDetailsScreen() {
           </SectionCard>
         ) : null}
 
-        {/* ── meta ── */}
-        {f.createdAt || f.updatedAt ? (
-          <View style={s.metaBlock}>
-            {f.createdAt ? (
-              <Text style={[s.metaText, { color: palette.meta }]}>
-                Utworzono: {new Date(f.createdAt).toLocaleDateString("pl-PL")}
-              </Text>
-            ) : null}
-            {f.updatedAt ? (
-              <Text style={[s.metaText, { color: palette.meta }]}>
-                Zaktualizowano:{" "}
-                {new Date(f.updatedAt).toLocaleDateString("pl-PL")}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
       </ScrollView>
     </Screen>
   );

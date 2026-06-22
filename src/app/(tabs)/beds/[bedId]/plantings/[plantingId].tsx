@@ -44,10 +44,10 @@ import { AppDatePickerModal } from "@/src/components/AppDatePickerModal";
 import { Screen } from "@/src/components/Screen";
 import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
-import { useSettings } from "@/src/context/SettingsProvider";
 import { BottomSheetModal } from "@/src/components/ui/BottomSheetModal";
 import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
+import { useSettings } from "@/src/context/SettingsProvider";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import {
   getPlantingStatusLabel,
@@ -61,9 +61,9 @@ import {
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { getTodayKey } from "@/src/utils/date";
 import { formatQualityRating, formatYield } from "@/src/utils/learningMappers";
+import { useFocusEffect } from "@react-navigation/native";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
-import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -149,18 +149,18 @@ type GrowthTimelineStep = GrowthStep & {
 };
 
 const DIRECT_SOW_GROWTH_STEPS: GrowthStep[] = [
-  { key: "NEW", label: "Planowana" },
-  { key: "IN_GROUND", label: "Wsadzenie do gruntu" },
+  { key: "NEW", label: "Zaplanowane" },
+  { key: "IN_GROUND", label: "Wsadzone do gruntu" },
   { key: "READY_FOR_FINAL_HARVEST", label: "Gotowe do zbioru" },
-  { key: "HARVESTED", label: "Zbiory" },
+  { key: "HARVESTED", label: "W trakcie zbioru" },
   { key: "CLEARED", label: "Uprzątnięte" },
 ];
 
 const TRANSPLANT_GROWTH_STEPS: GrowthStep[] = [
-  { key: "NEW", label: "Planowana" },
-  { key: "IN_GROUND", label: "Wsadzenie do gruntu" },
+  { key: "NEW", label: "Zaplanowana" },
+  { key: "IN_GROUND", label: "Wsadzone do gruntu" },
   { key: "READY_FOR_FINAL_HARVEST", label: "Gotowe do zbioru" },
-  { key: "HARVESTED", label: "Zbiory" },
+  { key: "HARVESTED", label: "W trakcie zbioru" },
   { key: "CLEARED", label: "Uprzątnięte" },
 ];
 
@@ -305,8 +305,10 @@ export default function PlantingDetailsScreen() {
     useState<HarvestResultRecord | null>(null);
 
   const [statusModalVisible, setStatusModalVisible] = useState(false);
-  const [startPlantingConfirmModalVisible, setStartPlantingConfirmModalVisible] =
-    useState(false);
+  const [
+    startPlantingConfirmModalVisible,
+    setStartPlantingConfirmModalVisible,
+  ] = useState(false);
   const [
     confirmStartPlantingModalVisible,
     setConfirmStartPlantingModalVisible,
@@ -506,12 +508,6 @@ export default function PlantingDetailsScreen() {
     (diseaseResolvedQuery.data?.length ?? 0) +
       (pestResolvedQuery.data?.length ?? 0) >
     0;
-  const hasAnyProblems =
-    (diseaseActiveQuery.data?.length ?? 0) +
-      (pestActiveQuery.data?.length ?? 0) +
-      (diseaseResolvedQuery.data?.length ?? 0) +
-      (pestResolvedQuery.data?.length ?? 0) >
-    0;
   const plantingTasks = useMemo(() => {
     const ownAndRelatedPendingTasks = (
       plantingTasksResponse?.items ?? []
@@ -595,7 +591,12 @@ export default function PlantingDetailsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (tutorials.enabled && !tutorials.plantingSeen && !isLoading && planting) {
+      if (
+        tutorials.enabled &&
+        !tutorials.plantingSeen &&
+        !isLoading &&
+        planting
+      ) {
         setShowTutorial(true);
       }
     }, [tutorials.enabled, tutorials.plantingSeen, isLoading, planting]),
@@ -613,18 +614,21 @@ export default function PlantingDetailsScreen() {
     (stepIndex: number): Promise<void> =>
       new Promise((resolve) => {
         const sectionYs = [
-          0,                            // 0: heroCard — top
-          0,                            // 1: actionBtns — top
-          growthTimelineY.current,      // 2: growthTimeline
-          tasksSectionY.current,        // 3: zadania
-          notesSectionY.current,        // 4: notatki
-          seasonSectionY.current,       // 5: podsumowanie sezonu
-          problemsSectionY.current,     // 6: problemy
-          timelineSectionY.current,     // 7: historia sezonu
-          harvestSectionY.current,      // 8: wyniki zbiorów
+          0, // 0: heroCard — top
+          0, // 1: actionBtns — top
+          growthTimelineY.current, // 2: growthTimeline
+          tasksSectionY.current, // 3: zadania
+          notesSectionY.current, // 4: notatki
+          seasonSectionY.current, // 5: podsumowanie sezonu
+          problemsSectionY.current, // 6: problemy
+          timelineSectionY.current, // 7: historia sezonu
+          harvestSectionY.current, // 8: wyniki zbiorów
         ];
         const y = sectionYs[stepIndex] ?? 0;
-        scrollViewRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
+        scrollViewRef.current?.scrollTo({
+          y: Math.max(0, y - 80),
+          animated: true,
+        });
         setTimeout(resolve, y > 0 ? 500 : 300);
       }),
     [],
@@ -1352,83 +1356,91 @@ export default function PlantingDetailsScreen() {
             />
           </View>
 
-          <View ref={heroCardRef} collapsable={false} style={styles.heroCardWrap}>
-          <Surface style={styles.heroCard} elevation={0}>
-            <View style={styles.heroHeadingBlock}>
-              <Text
-                style={styles.heroEyebrow}
-              >{`UPRAWA • ${startMethodLabel.toUpperCase()}`}</Text>
-              <Text style={styles.heroTitle} numberOfLines={2}>
-                {vegetableName || "Szczegóły uprawy"}
-              </Text>
-              <View style={styles.heroStatusRow}>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    {
-                      backgroundColor:
-                        statusTone?.backgroundColor ?? palette.accentBg,
-                      borderColor:
-                        statusTone?.borderColor ?? palette.accentBorder,
-                    },
-                  ]}
-                >
+          <View
+            ref={heroCardRef}
+            collapsable={false}
+            style={styles.heroCardWrap}
+          >
+            <Surface style={styles.heroCard} elevation={0}>
+              <View style={styles.heroHeadingBlock}>
+                <Text
+                  style={styles.heroEyebrow}
+                >{`UPRAWA • ${startMethodLabel.toUpperCase()}`}</Text>
+                <Text style={styles.heroTitle} numberOfLines={2}>
+                  {vegetableName || "Szczegóły uprawy"}
+                </Text>
+                <View style={styles.heroStatusRow}>
                   <View
                     style={[
-                      styles.statusBadgeDot,
+                      styles.statusBadge,
                       {
                         backgroundColor:
-                          statusTone?.textColor ?? palette.accent,
+                          statusTone?.backgroundColor ?? palette.accentBg,
+                        borderColor:
+                          statusTone?.borderColor ?? palette.accentBorder,
                       },
                     ]}
-                  />
-                  <Text
-                    style={[
-                      styles.statusBadgeText,
-                      { color: statusTone?.textColor ?? palette.accent },
-                    ]}
                   >
-                    {statusLabel}
-                  </Text>
+                    <View
+                      style={[
+                        styles.statusBadgeDot,
+                        {
+                          backgroundColor:
+                            statusTone?.textColor ?? palette.accent,
+                        },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.statusBadgeText,
+                        { color: statusTone?.textColor ?? palette.accent },
+                      ]}
+                    >
+                      {statusLabel}
+                    </Text>
+                  </View>
                 </View>
+                <Button
+                  compact
+                  mode="text"
+                  icon="book-open-variant"
+                  onPress={openVegetableLibrary}
+                  textColor={palette.secondaryCta}
+                  contentStyle={styles.heroLibraryInlineContent}
+                  labelStyle={styles.heroLibraryInlineLabel}
+                >
+                  Porady i artykuły o tym warzywie
+                </Button>
               </View>
-              <Button
-                compact
-                mode="text"
-                icon="book-open-variant"
-                onPress={openVegetableLibrary}
-                textColor={palette.secondaryCta}
-                contentStyle={styles.heroLibraryInlineContent}
-                labelStyle={styles.heroLibraryInlineLabel}
-              >
-                Porady i artykuły o tym warzywie
-              </Button>
-            </View>
 
-            {isPlannedPlanting ? (
-              <Text style={styles.plannedDescription}>
-                Ta uprawa jest zaplanowana i jeszcze nie została rozpoczęta.
-              </Text>
-            ) : null}
+              {isPlannedPlanting ? (
+                <Text style={styles.plannedDescription}>
+                  Ta uprawa jest zaplanowana i jeszcze nie została rozpoczęta.
+                </Text>
+              ) : null}
 
-            <View style={styles.heroHarvestWindowBlock}>
-              <Text style={styles.heroHarvestWindowLabel}>
-                Oczekiwane okno zbioru
-              </Text>
-              <Text style={styles.heroHarvestWindowValue}>
-                {expectedHarvestWindowLabel}
-              </Text>
-            </View>
+              <View style={styles.heroHarvestWindowBlock}>
+                <Text style={styles.heroHarvestWindowLabel}>
+                  Oczekiwane okno zbioru
+                </Text>
+                <Text style={styles.heroHarvestWindowValue}>
+                  {expectedHarvestWindowLabel}
+                </Text>
+              </View>
 
-            <View style={styles.heroBedBlock}>
-              <Text style={styles.heroBedLabel}>Dodane do grządki</Text>
-              <Text style={styles.heroBedValue}>{plantingBedLabel}</Text>
-            </View>
-          </Surface>
+              <View style={styles.heroBedBlock}>
+                <Text style={styles.heroBedLabel}>Dodane do grządki</Text>
+                <Text style={styles.heroBedValue}>{plantingBedLabel}</Text>
+              </View>
+            </Surface>
           </View>
         </View>
 
-        <View ref={actionBtnsRef} collapsable={false} style={styles.actionButtonsGroup}>
+        <View
+          ref={actionBtnsRef}
+          collapsable={false}
+          style={styles.actionButtonsGroup}
+        >
           {isPlannedPlanting ? (
             <PrimaryActionButton
               onPress={() => setStartPlantingConfirmModalVisible(true)}
@@ -1481,91 +1493,93 @@ export default function PlantingDetailsScreen() {
           <View
             ref={growthTimelineRef}
             collapsable={false}
-            onLayout={(e) => { growthTimelineY.current = e.nativeEvent.layout.y; }}
+            onLayout={(e) => {
+              growthTimelineY.current = e.nativeEvent.layout.y;
+            }}
           >
-          <Surface style={styles.section} elevation={0}>
-            <Text style={styles.sectionTitle}>Etapy wzrostu</Text>
-            <View style={styles.growthTimelineList}>
-              {growthTimelineSteps.map((step, index) => {
-                const isLast = index === growthTimelineSteps.length - 1;
-                const isDone = step.state === "done";
-                const isCurrent = step.state === "current";
-                const isNext = step.state === "pending";
+            <Surface style={styles.section} elevation={0}>
+              <Text style={styles.sectionTitle}>Etapy wzrostu</Text>
+              <View style={styles.growthTimelineList}>
+                {growthTimelineSteps.map((step, index) => {
+                  const isLast = index === growthTimelineSteps.length - 1;
+                  const isDone = step.state === "done";
+                  const isCurrent = step.state === "current";
+                  const isNext = step.state === "pending";
 
-                return (
-                  <View
-                    key={`${step.key}-${index}`}
-                    style={styles.growthTimelineRow}
-                  >
+                  return (
                     <View
-                      style={[
-                        styles.growthIconColumn,
-                        isNext ? styles.growthIconColumnNext : null,
-                      ]}
+                      key={`${step.key}-${index}`}
+                      style={styles.growthTimelineRow}
                     >
                       <View
                         style={[
-                          styles.growthIconCircle,
-                          isDone
-                            ? styles.growthIconCircleDone
-                            : isCurrent
-                              ? styles.growthIconCircleCurrent
-                              : styles.growthIconCirclePending,
+                          styles.growthIconColumn,
+                          isNext ? styles.growthIconColumnNext : null,
                         ]}
                       >
-                        {isDone ? (
-                          <Icon source="check" size={14} color="#FFFFFF" />
-                        ) : isCurrent ? (
-                          <View style={styles.growthIconInnerDot} />
+                        <View
+                          style={[
+                            styles.growthIconCircle,
+                            isDone
+                              ? styles.growthIconCircleDone
+                              : isCurrent
+                                ? styles.growthIconCircleCurrent
+                                : styles.growthIconCirclePending,
+                          ]}
+                        >
+                          {isDone ? (
+                            <Icon source="check" size={14} color="#FFFFFF" />
+                          ) : isCurrent ? (
+                            <View style={styles.growthIconInnerDot} />
+                          ) : null}
+                        </View>
+
+                        {!isLast ? (
+                          <View
+                            style={[
+                              styles.growthConnector,
+                              isDone ? styles.growthConnectorDone : null,
+                            ]}
+                          />
                         ) : null}
                       </View>
 
-                      {!isLast ? (
-                        <View
+                      <View
+                        style={[
+                          styles.growthContent,
+                          isCurrent ? styles.growthContentCurrent : null,
+                          isNext ? styles.growthContentNext : null,
+                        ]}
+                      >
+                        <Text
                           style={[
-                            styles.growthConnector,
-                            isDone ? styles.growthConnectorDone : null,
+                            styles.growthTitle,
+                            isCurrent ? styles.growthTitleCurrent : null,
+                            !isDone && !isCurrent
+                              ? styles.growthTitlePending
+                              : null,
                           ]}
-                        />
-                      ) : null}
+                        >
+                          {step.label}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.growthSubtitle,
+                            isCurrent ? styles.growthSubtitleCurrent : null,
+                          ]}
+                        >
+                          {isDone
+                            ? "Zakończono"
+                            : isCurrent
+                              ? "Obecny etap"
+                              : "Oczekujące"}
+                        </Text>
+                      </View>
                     </View>
-
-                    <View
-                      style={[
-                        styles.growthContent,
-                        isCurrent ? styles.growthContentCurrent : null,
-                        isNext ? styles.growthContentNext : null,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.growthTitle,
-                          isCurrent ? styles.growthTitleCurrent : null,
-                          !isDone && !isCurrent
-                            ? styles.growthTitlePending
-                            : null,
-                        ]}
-                      >
-                        {step.label}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.growthSubtitle,
-                          isCurrent ? styles.growthSubtitleCurrent : null,
-                        ]}
-                      >
-                        {isDone
-                          ? "Zakończono"
-                          : isCurrent
-                            ? "Obecny etap"
-                            : "Oczekujące"}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </Surface>
+                  );
+                })}
+              </View>
+            </Surface>
           </View>
         ) : null}
 
@@ -1634,319 +1648,464 @@ export default function PlantingDetailsScreen() {
         <View
           ref={tasksRef}
           collapsable={false}
-          onLayout={(e) => { tasksSectionY.current = e.nativeEvent.layout.y; }}
+          onLayout={(e) => {
+            tasksSectionY.current = e.nativeEvent.layout.y;
+          }}
         >
-        {isPlannedPlanting ? (
-          <Surface style={styles.section} elevation={0}>
-            <Text style={styles.sectionTitle}>Zadania</Text>
-            <Text style={styles.emptyText}>
-              Zadania pojawią się po rozpoczęciu uprawy.
-            </Text>
-            <Button
-              mode="outlined"
-              onPress={() => {
-                if (!resolvedBedId) return;
-                router.push(`/(tabs)/beds/${resolvedBedId}/plan`);
-              }}
-            >
-              Zobacz checklistę przygotowania
-            </Button>
-          </Surface>
-        ) : (
-          <Surface style={styles.section} elevation={0}>
-            <Text style={styles.sectionTitle}>Zadania</Text>
-            {isTasksLoading ? <ActivityIndicator /> : null}
+          {isPlannedPlanting ? (
+            <Surface style={styles.section} elevation={0}>
+              <Text style={styles.sectionTitle}>Zadania</Text>
+              <Text style={styles.emptyText}>
+                Zadania pojawią się po rozpoczęciu uprawy.
+              </Text>
+              <Button
+                mode="outlined"
+                onPress={() => {
+                  if (!resolvedBedId) return;
+                  router.push(`/(tabs)/beds/${resolvedBedId}/plan`);
+                }}
+              >
+                Zobacz checklistę przygotowania
+              </Button>
+            </Surface>
+          ) : (
+            <Surface style={styles.section} elevation={0}>
+              <Text style={styles.sectionTitle}>Zadania</Text>
+              {isTasksLoading ? <ActivityIndicator /> : null}
 
-            {tasksError ? (
+              {tasksError ? (
+                <View>
+                  <Text style={styles.errorText}>
+                    {String(getResponseError(tasksError))}
+                  </Text>
+                  <Button
+                    mode="outlined"
+                    onPress={() => {
+                      void Promise.allSettled([
+                        refetchPlantingTasks(),
+                        refetch(),
+                      ]);
+                    }}
+                  >
+                    Spróbuj ponownie
+                  </Button>
+                </View>
+              ) : null}
+
+              {!isTasksLoading &&
+              !tasksError &&
+              effectivePlantingTasks.length === 0 ? (
+                <TasksCelebrationCard />
+              ) : null}
+
+              {effectivePlantingTasks.length > 0 &&
+              visiblePlantingTasks.length === 0 ? (
+                <Text style={styles.emptyText}>
+                  Brak aktywnych zadań. Zaległe zadania są ukryte.
+                </Text>
+              ) : null}
+
+              {visiblePlantingTasks.map((task) => {
+                const isHighlighted = highlightedActionTaskId === task.id;
+                const isTaskCompleting = taskIdsCompleting.includes(task.id);
+
+                return (
+                  <View
+                    key={task.id}
+                    style={[
+                      styles.taskRow,
+                      isHighlighted ? styles.taskRowHighlighted : null,
+                    ]}
+                  >
+                    <View style={styles.taskMain}>
+                      <View style={styles.taskTopRow}>
+                        <Text style={styles.taskTitle}>{task.title}</Text>
+                        {task.description ? (
+                          <IconButton
+                            icon="information-outline"
+                            size={18}
+                            onPress={() => setTaskInfoTask(task)}
+                            style={styles.taskInfoButton}
+                          />
+                        ) : null}
+                      </View>
+                      <Text style={styles.taskMeta}>
+                        Termin: {formatDate(task.dueAt)}
+                      </Text>
+                      <Text style={styles.taskMeta}>
+                        {getTaskOwnershipLabel(task)}
+                      </Text>
+                      {(() => {
+                        const relation = getTaskRelationType(task);
+                        if (
+                          relation === "related_from_bed" ||
+                          relation === "related_from_space"
+                        ) {
+                          return (
+                            <Text style={styles.taskMeta}>
+                              {getTaskOwnershipReason(task)}
+                            </Text>
+                          );
+                        }
+                        return null;
+                      })()}
+                      <StatusBadge
+                        label={getActionTaskSourceLabel(
+                          resolveActionTaskSourceType(task),
+                        )}
+                        tone="neutral"
+                      />
+                    </View>
+
+                    <View style={styles.taskActions}>
+                      <Button
+                        mode="outlined"
+                        compact
+                        onPress={() => handleCancelTask(task.id)}
+                        disabled={
+                          updateActionTask.isPending || isTaskCompleting
+                        }
+                        style={styles.equalTaskButton}
+                      >
+                        Anuluj
+                      </Button>
+                      <Button
+                        mode="contained"
+                        compact
+                        onPress={() => handleMarkTaskDone(task.id)}
+                        disabled={
+                          updateActionTask.isPending || isTaskCompleting
+                        }
+                        style={styles.equalTaskButton}
+                      >
+                        Wykonane
+                      </Button>
+                    </View>
+                  </View>
+                );
+              })}
+            </Surface>
+          )}
+        </View>
+
+        <View
+          ref={notesRef}
+          collapsable={false}
+          onLayout={(e) => {
+            notesSectionY.current = e.nativeEvent.layout.y;
+          }}
+        >
+          <Surface style={styles.section} elevation={0}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Notatki</Text>
+              <View style={styles.sectionHeaderRight}>
+                {plantingQuickNotes.length > 0 ? (
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() =>
+                      router.push(
+                        `/(tabs)/beds/${resolvedBedId}/plantings/${planting.id}/notes`,
+                      )
+                    }
+                  >
+                    <Text style={styles.sectionLink}>Zobacz wszystkie</Text>
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => {
+                    setQuickActionStep("note");
+                    setQuickActionNote("");
+                    setQuickActionModalVisible(true);
+                  }}
+                >
+                  <Text style={styles.sectionLink}>Dodaj notatkę</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {plantingQuickNotesQuery.isLoading ? <ActivityIndicator /> : null}
+
+            {plantingQuickNotesQuery.error ? (
               <View>
                 <Text style={styles.errorText}>
-                  {String(getResponseError(tasksError))}
+                  {String(getResponseError(plantingQuickNotesQuery.error))}
                 </Text>
                 <Button
                   mode="outlined"
-                  onPress={() => {
-                    void Promise.allSettled([
-                      refetchPlantingTasks(),
-                      refetch(),
-                    ]);
-                  }}
+                  onPress={() => plantingQuickNotesQuery.refetch()}
                 >
                   Spróbuj ponownie
                 </Button>
               </View>
             ) : null}
 
-            {!isTasksLoading &&
-            !tasksError &&
-            effectivePlantingTasks.length === 0 ? (
-              <TasksCelebrationCard />
-            ) : null}
-
-            {effectivePlantingTasks.length > 0 &&
-            visiblePlantingTasks.length === 0 ? (
-              <Text style={styles.emptyText}>
-                Brak aktywnych zadań. Zaległe zadania są ukryte.
-              </Text>
-            ) : null}
-
-            {visiblePlantingTasks.map((task) => {
-              const isHighlighted = highlightedActionTaskId === task.id;
-              const isTaskCompleting = taskIdsCompleting.includes(task.id);
-
-              return (
-                <View
-                  key={task.id}
-                  style={[
-                    styles.taskRow,
-                    isHighlighted ? styles.taskRowHighlighted : null,
-                  ]}
+            {!plantingQuickNotesQuery.isLoading &&
+            !plantingQuickNotesQuery.error &&
+            plantingQuickNotesPreview.length === 0 ? (
+              <View style={styles.harvestEmptyState}>
+                <Text style={styles.emptyText}>
+                  Nie dodano jeszcze żadnych notatek do tej uprawy.
+                </Text>
+                <Button
+                  mode="outlined"
+                  onPress={() => {
+                    setQuickActionStep("note");
+                    setQuickActionNote("");
+                    setQuickActionModalVisible(true);
+                  }}
                 >
-                  <View style={styles.taskMain}>
-                    <View style={styles.taskTopRow}>
-                      <Text style={styles.taskTitle}>{task.title}</Text>
-                      {task.description ? (
-                        <IconButton
-                          icon="information-outline"
-                          size={18}
-                          onPress={() => setTaskInfoTask(task)}
-                          style={styles.taskInfoButton}
-                        />
-                      ) : null}
-                    </View>
-                    <Text style={styles.taskMeta}>
-                      Termin: {formatDate(task.dueAt)}
-                    </Text>
-                    <Text style={styles.taskMeta}>
-                      {getTaskOwnershipLabel(task)}
-                    </Text>
-                    {(() => {
-                      const relation = getTaskRelationType(task);
-                      if (
-                        relation === "related_from_bed" ||
-                        relation === "related_from_space"
-                      ) {
-                        return (
-                          <Text style={styles.taskMeta}>
-                            {getTaskOwnershipReason(task)}
-                          </Text>
-                        );
-                      }
-                      return null;
-                    })()}
-                    <StatusBadge
-                      label={getActionTaskSourceLabel(
-                        resolveActionTaskSourceType(task),
-                      )}
-                      tone="neutral"
-                    />
-                  </View>
-
-                  <View style={styles.taskActions}>
-                    <Button
-                      mode="outlined"
-                      compact
-                      onPress={() => handleCancelTask(task.id)}
-                      disabled={updateActionTask.isPending || isTaskCompleting}
-                      style={styles.equalTaskButton}
-                    >
-                      Anuluj
-                    </Button>
-                    <Button
-                      mode="contained"
-                      compact
-                      onPress={() => handleMarkTaskDone(task.id)}
-                      disabled={updateActionTask.isPending || isTaskCompleting}
-                      style={styles.equalTaskButton}
-                    >
-                      Wykonane
-                    </Button>
-                  </View>
-                </View>
-              );
-            })}
-          </Surface>
-        )}
-        </View>
-
-        <View
-          ref={notesRef}
-          collapsable={false}
-          onLayout={(e) => { notesSectionY.current = e.nativeEvent.layout.y; }}
-        >
-        <Surface style={styles.section} elevation={0}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Notatki</Text>
-            {plantingQuickNotes.length > 0 ? (
-              <Pressable
-                hitSlop={8}
-                onPress={() =>
-                  router.push(
-                    `/(tabs)/beds/${resolvedBedId}/plantings/${planting.id}/notes`,
-                  )
-                }
-              >
-                <Text style={styles.sectionLink}>Zobacz wszystkie</Text>
-              </Pressable>
-            ) : null}
-          </View>
-
-          {plantingQuickNotesQuery.isLoading ? <ActivityIndicator /> : null}
-
-          {plantingQuickNotesQuery.error ? (
-            <View>
-              <Text style={styles.errorText}>
-                {String(getResponseError(plantingQuickNotesQuery.error))}
-              </Text>
-              <Button
-                mode="outlined"
-                onPress={() => plantingQuickNotesQuery.refetch()}
-              >
-                Spróbuj ponownie
-              </Button>
-            </View>
-          ) : null}
-
-          {!plantingQuickNotesQuery.isLoading &&
-          !plantingQuickNotesQuery.error &&
-          plantingQuickNotesPreview.length === 0 ? (
-            <View style={styles.harvestEmptyState}>
-              <Text style={styles.emptyText}>
-                Nie dodano jeszcze żadnych notatek do tej uprawy.
-              </Text>
-              <Button
-                mode="outlined"
-                onPress={() => {
-                  setQuickActionStep("note");
-                  setQuickActionNote("");
-                  setQuickActionModalVisible(true);
-                }}
-              >
-                Dodaj notatkę
-              </Button>
-            </View>
-          ) : null}
-
-          {plantingQuickNotesPreview.map((note) => (
-            <View key={note.id} style={styles.timelineRow}>
-              <View style={styles.timelineDot} />
-              <View style={styles.timelineContent}>
-                <Text style={styles.timelineLabel}>
-                  {formatNoteDateTime(note.occurredAt ?? note.createdAt)}
-                </Text>
-                <Text style={styles.timelineValue} numberOfLines={2}>
-                  {note.note}
-                </Text>
+                  Dodaj notatkę
+                </Button>
               </View>
-            </View>
-          ))}
-        </Surface>
+            ) : null}
+
+            {plantingQuickNotesPreview.map((note) => (
+              <View key={note.id} style={styles.timelineRow}>
+                <View style={styles.timelineDot} />
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineLabel}>
+                    {formatNoteDateTime(note.occurredAt ?? note.createdAt)}
+                  </Text>
+                  <Text style={styles.timelineValue} numberOfLines={2}>
+                    {note.note}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </Surface>
         </View>
 
         <View
           ref={seasonRef}
           collapsable={false}
           style={{ gap: 20 }}
-          onLayout={(e) => { seasonSectionY.current = e.nativeEvent.layout.y; }}
+          onLayout={(e) => {
+            seasonSectionY.current = e.nativeEvent.layout.y;
+          }}
         >
-        {resolvedPlantingId ? (
-          <PlantingSeasonSection plantingId={resolvedPlantingId} />
-        ) : null}
+          {resolvedPlantingId ? (
+            <PlantingSeasonSection plantingId={resolvedPlantingId} />
+          ) : null}
         </View>
 
         <View
           ref={problemsRef}
           collapsable={false}
-          onLayout={(e) => { problemsSectionY.current = e.nativeEvent.layout.y; }}
+          onLayout={(e) => {
+            problemsSectionY.current = e.nativeEvent.layout.y;
+          }}
         >
-        <Surface style={styles.section} elevation={0}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Problemy</Text>
-            <Button
-              mode="text"
-              onPress={() =>
-                problemsTab === "diseases"
-                  ? setDiseaseModalVisible(true)
-                  : setPestModalVisible(true)
-              }
-              style={styles.problemHeaderActionButton}
-              labelStyle={styles.problemHeaderActionLabel}
-            >
-              {problemsTab === "diseases" ? "Dodaj chorobę" : "Dodaj szkodnika"}
-            </Button>
-          </View>
-
-          <SegmentedButtons
-            value={problemsTab}
-            onValueChange={(value) =>
-              setProblemsTab(value as "diseases" | "pests")
-            }
-            buttons={[
-              {
-                value: "diseases",
-                label: "Choroby",
-                style: [
-                  styles.segmentedButtonItem,
+          <Surface style={styles.section} elevation={0}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Problemy</Text>
+              <Button
+                mode="text"
+                onPress={() =>
                   problemsTab === "diseases"
-                    ? styles.segmentedButtonItemActive
-                    : null,
-                ],
-                checkedColor: palette.accent,
-                uncheckedColor: palette.secondary,
-              },
-              {
-                value: "pests",
-                label: "Szkodniki",
-                style: [
-                  styles.segmentedButtonItem,
-                  problemsTab === "pests"
-                    ? styles.segmentedButtonItemActive
-                    : null,
-                ],
-                checkedColor: palette.accent,
-                uncheckedColor: palette.secondary,
-              },
-            ]}
-            style={styles.segmentedButtons}
-          />
+                    ? setDiseaseModalVisible(true)
+                    : setPestModalVisible(true)
+                }
+                style={styles.problemHeaderActionButton}
+                labelStyle={styles.problemHeaderActionLabel}
+              >
+                {problemsTab === "diseases"
+                  ? "Dodaj chorobę"
+                  : "Dodaj szkodnika"}
+              </Button>
+            </View>
 
-          {hasAnyResolvedProblems ? (
-            <Button
-              mode="outlined"
-              onPress={() =>
-                setProblemStatus((prev) =>
-                  prev === "active" ? "resolved" : "active",
-                )
+            <SegmentedButtons
+              value={problemsTab}
+              onValueChange={(value) =>
+                setProblemsTab(value as "diseases" | "pests")
               }
-              style={styles.toggleButton}
-              labelStyle={styles.toggleButtonLabel}
-            >
-              {problemStatus === "active" ? "Pokaż opanowane" : "Pokaż aktywne"}
-            </Button>
-          ) : null}
+              buttons={[
+                {
+                  value: "diseases",
+                  label: "Choroby",
+                  style: [
+                    styles.segmentedButtonItem,
+                    problemsTab === "diseases"
+                      ? styles.segmentedButtonItemActive
+                      : null,
+                  ],
+                  checkedColor: palette.accent,
+                  uncheckedColor: palette.secondary,
+                },
+                {
+                  value: "pests",
+                  label: "Szkodniki",
+                  style: [
+                    styles.segmentedButtonItem,
+                    problemsTab === "pests"
+                      ? styles.segmentedButtonItemActive
+                      : null,
+                  ],
+                  checkedColor: palette.accent,
+                  uncheckedColor: palette.secondary,
+                },
+              ]}
+              style={styles.segmentedButtons}
+            />
 
-          {!hasAnyProblems ? (
-            <Text style={styles.emptyText}>Brak zgłoszonych problemów.</Text>
-          ) : problemsTab === "diseases" ? (
-            diseaseOccurrencesQuery.isLoading ? (
+            {hasAnyResolvedProblems ? (
+              <Button
+                mode="outlined"
+                onPress={() =>
+                  setProblemStatus((prev) =>
+                    prev === "active" ? "resolved" : "active",
+                  )
+                }
+                style={styles.toggleButton}
+                labelStyle={styles.toggleButtonLabel}
+              >
+                {problemStatus === "active"
+                  ? "Pokaż opanowane"
+                  : "Pokaż aktywne"}
+              </Button>
+            ) : null}
+
+            {problemsTab === "diseases" ? (
+              diseaseOccurrencesQuery.isLoading ? (
+                <ActivityIndicator />
+              ) : diseaseOccurrencesQuery.error ? (
+                <View>
+                  <Text style={styles.errorText}>
+                    {String(getResponseError(diseaseOccurrencesQuery.error))}
+                  </Text>
+                  <Button
+                    mode="outlined"
+                    onPress={() => diseaseOccurrencesQuery.refetch()}
+                  >
+                    Spróbuj ponownie
+                  </Button>
+                </View>
+              ) : diseaseOccurrences.length === 0 &&
+                (diseaseActiveQuery.data?.length ?? 0) === 0 &&
+                (diseaseResolvedQuery.data?.length ?? 0) === 0 ? (
+                <View style={styles.harvestEmptyState}>
+                  <Text style={styles.emptyText}>
+                    Nie dodano jeszcze żadnych chorób do tej uprawy.
+                  </Text>
+                  <Button
+                    mode="outlined"
+                    onPress={() => setDiseaseModalVisible(true)}
+                  >
+                    Dodaj chorobę
+                  </Button>
+                </View>
+              ) : diseaseOccurrences.length === 0 ? (
+                <Text style={styles.emptyText}>
+                  Brak chorób dla wybranego filtra.
+                </Text>
+              ) : (
+                diseaseOccurrences.map((occurrence) => (
+                  <Surface
+                    key={occurrence.id}
+                    style={styles.problemCard}
+                    elevation={0}
+                  >
+                    <View style={styles.problemHeader}>
+                      <View style={styles.problemTitleRow}>
+                        <Text style={styles.problemTitle}>
+                          {occurrence.disease?.name ?? "Nieznana choroba"}
+                        </Text>
+                        <View style={styles.chipsContainer}>
+                          <Chip mode="outlined" style={styles.statusChip}>
+                            {getStatusLabel(occurrence.status)}
+                          </Chip>
+                          {occurrence.severity ? (
+                            <Chip
+                              mode="outlined"
+                              style={[
+                                styles.severityChip,
+                                {
+                                  borderColor: getSeverityColor(
+                                    occurrence.severity,
+                                  ),
+                                },
+                              ]}
+                              textStyle={{
+                                color: getSeverityColor(occurrence.severity),
+                              }}
+                            >
+                              {severityLabels[occurrence.severity]}
+                            </Chip>
+                          ) : null}
+                        </View>
+                        <Text style={styles.problemMeta}>
+                          Zaobserwowano: {formatDate(occurrence.observedAt)}
+                        </Text>
+                        {occurrence.nextCheckAt ? (
+                          <Text style={styles.problemMeta}>
+                            Kontrola: {formatDate(occurrence.nextCheckAt)}
+                          </Text>
+                        ) : null}
+                        {occurrence.notes ? (
+                          <Text style={styles.problemNotes}>
+                            {occurrence.notes}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <IconButton
+                        icon="chevron-right"
+                        onPress={() => {
+                          const targetId =
+                            occurrence.disease?.id ?? occurrence.diseaseId;
+                          if (!targetId) return;
+                          router.push(`/(tabs)/education/diseases/${targetId}`);
+                        }}
+                        disabled={
+                          !(occurrence.disease?.id ?? occurrence.diseaseId)
+                        }
+                      />
+                    </View>
+                    <View style={styles.problemActions}>
+                      <Button
+                        mode="outlined"
+                        onPress={() => openEditDisease(occurrence)}
+                      >
+                        Zmień status / notatkę
+                      </Button>
+                    </View>
+                  </Surface>
+                ))
+              )
+            ) : pestOccurrencesQuery.isLoading ? (
               <ActivityIndicator />
-            ) : diseaseOccurrencesQuery.error ? (
+            ) : pestOccurrencesQuery.error ? (
               <View>
                 <Text style={styles.errorText}>
-                  {String(getResponseError(diseaseOccurrencesQuery.error))}
+                  {String(getResponseError(pestOccurrencesQuery.error))}
                 </Text>
                 <Button
                   mode="outlined"
-                  onPress={() => diseaseOccurrencesQuery.refetch()}
+                  onPress={() => pestOccurrencesQuery.refetch()}
                 >
                   Spróbuj ponownie
                 </Button>
               </View>
-            ) : diseaseOccurrences.length === 0 ? (
+            ) : pestOccurrences.length === 0 &&
+              (pestActiveQuery.data?.length ?? 0) === 0 &&
+              (pestResolvedQuery.data?.length ?? 0) === 0 ? (
+              <View style={styles.harvestEmptyState}>
+                <Text style={styles.emptyText}>
+                  Nie dodano jeszcze żadnych szkodników do tej uprawy.
+                </Text>
+                <Button
+                  mode="outlined"
+                  onPress={() => setPestModalVisible(true)}
+                >
+                  Dodaj szkodnika
+                </Button>
+              </View>
+            ) : pestOccurrences.length === 0 ? (
               <Text style={styles.emptyText}>
-                Brak chorób dla wybranego filtra.
+                Brak szkodników dla wybranego filtra.
               </Text>
             ) : (
-              diseaseOccurrences.map((occurrence) => (
+              pestOccurrences.map((occurrence) => (
                 <Surface
                   key={occurrence.id}
                   style={styles.problemCard}
@@ -1955,34 +2114,13 @@ export default function PlantingDetailsScreen() {
                   <View style={styles.problemHeader}>
                     <View style={styles.problemTitleRow}>
                       <Text style={styles.problemTitle}>
-                        {occurrence.disease?.name ?? "Nieznana choroba"}
+                        {occurrence.pest?.name ?? "Nieznany szkodnik"}
                       </Text>
                       <View style={styles.chipsContainer}>
                         <Chip mode="outlined" style={styles.statusChip}>
                           {getStatusLabel(occurrence.status)}
                         </Chip>
-                        {occurrence.severity ? (
-                          <Chip
-                            mode="outlined"
-                            style={[
-                              styles.severityChip,
-                              {
-                                borderColor: getSeverityColor(
-                                  occurrence.severity,
-                                ),
-                              },
-                            ]}
-                            textStyle={{
-                              color: getSeverityColor(occurrence.severity),
-                            }}
-                          >
-                            {severityLabels[occurrence.severity]}
-                          </Chip>
-                        ) : null}
                       </View>
-                      <Text style={styles.problemMeta}>
-                        Zaobserwowano: {formatDate(occurrence.observedAt)}
-                      </Text>
                       {occurrence.nextCheckAt ? (
                         <Text style={styles.problemMeta}>
                           Kontrola: {formatDate(occurrence.nextCheckAt)}
@@ -1998,172 +2136,51 @@ export default function PlantingDetailsScreen() {
                       icon="chevron-right"
                       onPress={() => {
                         const targetId =
-                          occurrence.disease?.id ?? occurrence.diseaseId;
+                          occurrence.pest?.id ?? occurrence.pestId;
                         if (!targetId) return;
-                        router.push(`/(tabs)/education/diseases/${targetId}`);
+                        router.push(`/(tabs)/education/pests/${targetId}`);
                       }}
-                      disabled={
-                        !(occurrence.disease?.id ?? occurrence.diseaseId)
-                      }
+                      disabled={!(occurrence.pest?.id ?? occurrence.pestId)}
                     />
                   </View>
                   <View style={styles.problemActions}>
                     <Button
                       mode="outlined"
-                      onPress={() => openEditDisease(occurrence)}
+                      onPress={() => openEditPest(occurrence)}
                     >
                       Zmień status / notatkę
                     </Button>
                   </View>
                 </Surface>
               ))
-            )
-          ) : pestOccurrencesQuery.isLoading ? (
-            <ActivityIndicator />
-          ) : pestOccurrencesQuery.error ? (
-            <View>
-              <Text style={styles.errorText}>
-                {String(getResponseError(pestOccurrencesQuery.error))}
-              </Text>
-              <Button
-                mode="outlined"
-                onPress={() => pestOccurrencesQuery.refetch()}
-              >
-                Spróbuj ponownie
-              </Button>
-            </View>
-          ) : pestOccurrences.length === 0 ? (
-            <Text style={styles.emptyText}>
-              Brak szkodników dla wybranego filtra.
-            </Text>
-          ) : (
-            pestOccurrences.map((occurrence) => (
-              <Surface
-                key={occurrence.id}
-                style={styles.problemCard}
-                elevation={0}
-              >
-                <View style={styles.problemHeader}>
-                  <View style={styles.problemTitleRow}>
-                    <Text style={styles.problemTitle}>
-                      {occurrence.pest?.name ?? "Nieznany szkodnik"}
-                    </Text>
-                    <View style={styles.chipsContainer}>
-                      <Chip mode="outlined" style={styles.statusChip}>
-                        {getStatusLabel(occurrence.status)}
-                      </Chip>
-                    </View>
-                    {occurrence.nextCheckAt ? (
-                      <Text style={styles.problemMeta}>
-                        Kontrola: {formatDate(occurrence.nextCheckAt)}
-                      </Text>
-                    ) : null}
-                    {occurrence.notes ? (
-                      <Text style={styles.problemNotes}>
-                        {occurrence.notes}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <IconButton
-                    icon="chevron-right"
-                    onPress={() => {
-                      const targetId = occurrence.pest?.id ?? occurrence.pestId;
-                      if (!targetId) return;
-                      router.push(`/(tabs)/education/pests/${targetId}`);
-                    }}
-                    disabled={!(occurrence.pest?.id ?? occurrence.pestId)}
-                  />
-                </View>
-                <View style={styles.problemActions}>
-                  <Button
-                    mode="outlined"
-                    onPress={() => openEditPest(occurrence)}
-                  >
-                    Zmień status / notatkę
-                  </Button>
-                </View>
-              </Surface>
-            ))
-          )}
-        </Surface>
+            )}
+          </Surface>
         </View>
 
         <View
           ref={timelineRef}
           collapsable={false}
-          onLayout={(e) => { timelineSectionY.current = e.nativeEvent.layout.y; }}
+          onLayout={(e) => {
+            timelineSectionY.current = e.nativeEvent.layout.y;
+          }}
         >
-        {resolvedPlantingId ? (
-          <PlantingTimelineSection plantingId={resolvedPlantingId} />
-        ) : null}
+          {resolvedPlantingId ? (
+            <PlantingTimelineSection plantingId={resolvedPlantingId} />
+          ) : null}
         </View>
 
         <View
           ref={harvestResultsRef}
           collapsable={false}
-          onLayout={(e) => { harvestSectionY.current = e.nativeEvent.layout.y; }}
+          onLayout={(e) => {
+            harvestSectionY.current = e.nativeEvent.layout.y;
+          }}
         >
-        <Surface style={styles.section} elevation={0}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Wyniki zbiorów</Text>
-            <Button
-              mode="text"
-              onPress={() => {
-                setEditingHarvestRecord(null);
-                setHarvestFormVisible(true);
-              }}
-            >
-              Dodaj rekord
-            </Button>
-          </View>
-
-          {yieldSummary.recordsCount > 0 ? (
-            <>
-              <View style={styles.harvestSummaryGrid}>
-                <View style={styles.harvestMetricCard}>
-                  <Text style={styles.harvestMetricLabel}>Liczba wpisów</Text>
-                  <Text style={styles.harvestMetricValue}>
-                    {yieldSummary.recordsCount}
-                  </Text>
-                </View>
-                <View style={styles.harvestMetricCard}>
-                  <Text style={styles.harvestMetricLabel}>Łączny plon</Text>
-                  <Text style={styles.harvestMetricValue}>
-                    {formatYield(yieldSummary.totalYield)}
-                  </Text>
-                </View>
-                <View style={styles.harvestMetricCard}>
-                  <Text style={styles.harvestMetricLabel}>Średnia jakość</Text>
-                  <Text style={styles.harvestMetricValue}>
-                    {yieldSummary.avgRating == null
-                      ? "Brak"
-                      : formatQualityRating(Math.round(yieldSummary.avgRating))}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.harvestDetailsLinkRow}>
-                <Pressable
-                  onPress={() =>
-                    router.push(
-                      `/(tabs)/beds/${resolvedBedId}/plantings/${planting.id}/harvest-results`,
-                    )
-                  }
-                  hitSlop={8}
-                >
-                  <Text style={styles.harvestDetailsLinkText}>
-                    Zobacz szczegóły
-                  </Text>
-                </Pressable>
-              </View>
-            </>
-          ) : (
-            <View style={styles.harvestEmptyState}>
-              <Text style={styles.emptyText}>
-                Nie dodano jeszcze żadnych wyników zbioru.
-              </Text>
+          <Surface style={styles.section} elevation={0}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Wyniki zbiorów</Text>
               <Button
-                mode="outlined"
+                mode="text"
                 onPress={() => {
                   setEditingHarvestRecord(null);
                   setHarvestFormVisible(true);
@@ -2172,27 +2189,70 @@ export default function PlantingDetailsScreen() {
                 Dodaj rekord
               </Button>
             </View>
-          )}
-        </Surface>
+
+            {yieldSummary.recordsCount > 0 ? (
+              <>
+                <View style={styles.harvestSummaryGrid}>
+                  <View style={styles.harvestMetricCard}>
+                    <Text style={styles.harvestMetricLabel}>Liczba wpisów</Text>
+                    <Text style={styles.harvestMetricValue}>
+                      {yieldSummary.recordsCount}
+                    </Text>
+                  </View>
+                  <View style={styles.harvestMetricCard}>
+                    <Text style={styles.harvestMetricLabel}>Łączny plon</Text>
+                    <Text style={styles.harvestMetricValue}>
+                      {formatYield(yieldSummary.totalYield)}
+                    </Text>
+                  </View>
+                  <View style={styles.harvestMetricCard}>
+                    <Text style={styles.harvestMetricLabel}>
+                      Średnia jakość
+                    </Text>
+                    <Text style={styles.harvestMetricValue}>
+                      {yieldSummary.avgRating == null
+                        ? "Brak"
+                        : formatQualityRating(
+                            Math.round(yieldSummary.avgRating),
+                          )}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.harvestDetailsLinkRow}>
+                  <Pressable
+                    onPress={() =>
+                      router.push(
+                        `/(tabs)/beds/${resolvedBedId}/plantings/${planting.id}/harvest-results`,
+                      )
+                    }
+                    hitSlop={8}
+                  >
+                    <Text style={styles.harvestDetailsLinkText}>
+                      Zobacz szczegóły
+                    </Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <View style={styles.harvestEmptyState}>
+                <Text style={styles.emptyText}>
+                  Nie dodano jeszcze żadnych wyników zbioru.
+                </Text>
+                <Button
+                  mode="outlined"
+                  onPress={() => {
+                    setEditingHarvestRecord(null);
+                    setHarvestFormVisible(true);
+                  }}
+                >
+                  Dodaj rekord
+                </Button>
+              </View>
+            )}
+          </Surface>
         </View>
 
-        <View style={styles.metaBlock}>
-          {planting.createdAt ? (
-            <Text style={styles.metaText}>
-              Utworzono: {formatDate(planting.createdAt)}
-            </Text>
-          ) : null}
-          {planting.updatedAt ? (
-            <Text style={styles.metaText}>
-              Zaktualizowano: {formatDate(planting.updatedAt)}
-            </Text>
-          ) : null}
-          {planting.appliedRulesVersion ? (
-            <Text style={styles.metaText}>
-              Wersja reguł: {planting.appliedRulesVersion}
-            </Text>
-          ) : null}
-        </View>
       </ScrollView>
 
       <Portal>
@@ -3082,7 +3142,7 @@ export default function PlantingDetailsScreen() {
             ref: notesRef,
             title: "Notatki",
             description:
-              "Zapisuj obserwacje przy uprawie. Użyj przycisku \"Wykonaj akcję\", aby szybko dodać notatkę bez opuszczania ekranu.",
+              'Zapisuj obserwacje przy uprawie. Użyj przycisku "Wykonaj akcję", aby szybko dodać notatkę bez opuszczania ekranu.',
             placement: "top",
           },
           {
@@ -3365,6 +3425,11 @@ const makeStyles = (theme: MD3Theme) =>
       marginBottom: 4,
       gap: 8,
     },
+    sectionHeaderRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
     sectionTitle: {
       fontSize: 19,
       fontWeight: "700",
@@ -3502,6 +3567,11 @@ const makeStyles = (theme: MD3Theme) =>
       flexDirection: "row",
       justifyContent: "flex-end",
       marginTop: 10,
+    },
+    problemEmptyActions: {
+      flexDirection: "row",
+      gap: 8,
+      marginTop: 4,
     },
     modal: {
       backgroundColor: theme.colors.surface,

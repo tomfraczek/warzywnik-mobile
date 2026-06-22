@@ -628,21 +628,6 @@ export default function VegetableDetailsScreen() {
           </SectionCard>
         ) : null}
 
-        {/* ── metadata ── */}
-        <View style={s.metaBlock}>
-          {vegetable.createdAt ? (
-            <Text style={[s.metaText, { color: palette.meta }]}>
-              Dodano:{" "}
-              {new Date(vegetable.createdAt).toLocaleDateString("pl-PL")}
-            </Text>
-          ) : null}
-          {vegetable.updatedAt ? (
-            <Text style={[s.metaText, { color: palette.meta }]}>
-              Zaktualizowano:{" "}
-              {new Date(vegetable.updatedAt).toLocaleDateString("pl-PL")}
-            </Text>
-          ) : null}
-        </View>
       </ScrollView>
     </Screen>
   );

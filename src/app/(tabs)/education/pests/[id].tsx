@@ -315,23 +315,6 @@ export default function PestDetailsScreen() {
           </SectionCard>
         ) : null}
 
-        {/* metadata */}
-        {pest.createdAt || pest.updatedAt ? (
-          <View style={s.metaBlock}>
-            {pest.createdAt ? (
-              <Text style={[s.metaText, { color: palette.meta }]}>
-                Utworzono:{" "}
-                {new Date(pest.createdAt).toLocaleDateString("pl-PL")}
-              </Text>
-            ) : null}
-            {pest.updatedAt ? (
-              <Text style={[s.metaText, { color: palette.meta }]}>
-                Zaktualizowano:{" "}
-                {new Date(pest.updatedAt).toLocaleDateString("pl-PL")}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
       </ScrollView>
     </Screen>
   );

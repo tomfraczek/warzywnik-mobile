@@ -11,9 +11,11 @@ import { ClerkProvider, useAuth, useClerk, useUser } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { Stack, usePathname, useRouter, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import { useColorScheme, View } from "react-native";
+
 import {
   MD3DarkTheme,
   MD3LightTheme,
@@ -23,6 +25,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { getMe } from "../api/queries/users/useUpdateMe";
 import { clientPersister, queryClient } from "../api/queryClient";
 import { SettingsProvider, useSettings } from "../context/SettingsProvider";
+
+SplashScreen.preventAutoHideAsync();
 
 const FORCE_AUTH_FLOW_LOADER_FOR_TESTS = false;
 
@@ -208,6 +212,7 @@ function AuthBootstrapGate() {
       if (!inAuthGroup) {
         router.replace("/(auth)");
       }
+      void SplashScreen.hideAsync();
       return;
     }
 
@@ -228,6 +233,8 @@ function AuthBootstrapGate() {
         shouldOpenProfileEdit ? "/(tabs)/profile/profile-edit" : "/(tabs)/home",
       );
     }
+
+    void SplashScreen.hideAsync();
   }, [
     areSettingsReady,
     isLoaded,
