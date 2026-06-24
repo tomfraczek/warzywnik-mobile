@@ -3,6 +3,7 @@
     "name": "Warzywnik",
     "slug": "warzywnik-mobile",
     "version": "2.1.0",
+    "runtimeVersion": "2.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo-with-brand.png",
     "scheme": "warzywnikmobile",
@@ -12,9 +13,6 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Aplikacja potrzebuje dostępu do lokalizacji, aby ustawić region pogody."
-      },
-      "runtimeVersion": {
-        "policy": "appVersion"
       }
     },
     "android": {
@@ -35,10 +33,7 @@
         "ACCESS_WIFI_STATE"
       ],
       "googleServicesFile": "./google-services.json",
-      "package": "com.tomfraczek.warzywnik.mobile",
-      "runtimeVersion": {
-        "policy": "appVersion"
-      }
+      "package": "com.tomfraczek.warzywnik.mobile"
     },
     "web": {
       "bundler": "metro",
