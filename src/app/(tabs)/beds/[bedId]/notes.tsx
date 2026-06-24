@@ -1,9 +1,10 @@
 import { getResponseError } from "@/src/api/axios";
 import { useGetBedQuickActionNotes } from "@/src/api/queries/quickActions/useGetBedQuickActionNotes";
 import { Screen } from "@/src/components/Screen";
+import { usePremium } from "@/src/context/PremiumContext";
 import { useLocalSearchParams } from "expo-router";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { Button, MD3Theme, Text, useTheme } from "react-native-paper";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Button, Icon, MD3Theme, Text, useTheme } from "react-native-paper";
 
 const formatNoteDateTime = (value?: string | null) => {
   if (!value) return "Brak daty";
@@ -37,8 +38,10 @@ export default function BedNotesScreen() {
   const { bedId } = useLocalSearchParams<{ bedId?: string | string[] }>();
   const resolvedBedId = Array.isArray(bedId) ? bedId[0] : bedId;
 
+  const { openPremiumPaywall } = usePremium();
   const notesQuery = useGetBedQuickActionNotes(resolvedBedId ?? null);
   const notes = notesQuery.data?.items ?? [];
+  const hasLockedNotes = notes.some((n) => n.accessStatus === "locked");
 
   return (
     <Screen
@@ -68,17 +71,43 @@ export default function BedNotesScreen() {
             <Text style={styles.valueText}>Brak notatek.</Text>
           ) : null}
 
-          {notes.map((note) => (
-            <View key={note.id} style={styles.timelineRow}>
-              <View style={styles.timelineDot} />
-              <View style={styles.timelineContent}>
-                <Text style={styles.timelineDate}>
-                  {formatNoteDateTime(note.occurredAt ?? note.createdAt)}
-                </Text>
-                <Text style={styles.timelineText}>{note.note}</Text>
-              </View>
+          {hasLockedNotes ? (
+            <View style={styles.lockedBanner}>
+              <Icon source="lock-outline" size={14} color={palette.secondary} />
+              <Text style={styles.lockedBannerText}>
+                Te dane nadal są zapisane na Twoim koncie. Odblokujesz je po aktywacji Premium.
+              </Text>
             </View>
-          ))}
+          ) : null}
+
+          {notes.map((note) => {
+            const isLocked = note.accessStatus === "locked";
+            return isLocked ? (
+              <Pressable
+                key={note.id}
+                style={[styles.timelineRow, styles.timelineRowLocked]}
+                onPress={() => openPremiumPaywall({ reason: "lockedNote" })}
+              >
+                <Icon source="lock-outline" size={14} color={palette.secondary} />
+                <View style={styles.timelineContent}>
+                  <Text style={[styles.timelineDate, { opacity: 0.6 }]}>
+                    {formatNoteDateTime(note.occurredAt ?? note.createdAt)}
+                  </Text>
+                  <Text style={[styles.timelineText, { opacity: 0.5 }]}>{note.note}</Text>
+                </View>
+              </Pressable>
+            ) : (
+              <View key={note.id} style={styles.timelineRow}>
+                <View style={styles.timelineDot} />
+                <View style={styles.timelineContent}>
+                  <Text style={styles.timelineDate}>
+                    {formatNoteDateTime(note.occurredAt ?? note.createdAt)}
+                  </Text>
+                  <Text style={styles.timelineText}>{note.note}</Text>
+                </View>
+              </View>
+            );
+          })}
         </View>
       </ScrollView>
     </Screen>
@@ -124,6 +153,24 @@ const makeStyles = (theme: MD3Theme) => {
       borderTopWidth: 1,
       borderTopColor: palette.cardBorder,
       paddingVertical: 12,
+    },
+    timelineRowLocked: {
+      opacity: 0.6,
+    },
+    lockedBanner: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 6,
+      backgroundColor: palette.cardBorder,
+      borderRadius: 8,
+      padding: 10,
+      marginBottom: 8,
+    },
+    lockedBannerText: {
+      flex: 1,
+      fontSize: 12,
+      lineHeight: 17,
+      color: palette.secondary,
     },
     timelineDot: {
       width: 8,

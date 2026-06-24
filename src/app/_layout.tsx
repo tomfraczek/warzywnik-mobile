@@ -1,6 +1,7 @@
 // app/_layout.tsx (albo odpowiedni RootLayout w Twoim projekcie)
 
 import { setAuthErrorHandler, setAuthTokenProvider } from "@/src/api/axios";
+import { PremiumProvider } from "@/src/context/PremiumContext";
 import { AuthFlowLoader } from "@/src/components/AuthFlowLoader";
 import { LocationSetupRequiredModal } from "@/src/components/location/LocationSetupRequiredModal";
 import { OfflineBanner } from "@/src/components/OfflineBanner";
@@ -347,9 +348,11 @@ function RootLayoutContent() {
             publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
             tokenCache={tokenCache}
           >
-            <PushNotificationsLifecycleBridge />
-            <AuthBootstrapGate />
-            <LocationSetupRequiredModal />
+            <PremiumProvider>
+              <PushNotificationsLifecycleBridge />
+              <AuthBootstrapGate />
+              <LocationSetupRequiredModal />
+            </PremiumProvider>
           </ClerkProvider>
         </PersistQueryClientProvider>
         <OfflineBanner />

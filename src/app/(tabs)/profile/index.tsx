@@ -1,4 +1,6 @@
 import { useUpdateNotificationPreferences } from "@/src/api/mutations/notifications/useUpdateNotificationPreferences";
+import { entitlementKeys } from "@/src/api/queries/entitlements/entitlementKeys";
+import { EntitlementsDto } from "@/src/api/queries/entitlements/types";
 import { GeoSearchItem } from "@/src/api/queries/geo/types";
 import { useGeoSearch } from "@/src/api/queries/geo/useGeoSearch";
 import { useUpdateUserLocation } from "@/src/api/queries/geo/useUpdateUserLocation";
@@ -10,6 +12,7 @@ import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { getAvatarSource } from "@/src/constants/avatars";
+import { usePremium } from "@/src/context/PremiumContext";
 import {
   LanguagePreference,
   ThemeMode,
@@ -38,6 +41,69 @@ import {
   useTheme,
 } from "react-native-paper";
 
+// ─── dev plan mock data ───────────────────────────────────────────────────────
+
+type DevPlan = "free" | "trial" | "premium" | "server";
+
+const ALL_FEATURES: EntitlementsDto["features"] = {
+  fullArticles: true,
+  gardenPlanner: true,
+  seasonStatistics: true,
+  cropDiseaseHistory: true,
+  cropPestHistory: true,
+  advancedNotifications: true,
+  postHarvestSuggestions: true,
+  weatherBasedTasks: true,
+  growthStageTasks: true,
+};
+
+const NO_FEATURES: EntitlementsDto["features"] = {
+  fullArticles: false,
+  gardenPlanner: false,
+  seasonStatistics: false,
+  cropDiseaseHistory: false,
+  cropPestHistory: false,
+  advancedNotifications: false,
+  postHarvestSuggestions: false,
+  weatherBasedTasks: false,
+  growthStageTasks: false,
+};
+
+const MOCK_ENTITLEMENTS: Record<Exclude<DevPlan, "server">, EntitlementsDto> = {
+  free: {
+    plan: "free",
+    source: "free",
+    isPremium: false,
+    trialStartedAt: null,
+    trialEndsAt: null,
+    subscriptionExpiresAt: null,
+    limits: { beds: 1, activePlantings: 5, notes: 5 },
+    features: NO_FEATURES,
+  },
+  trial: {
+    plan: "premium",
+    source: "trial",
+    isPremium: true,
+    trialStartedAt: new Date().toISOString(),
+    trialEndsAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+    subscriptionExpiresAt: null,
+    limits: { beds: null, activePlantings: null, notes: null },
+    features: ALL_FEATURES,
+  },
+  premium: {
+    plan: "premium",
+    source: "subscription",
+    isPremium: true,
+    trialStartedAt: null,
+    trialEndsAt: null,
+    subscriptionExpiresAt: new Date(
+      Date.now() + 365 * 24 * 60 * 60 * 1000,
+    ).toISOString(),
+    limits: { beds: null, activePlantings: null, notes: null },
+    features: ALL_FEATURES,
+  },
+};
+
 const languageLabels: Record<LanguagePreference, string> = {
   system: "System",
   pl: "Polski",
@@ -62,6 +128,23 @@ export default function ProfileScreen() {
     setTutorials,
   } = useSettings();
   const updateLocation = useUpdateUserLocation();
+  const { openPremiumPaywall, entitlements } = usePremium();
+
+  const currentDevPlan: DevPlan = entitlements?.isPremium
+    ? entitlements.source === "trial"
+      ? "trial"
+      : "premium"
+    : "free";
+
+  const handleDevPlanChange = (value: string) => {
+    const plan = value as DevPlan;
+    if (plan === "server") {
+      void queryClient.invalidateQueries({ queryKey: entitlementKeys.me });
+      return;
+    }
+    queryClient.setQueryData(entitlementKeys.me, MOCK_ENTITLEMENTS[plan]);
+  };
+
   const [snackbar, setSnackbar] = useState<string | null>(null);
   const [locationQuery, setLocationQuery] = useState(location?.label ?? "");
   const [debouncedLocationQuery, setDebouncedLocationQuery] = useState(
@@ -343,18 +426,61 @@ export default function ProfileScreen() {
           />
         </Card>
 
-        {/* <Card title="Subskrypcja">
+        {entitlements?.source === "trial" && entitlements?.isPremium ? (
+          <Card title="Dostep próbny Premium">
+            <Text style={styles.preferenceDescription}>
+              Korzystasz z 3-dniowego dostępu Premium. Po zakończeniu okresu
+              próbnego część funkcji zostanie zablokowana.
+            </Text>
+            {entitlements.trialEndsAt ? (
+              <Text style={[styles.label, { marginTop: spacing.sm }]}>
+                Dostęp próbny do:{" "}
+                {new Intl.DateTimeFormat("pl-PL", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                }).format(new Date(entitlements.trialEndsAt))}
+              </Text>
+            ) : null}
+          </Card>
+        ) : null}
+
+        <Card title="Subskrypcja">
           <View style={styles.subscriptionRow}>
             <Text style={styles.label}>Aktualny plan</Text>
-            <StatusBadge label="Starter" tone={planTone} />
+            <StatusBadge
+              label={
+                entitlements?.isPremium
+                  ? entitlements.source === "trial"
+                    ? "Trial"
+                    : "Premium"
+                  : "Free"
+              }
+              tone={entitlements?.isPremium ? "success" : "neutral"}
+            />
           </View>
-          <Button
-            mode="outlined"
-            onPress={() => setSnackbar("Integracja płatności wkrótce")}
-          >
-            Zarządzaj planem
-          </Button>
-        </Card> */}
+          {!entitlements?.isPremium ? (
+            <Button
+              mode="outlined"
+              onPress={() => openPremiumPaywall({ reason: "premiumRequired" })}
+            >
+              Odblokuj Premium
+            </Button>
+          ) : null}
+          <Text style={[styles.label, { marginTop: spacing.md }]}>
+            [DEV] Symuluj plan
+          </Text>
+          <SegmentedButtons
+            value={currentDevPlan}
+            onValueChange={handleDevPlanChange}
+            buttons={[
+              { value: "free", label: "Free" },
+              { value: "trial", label: "Trial" },
+              { value: "premium", label: "Premium" },
+              { value: "server", label: "Serwer" },
+            ]}
+          />
+        </Card>
 
         <Card title="Powiadomienia Push">
           <Text style={styles.preferenceDescription}>

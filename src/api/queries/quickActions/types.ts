@@ -27,6 +27,7 @@ export type QuickActionNote = {
   occurredAt: string | null;
   createdAt?: string | null;
   scope?: "bed" | "planting" | null;
+  accessStatus?: 'available' | 'locked';
 };
 
 export type QuickActionNotesResponse = {

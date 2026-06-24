@@ -1,4 +1,5 @@
 import { getResponseError } from "@/src/api/axios";
+import { usePremium } from "@/src/context/PremiumContext";
 import { actionTaskKeys } from "@/src/api/queries/actionTasks/actionTaskKeys";
 import {
   ActionTask,
@@ -232,6 +233,7 @@ const PlantingRow = memo(function PlantingRow({
 }: PlantingRowProps) {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
+  const isLocked = planting.accessStatus === "locked";
   const {
     data: vegetable,
     isLoading: isVegetableLoading,
@@ -245,7 +247,11 @@ const PlantingRow = memo(function PlantingRow({
 
   return (
     <Pressable
-      style={[styles.plantingRow, isFirst ? styles.plantingRowFirst : null]}
+      style={[
+        styles.plantingRow,
+        isFirst ? styles.plantingRowFirst : null,
+        isLocked ? { opacity: 0.55 } : null,
+      ]}
       onPress={onPress}
     >
       <View style={styles.plantingThumbWrap}>
@@ -272,25 +278,44 @@ const PlantingRow = memo(function PlantingRow({
           Start: {formatDate(planting.plannedStartDate)}
         </Text>
       </View>
-      <View
-        style={[
-          styles.plantingStatusBadge,
-          {
-            backgroundColor: plantingStatusTone.backgroundColor,
-            borderColor: plantingStatusTone.borderColor,
-          },
-        ]}
-      >
-        <Text
+      {isLocked ? (
+        <View
           style={[
-            styles.plantingStatus,
-            { color: plantingStatusTone.textColor },
+            styles.plantingStatusBadge,
+            {
+              backgroundColor: theme.colors.surfaceVariant,
+              borderColor: theme.colors.outlineVariant,
+            },
           ]}
         >
-          {getPlantingStatusLabel(planting.status)}
-        </Text>
-      </View>
-      {showAttention ? <Icon source="alert" size={15} color="#B6473D" /> : null}
+          <Icon source="lock-outline" size={12} color={theme.colors.onSurfaceVariant} />
+          <Text style={[styles.plantingStatus, { color: theme.colors.onSurfaceVariant }]}>
+            Premium
+          </Text>
+        </View>
+      ) : (
+        <View
+          style={[
+            styles.plantingStatusBadge,
+            {
+              backgroundColor: plantingStatusTone.backgroundColor,
+              borderColor: plantingStatusTone.borderColor,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.plantingStatus,
+              { color: plantingStatusTone.textColor },
+            ]}
+          >
+            {getPlantingStatusLabel(planting.status)}
+          </Text>
+        </View>
+      )}
+      {!isLocked && showAttention ? (
+        <Icon source="alert" size={15} color="#B6473D" />
+      ) : null}
     </Pressable>
   );
 });
@@ -299,6 +324,7 @@ export default function BedDetailsScreen() {
   const theme = useTheme<MD3Theme>();
   const palette = buildPalette(theme.dark);
   const styles = makeStyles(theme);
+  const { openPremiumPaywall, entitlements } = usePremium();
   const { bedId, actionTaskId } = useLocalSearchParams<{
     bedId?: string | string[];
     actionTaskId?: string | string[];
@@ -1067,7 +1093,18 @@ export default function BedDetailsScreen() {
           style={styles.addVegetableButton}
         >
           <PrimaryActionButton
-            onPress={() => router.push(`/(tabs)/beds/${bed.id}/plantings/new`)}
+            onPress={() => {
+              const plantingLimit = entitlements?.limits.activePlantings;
+              if (
+                plantingLimit !== null &&
+                plantingLimit !== undefined &&
+                activePlantings.length >= plantingLimit
+              ) {
+                openPremiumPaywall({ reason: "plantingsLimit" });
+                return;
+              }
+              router.push(`/(tabs)/beds/${bed.id}/plantings/new`);
+            }}
             icon="sprout-outline"
             label="Dodaj warzywo"
             color={palette.secondaryCta}
@@ -1084,13 +1121,7 @@ export default function BedDetailsScreen() {
             (bedPlan?.plannedPlantings.length ?? plannedPlantings.length) === 0
           }
           onPress={() => {
-            const plannedCount =
-              bedPlan?.plannedPlantings.length ?? plannedPlantings.length;
-            if (plannedCount > 0) {
-              router.push(`/(tabs)/beds/${bed.id}/plan`);
-              return;
-            }
-            router.push(`/(tabs)/beds/${bed.id}/plantings/new`);
+            router.push(`/(tabs)/beds/${bed.id}/plan`);
           }}
           disabled={isOffline}
         />
@@ -1199,11 +1230,15 @@ export default function BedDetailsScreen() {
                     planting={planting}
                     isFirst={idx === 0}
                     hasAttention={attentionPlantingIds.has(planting.id)}
-                    onPress={() =>
+                    onPress={() => {
+                      if (planting.accessStatus === "locked") {
+                        openPremiumPaywall({ reason: "lockedPlanting" });
+                        return;
+                      }
                       router.push(
                         `/(tabs)/beds/${bed.id}/plantings/${planting.id}`,
-                      )
-                    }
+                      );
+                    }}
                   />
                 ))}
               </ScrollView>
@@ -1264,6 +1299,11 @@ export default function BedDetailsScreen() {
                     isFirst={idx === 0}
                     hasAttention={false}
                     onPress={() => {
+                      if (planting.accessStatus === "locked") {
+                        setEndedModalVisible(false);
+                        openPremiumPaywall({ reason: "lockedPlanting" });
+                        return;
+                      }
                       setEndedModalVisible(false);
                       router.push(
                         `/(tabs)/beds/${bed.id}/plantings/${planting.id}`,
@@ -1750,6 +1790,15 @@ export default function BedDetailsScreen() {
                   <Button
                     mode="contained"
                     onPress={() => {
+                      const noteLimit = entitlements?.limits.notes;
+                      if (
+                        noteLimit !== null &&
+                        noteLimit !== undefined &&
+                        bedQuickNotes.length >= noteLimit
+                      ) {
+                        openPremiumPaywall({ reason: "notesLimit" });
+                        return;
+                      }
                       const note = quickActionNote.trim();
                       if (!note) {
                         setSnackbarMessage("Wpisz notatkę.");

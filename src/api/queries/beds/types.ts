@@ -13,6 +13,7 @@ export type CultivationEnvironment =
 
 export type Bed = {
   id: string;
+  accessStatus?: 'available' | 'locked';
   name: string;
   description?: string | null;
   locationLabel?: string | null;

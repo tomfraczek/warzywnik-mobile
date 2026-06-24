@@ -22,6 +22,13 @@ export const setAuthErrorHandler = (fn: (status: number) => void) => {
   authErrorHandler = fn;
 };
 
+let premiumErrorHandler: ((data: unknown) => void) | null = null;
+export const setPremiumErrorHandler = (
+  fn: ((data: unknown) => void) | null,
+) => {
+  premiumErrorHandler = fn;
+};
+
 export const getResponseError = (error: unknown) => {
   if (!error) return "Unknown error";
   if (isAxiosError(error)) {
@@ -52,7 +59,12 @@ restClient.interceptors.response.use(
   (res) => res,
   (err) => {
     const status = err?.response?.status;
-    if (status === 401 || status === 403) {
+    const responseData = err?.response?.data as
+      | Record<string, unknown>
+      | undefined;
+    if (status === 403 && responseData?.code === "PREMIUM_REQUIRED") {
+      premiumErrorHandler?.(responseData);
+    } else if (status === 401 || status === 403) {
       authErrorHandler?.(status);
     }
     if (__DEV__) {

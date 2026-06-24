@@ -40,6 +40,7 @@ export type HarvestResultRecord = {
 
 export type Planting = {
   id: string;
+  accessStatus?: 'available' | 'locked';
   bedId: string;
   bedName?: string | null;
   vegetableId: string;

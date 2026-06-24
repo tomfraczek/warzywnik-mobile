@@ -2,6 +2,7 @@ import { useGetBedActionTasks } from "@/src/api/queries/actionTasks/useGetBedAct
 import { Bed, CultivationEnvironment } from "@/src/api/queries/beds/types";
 import { useGetBeds } from "@/src/api/queries/beds/useGetBeds";
 import { useGetPlantings } from "@/src/api/queries/plantings/useGetPlantings";
+import { usePremium } from "@/src/context/PremiumContext";
 import { PrimaryScreenHeading } from "@/src/components/navigation/PrimaryScreenHeading";
 import { Screen } from "@/src/components/Screen";
 import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
@@ -155,6 +156,7 @@ function BedCard({
   onPress: () => void;
   wrapperRef?: RefObject<View | null>;
 }) {
+  const isLocked = bed.accessStatus === "locked";
   const env = bed.cultivationEnvironment;
   const { data: pendingTasksData } = useGetBedActionTasks(
     bed.id,
@@ -193,46 +195,58 @@ function BedCard({
         style={[
           s.card,
           { backgroundColor: palette.cardBg, borderColor: palette.cardBorder },
+          isLocked ? s.cardLocked : null,
         ]}
       >
       {/* top row: name + status */}
       <View style={s.cardTopRow}>
         <View style={s.bedNameWrap}>
+          {isLocked ? (
+            <Icon source="lock-outline" size={16} color={palette.secondary} />
+          ) : null}
           <Text
-            style={[s.bedName, { color: palette.heading }]}
+            style={[s.bedName, { color: isLocked ? palette.secondary : palette.heading }]}
             numberOfLines={1}
           >
             {bed.name}
           </Text>
-          {hasPendingTasks ? (
+          {!isLocked && hasPendingTasks ? (
             <Icon source="alert" size={16} color="#B6473D" />
           ) : null}
         </View>
-        <View
-          style={[
-            s.statusBadge,
-            {
-              backgroundColor:
-                bed.isActive !== true
-                  ? palette.inactiveBadgeBg
-                  : palette.activeBadgeBg,
-            },
-          ]}
-        >
-          <Text
+        {isLocked ? (
+          <View style={[s.statusBadge, { backgroundColor: palette.inactiveBadgeBg }]}>
+            <Text style={[s.statusBadgeText, { color: palette.inactiveBadgeText }]}>
+              Premium
+            </Text>
+          </View>
+        ) : (
+          <View
             style={[
-              s.statusBadgeText,
+              s.statusBadge,
               {
-                color:
+                backgroundColor:
                   bed.isActive !== true
-                    ? palette.inactiveBadgeText
-                    : palette.activeBadgeText,
+                    ? palette.inactiveBadgeBg
+                    : palette.activeBadgeBg,
               },
             ]}
           >
-            {bed.isActive !== true ? "Nieaktywna" : "Aktywna"}
-          </Text>
-        </View>
+            <Text
+              style={[
+                s.statusBadgeText,
+                {
+                  color:
+                    bed.isActive !== true
+                      ? palette.inactiveBadgeText
+                      : palette.activeBadgeText,
+                },
+              ]}
+            >
+              {bed.isActive !== true ? "Nieaktywna" : "Aktywna"}
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* location / description */}
@@ -287,6 +301,13 @@ function BedCard({
       {hasMeasurements ? (
         <Text style={[s.cardMeasurements, { color: palette.meta }]}>
           Analiza: {measurementLabel}
+        </Text>
+      ) : null}
+
+      {/* locked data info */}
+      {isLocked ? (
+        <Text style={[s.lockedInfo, { color: palette.secondary }]}>
+          Te dane nadal są zapisane na Twoim koncie. Odblokujesz je po aktywacji Premium.
         </Text>
       ) : null}
 
@@ -393,6 +414,7 @@ export default function BedsListScreen() {
   const router = useRouter();
   const theme = useTheme<MD3Theme>();
   const palette = buildPalette(theme.dark);
+  const { openPremiumPaywall, entitlements } = usePremium();
 
   const [searchInput, setSearchInput] = useState("");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
@@ -578,7 +600,14 @@ export default function BedsListScreen() {
                       borderColor: palette.accentBorder,
                     },
                   ]}
-                  onPress={() => router.push("/(tabs)/beds/new")}
+                  onPress={() => {
+                    const bedLimit = entitlements?.limits.beds;
+                    if (bedLimit !== null && bedLimit !== undefined && beds.length >= bedLimit) {
+                      openPremiumPaywall({ reason: "bedsLimit" });
+                      return;
+                    }
+                    router.push("/(tabs)/beds/new");
+                  }}
                 >
                   <Icon source="plus" size={16} color={palette.accent} />
                   <Text style={[s.addBtnText, { color: palette.accent }]}>
@@ -611,7 +640,13 @@ export default function BedsListScreen() {
             bed={item}
             activePlantings={activePlantingsCountByBed.get(item.id) ?? 0}
             palette={palette}
-            onPress={() => router.push(`/(tabs)/beds/${item.id}`)}
+            onPress={() => {
+              if (item.accessStatus === "locked") {
+                openPremiumPaywall({ reason: "lockedBed" });
+                return;
+              }
+              router.push(`/(tabs)/beds/${item.id}`);
+            }}
             wrapperRef={index === 0 ? firstBedCardRef : undefined}
           />
         )}
@@ -620,7 +655,14 @@ export default function BedsListScreen() {
           !isLoading ? (
             <EmptyState
               palette={palette}
-              onAdd={() => router.push("/(tabs)/beds/new")}
+              onAdd={() => {
+                const bedLimit = entitlements?.limits.beds;
+                if (bedLimit !== null && bedLimit !== undefined && beds.length >= bedLimit) {
+                  openPremiumPaywall({ reason: "bedsLimit" });
+                  return;
+                }
+                router.push("/(tabs)/beds/new");
+              }}
               wrapperRef={emptyStateRef}
             />
           ) : null
@@ -722,6 +764,14 @@ const s = StyleSheet.create({
     borderWidth: 1,
     padding: 18,
     gap: 8,
+  },
+  cardLocked: {
+    opacity: 0.6,
+  },
+  lockedInfo: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
   },
   cardTopRow: {
     flexDirection: "row",
