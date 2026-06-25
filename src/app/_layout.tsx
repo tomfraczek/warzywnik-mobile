@@ -1,6 +1,10 @@
 // app/_layout.tsx (albo odpowiedni RootLayout w Twoim projekcie)
 
 import { setAuthErrorHandler, setAuthTokenProvider } from "@/src/api/axios";
+import {
+  configureRevenueCat,
+  logOutRevenueCat,
+} from "@/src/services/revenueCat/revenueCatService";
 import { PremiumProvider } from "@/src/context/PremiumContext";
 import { AuthFlowLoader } from "@/src/components/AuthFlowLoader";
 import { LocationSetupRequiredModal } from "@/src/components/location/LocationSetupRequiredModal";
@@ -158,6 +162,7 @@ function AuthBootstrapGate() {
         queryClient.clear();
         void clientPersister.removeClient();
         setProfile({ name: "", avatarId: null });
+        void logOutRevenueCat();
       }
       setAuthTokenProvider(async () => null);
       setReady(true);
@@ -191,12 +196,16 @@ function AuthBootstrapGate() {
     hasBootstrappedThemeRef.current = true;
 
     getMe()
-      .then((me) => {
-        if (!me.themeMode) return;
-        setThemeMode(me.themeMode);
+      .then(async (me) => {
+        if (me.themeMode) {
+          setThemeMode(me.themeMode);
+        }
+        if (me.id) {
+          await configureRevenueCat(me.id);
+        }
       })
       .catch((err) => {
-        console.warn("Failed to bootstrap themeMode from backend", err);
+        console.warn("Failed to bootstrap from backend", err);
       });
   }, [isSignedIn, ready, setThemeMode]);
 

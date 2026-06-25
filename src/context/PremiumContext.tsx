@@ -5,7 +5,17 @@ import {
   PremiumPaywallReason,
 } from "@/src/api/queries/entitlements/types";
 import { useEntitlements } from "@/src/api/queries/entitlements/useEntitlements";
+import { useRevenueCatOffering } from "@/src/api/queries/revenueCat/useRevenueCatOffering";
+import { useSyncRevenueCatSubscription } from "@/src/api/queries/revenueCat/useSyncRevenueCatSubscription";
+import {
+  getPremiumPackages,
+  hasRevenueCatPremium,
+  isRevenueCatUserCancellation,
+  purchaseRevenueCatPackage,
+  restoreRevenueCatPurchases,
+} from "@/src/services/revenueCat/revenueCatService";
 import { useAuth } from "@clerk/clerk-expo";
+import { PurchasesPackage } from "react-native-purchases";
 import { useQueryClient } from "@tanstack/react-query";
 import React, {
   createContext,
@@ -14,8 +24,9 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Platform, ScrollView, StyleSheet, View } from "react-native";
 import {
+  ActivityIndicator,
   Button,
   Icon,
   MD3Theme,
@@ -119,14 +130,30 @@ function PaywallContent({
   reason,
   entitlements,
   onClose,
+  monthlyPackage,
+  annualPackage,
+  isOfferingLoading,
 }: {
   reason: PremiumPaywallReason;
   entitlements: EntitlementsDto | undefined;
   onClose: () => void;
+  monthlyPackage: PurchasesPackage | null;
+  annualPackage: PurchasesPackage | null;
+  isOfferingLoading: boolean;
 }) {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
+  const { mutateAsync: syncSubscription } = useSyncRevenueCatSubscription();
 
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{
+    type: "error" | "info";
+    text: string;
+  } | null>(null);
+
+  const isAndroid = Platform.OS === "android";
+  const isTrialActive =
+    entitlements?.source === "trial" && entitlements?.isPremium;
   const isTrialEnded =
     entitlements?.source === "trial" && !entitlements?.isPremium;
 
@@ -136,6 +163,75 @@ function PaywallContent({
 
   const reasonMessage = REASON_MESSAGES[reason];
   const showReasonMessage = reason !== "premiumRequired";
+
+  const hasAnyPackage = !!monthlyPackage || !!annualPackage;
+
+  const handlePurchase = async (pkg: PurchasesPackage) => {
+    setIsActionLoading(true);
+    setStatusMessage(null);
+    try {
+      const customerInfo = await purchaseRevenueCatPackage(pkg);
+      if (hasRevenueCatPremium(customerInfo)) {
+        try {
+          await syncSubscription();
+        } catch {
+          setStatusMessage({
+            type: "error",
+            text: 'Zakup został zakończony, ale nie udało się odświeżyć statusu Premium. Spróbuj ponownie za chwilę lub użyj „Przywróć zakup".',
+          });
+          setIsActionLoading(false);
+          return;
+        }
+      }
+      setIsActionLoading(false);
+      onClose();
+      Alert.alert("Premium aktywowane", "Premium zostało aktywowane.");
+    } catch (e) {
+      setIsActionLoading(false);
+      if (isRevenueCatUserCancellation(e)) {
+        return;
+      }
+      setStatusMessage({
+        type: "error",
+        text: "Nie udało się rozpocząć płatności. Spróbuj ponownie później.",
+      });
+    }
+  };
+
+  const handleRestore = async () => {
+    setIsActionLoading(true);
+    setStatusMessage(null);
+    try {
+      const customerInfo = await restoreRevenueCatPurchases();
+      if (hasRevenueCatPremium(customerInfo)) {
+        try {
+          await syncSubscription();
+        } catch {
+          setStatusMessage({
+            type: "error",
+            text: 'Zakup został zakończony, ale nie udało się odświeżyć statusu Premium. Spróbuj ponownie za chwilę lub użyj „Przywróć zakup".',
+          });
+          setIsActionLoading(false);
+          return;
+        }
+        setIsActionLoading(false);
+        onClose();
+        Alert.alert("Zakup przywrócony", "Zakup został przywrócony.");
+      } else {
+        setIsActionLoading(false);
+        setStatusMessage({
+          type: "info",
+          text: "Nie znaleziono aktywnej subskrypcji Premium.",
+        });
+      }
+    } catch {
+      setIsActionLoading(false);
+      setStatusMessage({
+        type: "error",
+        text: "Nie udało się przywrócić zakupów. Spróbuj ponownie później.",
+      });
+    }
+  };
 
   return (
     <ScrollView
@@ -152,10 +248,24 @@ function PaywallContent({
         <Text style={styles.subtitle}>{headerSubtitle}</Text>
       </View>
 
+      {/* trial active info */}
+      {isTrialActive ? (
+        <View style={styles.trialBanner}>
+          <Icon source="clock-outline" size={16} color={theme.colors.primary} />
+          <Text style={styles.trialText}>
+            Korzystasz z 3-dniowego dostępu Premium.
+          </Text>
+        </View>
+      ) : null}
+
       {/* reason-specific context */}
       {showReasonMessage ? (
         <View style={styles.reasonBanner}>
-          <Icon source="information-outline" size={16} color={theme.colors.primary} />
+          <Icon
+            source="information-outline"
+            size={16}
+            color={theme.colors.primary}
+          />
           <Text style={styles.reasonText}>{reasonMessage}</Text>
         </View>
       ) : null}
@@ -165,52 +275,134 @@ function PaywallContent({
       <View style={styles.benefitsList}>
         {BENEFITS.map((b) => (
           <View key={b.icon} style={styles.benefitRow}>
-            <Icon source="check-circle-outline" size={18} color={theme.colors.primary} />
+            <Icon
+              source="check-circle-outline"
+              size={18}
+              color={theme.colors.primary}
+            />
             <Text style={styles.benefitLabel}>{b.label}</Text>
           </View>
         ))}
       </View>
 
-      {/* pricing */}
-      <Text style={styles.sectionTitle}>Cennik</Text>
-      <View style={styles.pricingCard}>
-        <View style={styles.pricingRow}>
-          <View>
-            <Text style={styles.pricingLabel}>Miesięczny</Text>
-            <Text style={styles.pricingPrice}>9,99 zł / miesiąc</Text>
-          </View>
-        </View>
-      </View>
-      <View style={[styles.pricingCard, styles.pricingCardFeatured]}>
-        <View style={styles.pricingRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.pricingLabel, { color: theme.colors.primary }]}>
-              Roczny
-            </Text>
-            <Text style={[styles.pricingPrice, { color: theme.colors.primary }]}>
-              59,99 zł / rok
-            </Text>
-          </View>
-          <View style={styles.saveBadge}>
-            <Text style={styles.saveBadgeText}>Najlepsza oferta</Text>
-          </View>
-        </View>
-      </View>
+      {/* pricing & purchase – Android only */}
+      {isAndroid ? (
+        <>
+          <Text style={styles.sectionTitle}>Cennik</Text>
 
-      {/* CTA buttons */}
-      <Button
-        mode="contained"
-        style={styles.ctaButton}
-        contentStyle={styles.ctaButtonContent}
-        onPress={() => {
-          Alert.alert(
-            "Płatności wkrótce",
-            "Płatności zostaną dodane w kolejnym kroku.",
-          );
-        }}
-      >
-        Odblokuj Premium
-      </Button>
+          {isOfferingLoading ? (
+            <ActivityIndicator
+              style={styles.offeringLoader}
+              color={theme.colors.primary}
+            />
+          ) : !hasAnyPackage ? (
+            <View style={styles.unavailableBanner}>
+              <Text style={styles.unavailableText}>
+                Płatności są chwilowo niedostępne. Spróbuj ponownie później.
+              </Text>
+            </View>
+          ) : (
+            <>
+              {/* monthly card */}
+              {monthlyPackage ? (
+                <View style={styles.pricingCard}>
+                  <View style={styles.pricingRow}>
+                    <View>
+                      <Text style={styles.pricingLabel}>Miesięczny</Text>
+                      <Text style={styles.pricingPrice}>
+                        {monthlyPackage.product.priceString} / miesiąc
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ) : null}
+
+              {/* annual card */}
+              {annualPackage ? (
+                <View
+                  style={[styles.pricingCard, styles.pricingCardFeatured]}
+                >
+                  <View style={styles.pricingRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.pricingLabel,
+                          { color: theme.colors.primary },
+                        ]}
+                      >
+                        Roczny
+                      </Text>
+                      <Text
+                        style={[
+                          styles.pricingPrice,
+                          { color: theme.colors.primary },
+                        ]}
+                      >
+                        {annualPackage.product.priceString} / rok
+                      </Text>
+                    </View>
+                    <View style={styles.saveBadge}>
+                      <Text style={styles.saveBadgeText}>Najlepsza cena</Text>
+                    </View>
+                  </View>
+                </View>
+              ) : null}
+
+              {/* status message */}
+              {statusMessage ? (
+                <View
+                  style={[
+                    styles.statusBanner,
+                    statusMessage.type === "error"
+                      ? styles.statusBannerError
+                      : styles.statusBannerInfo,
+                  ]}
+                >
+                  <Text style={styles.statusText}>{statusMessage.text}</Text>
+                </View>
+              ) : null}
+
+              {/* purchase buttons */}
+              {monthlyPackage ? (
+                <Button
+                  mode="outlined"
+                  style={styles.purchaseButton}
+                  contentStyle={styles.purchaseButtonContent}
+                  disabled={isActionLoading}
+                  loading={isActionLoading}
+                  onPress={() => void handlePurchase(monthlyPackage)}
+                >
+                  Kup plan miesięczny
+                </Button>
+              ) : null}
+              {annualPackage ? (
+                <Button
+                  mode="contained"
+                  style={styles.purchaseButton}
+                  contentStyle={styles.purchaseButtonContent}
+                  disabled={isActionLoading}
+                  loading={isActionLoading}
+                  onPress={() => void handlePurchase(annualPackage)}
+                >
+                  Kup plan roczny
+                </Button>
+              ) : null}
+
+              {/* restore purchase */}
+              <Button
+                mode="text"
+                style={styles.restoreButton}
+                disabled={isActionLoading}
+                onPress={() => void handleRestore()}
+              >
+                Przywróć zakup
+              </Button>
+            </>
+          )}
+        </>
+      ) : null}
+
+      {/* dismiss */}
       <Button mode="text" onPress={onClose} style={styles.laterButton}>
         Może później
       </Button>
@@ -252,6 +444,21 @@ function makeStyles(theme: MD3Theme) {
       color: theme.colors.onSurfaceVariant,
       textAlign: "center",
     },
+    trialBanner: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 8,
+      backgroundColor: theme.colors.primaryContainer,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 12,
+    },
+    trialText: {
+      flex: 1,
+      fontSize: 13,
+      lineHeight: 18,
+      color: theme.colors.onPrimaryContainer,
+    },
     reasonBanner: {
       flexDirection: "row",
       alignItems: "flex-start",
@@ -288,6 +495,21 @@ function makeStyles(theme: MD3Theme) {
       fontSize: 14,
       color: theme.colors.onSurface,
     },
+    offeringLoader: {
+      marginVertical: 20,
+    },
+    unavailableBanner: {
+      borderRadius: 12,
+      padding: 14,
+      backgroundColor: theme.colors.surfaceVariant,
+      marginBottom: 16,
+    },
+    unavailableText: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: theme.colors.onSurfaceVariant,
+      textAlign: "center",
+    },
     pricingCard: {
       borderWidth: 1,
       borderColor: theme.colors.outlineVariant,
@@ -298,7 +520,7 @@ function makeStyles(theme: MD3Theme) {
     pricingCardFeatured: {
       borderColor: theme.colors.primary,
       backgroundColor: theme.colors.primaryContainer,
-      marginBottom: 24,
+      marginBottom: 16,
     },
     pricingRow: {
       flexDirection: "row",
@@ -325,15 +547,36 @@ function makeStyles(theme: MD3Theme) {
       fontWeight: "700",
       color: theme.colors.onPrimary,
     },
-    ctaButton: {
+    statusBanner: {
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 12,
+    },
+    statusBannerError: {
+      backgroundColor: theme.colors.errorContainer,
+    },
+    statusBannerInfo: {
+      backgroundColor: theme.colors.surfaceVariant,
+    },
+    statusText: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: theme.colors.onSurface,
+    },
+    purchaseButton: {
       borderRadius: 14,
       marginBottom: 8,
     },
-    ctaButtonContent: {
+    purchaseButtonContent: {
       paddingVertical: 6,
+    },
+    restoreButton: {
+      alignSelf: "center",
+      marginBottom: 4,
     },
     laterButton: {
       alignSelf: "center",
+      marginTop: 4,
     },
   });
 }
@@ -357,11 +600,17 @@ function PaywallModal({
   reason,
   entitlements,
   onClose,
+  monthlyPackage,
+  annualPackage,
+  isOfferingLoading,
 }: {
   visible: boolean;
   reason: PremiumPaywallReason;
   entitlements: EntitlementsDto | undefined;
   onClose: () => void;
+  monthlyPackage: PurchasesPackage | null;
+  annualPackage: PurchasesPackage | null;
+  isOfferingLoading: boolean;
 }) {
   const theme = useTheme<MD3Theme>();
   const modalContainerStyle = {
@@ -382,6 +631,9 @@ function PaywallModal({
           reason={reason}
           entitlements={entitlements}
           onClose={onClose}
+          monthlyPackage={monthlyPackage}
+          annualPackage={annualPackage}
+          isOfferingLoading={isOfferingLoading}
         />
       </Modal>
     </Portal>
@@ -397,6 +649,12 @@ export function PremiumProvider({
   const queryClient = useQueryClient();
   const { data: entitlements, isLoading } = useEntitlements(
     isSignedIn === true,
+  );
+
+  const { data: offering, isLoading: isOfferingLoading } =
+    useRevenueCatOffering();
+  const { monthlyPackage, annualPackage } = getPremiumPackages(
+    offering ?? null,
   );
 
   const [isOpen, setIsOpen] = useState(false);
@@ -434,6 +692,9 @@ export function PremiumProvider({
         reason={reason}
         entitlements={entitlements}
         onClose={handleClose}
+        monthlyPackage={monthlyPackage}
+        annualPackage={annualPackage}
+        isOfferingLoading={isOfferingLoading}
       />
     </PremiumContext.Provider>
   );
