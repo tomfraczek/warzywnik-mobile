@@ -27,6 +27,7 @@ import {
   Provider as PaperProvider,
 } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { revenueCatKeys } from "../api/queries/revenueCat/revenueCatKeys";
 import { getMe } from "../api/queries/users/useUpdateMe";
 import { clientPersister, queryClient } from "../api/queryClient";
 import { SettingsProvider, useSettings } from "../context/SettingsProvider";
@@ -202,6 +203,10 @@ function AuthBootstrapGate() {
         }
         if (me.id) {
           await configureRevenueCat(me.id);
+          // Invalidate so the offerings hook refetches now that the SDK is ready
+          void queryClient.invalidateQueries({
+            queryKey: revenueCatKeys.defaultOffering,
+          });
         }
       })
       .catch((err) => {
