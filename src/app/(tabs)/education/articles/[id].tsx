@@ -3,6 +3,7 @@ import { useTrackAnalyticsEvents } from "@/src/api/queries/analytics/useTrackAna
 import { useGetArticle } from "@/src/api/queries/articles/useGetArticle";
 import { Screen } from "@/src/components/Screen";
 import { FavoriteButton } from "@/src/components/ui/FavoriteButton";
+import { usePremium } from "@/src/context/PremiumContext";
 import { normalizeArticleHtmlWhitespace } from "@/src/utils/html";
 import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
@@ -302,6 +303,8 @@ export default function ArticleDetailsScreen() {
   const { width } = useWindowDimensions();
   const theme = useTheme<MD3Theme>();
   const palette = buildPalette(theme.dark);
+  const { entitlements, openPremiumPaywall } = usePremium();
+  const isLocked = entitlements != null && !entitlements.features.fullArticles;
 
   // ─── analytics ────────────────────────────────────────────────────────────
   const sessionId = useRef(
@@ -587,18 +590,80 @@ export default function ArticleDetailsScreen() {
           </View>
         </View>
 
-        {/* content */}
-        {normalizedContent ? (
+        {/* content — full for premium, clipped+paywall for free */}
+        {!isLocked && normalizedContent ? (
           <View
             style={[
               s.sectionCard,
-              {
-                backgroundColor: palette.cardBg,
-                borderColor: palette.cardBorder,
-              },
+              { backgroundColor: palette.cardBg, borderColor: palette.cardBorder },
             ]}
           >
             <RenderHTML {...(renderProps as RenderHTMLProps)} />
+          </View>
+        ) : null}
+
+        {isLocked ? (
+          <View
+            style={[
+              s.sectionCard,
+              { backgroundColor: palette.cardBg, borderColor: palette.cardBorder },
+            ]}
+          >
+            {/* clipped preview — visible only if backend returned any content */}
+            {normalizedContent ? (
+              <View style={{ position: "relative" }}>
+                <View style={{ height: 160, overflow: "hidden" }}>
+                  <RenderHTML {...(renderProps as RenderHTMLProps)} />
+                </View>
+                {/* multi-layer fade overlay simulating gradient */}
+                <View
+                  pointerEvents="none"
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: 100,
+                    flexDirection: "column",
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  {([0, 0.1, 0.22, 0.38, 0.56, 0.72, 0.87, 0.97] as const).map(
+                    (opacity, i) => (
+                      <View
+                        key={i}
+                        style={{
+                          flex: 1,
+                          backgroundColor: palette.cardBg,
+                          opacity,
+                        }}
+                      />
+                    ),
+                  )}
+                </View>
+              </View>
+            ) : null}
+
+            {/* paywall section — always visible when locked */}
+            <View style={s.paywallSection}>
+              <View style={s.paywallIconRow}>
+                <Icon source="crown" size={22} color={theme.colors.primary} />
+              </View>
+              <Text style={[s.paywallTitle, { color: palette.heading }]}>
+                Pełna treść dostępna w Premium
+              </Text>
+              <Text style={[s.paywallBody, { color: palette.secondary }]}>
+                Odblokuj dostęp do wszystkich artykułów i pełnej wiedzy ogrodniczej.
+              </Text>
+              <Button
+                mode="contained"
+                style={s.paywallButton}
+                contentStyle={s.paywallButtonContent}
+                onPress={() => openPremiumPaywall({ reason: "fullArticles" })}
+              >
+                Odblokuj Premium
+              </Button>
+            </View>
           </View>
         ) : null}
 
@@ -761,5 +826,38 @@ const s = StyleSheet.create({
   chipText: {
     fontSize: 13,
     fontWeight: "400",
+  },
+  paywallSection: {
+    paddingTop: 20,
+    alignItems: "center",
+    gap: 10,
+  },
+  paywallIconRow: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "rgba(47,107,79,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  paywallTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    textAlign: "center",
+    letterSpacing: -0.2,
+  },
+  paywallBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: "center",
+  },
+  paywallButton: {
+    marginTop: 6,
+    borderRadius: 14,
+    alignSelf: "stretch",
+  },
+  paywallButtonContent: {
+    paddingVertical: 6,
   },
 });

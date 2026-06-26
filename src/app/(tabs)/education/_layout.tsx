@@ -5,7 +5,18 @@ function ArticleDetailsHeader() {
   const { fromHome } = useLocalSearchParams<{ fromHome?: string }>();
   return (
     <CustomHeader
-      title="Artykuł"
+      variant="overlay"
+      backRoute={fromHome ? "/(tabs)/home" : undefined}
+    />
+  );
+}
+
+function VegetableDetailsHeader() {
+  const { fromHome } = useLocalSearchParams<{ fromHome?: string }>();
+  return (
+    <CustomHeader
+      title="Warzywo"
+      variant="overlay"
       backRoute={fromHome ? "/(tabs)/home" : undefined}
     />
   );
@@ -28,7 +39,10 @@ export default function EducationLayout() {
       <Stack.Screen name="articles/index" options={{ title: "Artykuły" }} />
       <Stack.Screen
         name="articles/[id]"
-        options={{ header: () => <ArticleDetailsHeader /> }}
+        options={{
+          headerTransparent: true,
+          header: () => <ArticleDetailsHeader />,
+        }}
       />
       <Stack.Screen name="[slug]" options={{ title: "Artykuł" }} />
       <Stack.Screen name="vegetables/index" options={{ title: "Warzywa" }} />
@@ -41,7 +55,7 @@ export default function EducationLayout() {
         options={{
           title: "Warzywo",
           headerTransparent: true,
-          header: () => <CustomHeader title="Warzywo" variant="overlay" />,
+          header: () => <VegetableDetailsHeader />,
         }}
       />
       <Stack.Screen name="soils/index" options={{ title: "Gleby" }} />

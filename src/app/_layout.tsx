@@ -343,21 +343,21 @@ function RootLayoutContent() {
 
   return (
     <SafeAreaProvider>
-      <PaperProvider theme={theme}>
-        <StatusBar
-          style={theme.dark ? "light" : "dark"}
-          backgroundColor={theme.colors.background}
-        />
-        <PersistQueryClientProvider
-          client={queryClient}
-          persistOptions={{
-            persister: clientPersister,
-            maxAge: 1000 * 60 * 60 * 24,
-            dehydrateOptions: {
-              shouldDehydrateMutation: () => false,
-            },
-          }}
-        >
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{
+          persister: clientPersister,
+          maxAge: 1000 * 60 * 60 * 24,
+          dehydrateOptions: {
+            shouldDehydrateMutation: () => false,
+          },
+        }}
+      >
+        <PaperProvider theme={theme}>
+          <StatusBar
+            style={theme.dark ? "light" : "dark"}
+            backgroundColor={theme.colors.background}
+          />
           <ClerkProvider
             publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!}
             tokenCache={tokenCache}
@@ -368,9 +368,9 @@ function RootLayoutContent() {
               <LocationSetupRequiredModal />
             </PremiumProvider>
           </ClerkProvider>
-        </PersistQueryClientProvider>
-        <OfflineBanner />
-      </PaperProvider>
+          <OfflineBanner />
+        </PaperProvider>
+      </PersistQueryClientProvider>
     </SafeAreaProvider>
   );
 }

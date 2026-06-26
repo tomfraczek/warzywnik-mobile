@@ -9,6 +9,7 @@ import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
 import { ArticlePreviewCard } from "@/src/components/ui/ArticlePreviewCard";
 import { Card } from "@/src/components/ui/Card";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
+import { usePremium } from "@/src/context/PremiumContext";
 import { useSettings } from "@/src/context/SettingsProvider";
 import { radius, spacing } from "@/src/theme/ui";
 import {
@@ -209,6 +210,50 @@ const prefetchArticleCover = (uri?: string | null) => {
   void Image.prefetch(uri, "memory-disk").catch(() => undefined);
 };
 
+function SubscriptionBadge({
+  isPremium,
+  source,
+}: {
+  isPremium: boolean;
+  source: "trial" | "subscription" | "free";
+}) {
+  if (isPremium && source === "subscription") {
+    return (
+      <View style={badgeStyles.row}>
+        <MaterialCommunityIcons name="crown" size={13} color="#D9A200" />
+        <Text style={[badgeStyles.label, { color: "#D9A200" }]}>Premium</Text>
+      </View>
+    );
+  }
+  if (isPremium && source === "trial") {
+    return (
+      <View style={badgeStyles.row}>
+        <MaterialCommunityIcons name="crown-outline" size={13} color="#7DAA8A" />
+        <Text style={[badgeStyles.label, { color: "#7DAA8A" }]}>Trial</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={badgeStyles.row}>
+      <MaterialCommunityIcons name="sprout-outline" size={13} color="#8F98A3" />
+      <Text style={[badgeStyles.label, { color: "#8F98A3" }]}>Free</Text>
+    </View>
+  );
+}
+
+const badgeStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
@@ -216,6 +261,20 @@ export default function HomeScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const { profile, location, tutorials, setTutorials } = useSettings();
+  const { entitlements } = usePremium();
+
+  const navLockRef = useRef(false);
+  const safePush = useCallback(
+    (href: Parameters<typeof router.push>[0]) => {
+      if (navLockRef.current) return;
+      navLockRef.current = true;
+      router.push(href);
+      setTimeout(() => {
+        navLockRef.current = false;
+      }, 800);
+    },
+    [router],
+  );
 
   const scrollViewRef = useRef<ScrollView>(null);
   const notificationsRef = useRef<View>(null);
@@ -333,6 +392,12 @@ export default function HomeScreen() {
               <Text style={styles.title}>
                 Cześć{profile.name ? `, ${profile.name}` : ""}!
               </Text>
+              {entitlements ? (
+                <SubscriptionBadge
+                  isPremium={entitlements.isPremium}
+                  source={entitlements.source}
+                />
+              ) : null}
             </View>
             <View
               ref={notificationsRef}
@@ -381,7 +446,7 @@ export default function HomeScreen() {
               collapsable={false}
               testID="home-weather-card"
             >
-            <Pressable onPress={() => router.push("/(tabs)/home/weather")}>
+            <Pressable onPress={() => safePush("/(tabs)/home/weather")}>
               <Card title="Pogoda teraz" subtitle={weatherSubtitle}>
                 {isWeatherError && !weatherData ? (
                   <View style={styles.weatherErrorWrap}>
@@ -403,7 +468,7 @@ export default function HomeScreen() {
                       <Button
                         compact
                         mode="text"
-                        onPress={() => router.push("/(tabs)/home/weather")}
+                        onPress={() => safePush("/(tabs)/home/weather")}
                       >
                         Szczegóły
                       </Button>
@@ -511,7 +576,7 @@ export default function HomeScreen() {
                         </Text>
                       ) : null}
                       <Pressable
-                        onPress={() => router.push("/(tabs)/home/weather")}
+                        onPress={() => safePush("/(tabs)/home/weather")}
                         hitSlop={8}
                       >
                         <Text style={styles.weatherStatusLink}>
@@ -575,15 +640,6 @@ export default function HomeScreen() {
                           {gardenRiskStatusTimeWindow}
                         </Text>
                       ) : null}
-
-                      <Pressable
-                        onPress={() => router.push("/(tabs)/home/warnings")}
-                        hitSlop={8}
-                      >
-                        <Text style={styles.weatherStatusLink}>
-                          Zobacz wszystkie alerty
-                        </Text>
-                      </Pressable>
                     </View>
                   );
                 })()
@@ -603,7 +659,7 @@ export default function HomeScreen() {
                 title="Popularne warzywa w tym sezonie"
                 actionLabel="Zobacz wszystkie"
                 onActionPress={() =>
-                  router.push("/(tabs)/education/vegetables")
+                  safePush("/(tabs)/education/vegetables")
                 }
               />
               {vegetablesLoading ? (
@@ -618,7 +674,10 @@ export default function HomeScreen() {
                       item={item}
                       rank={index + 1}
                       onPress={() =>
-                        router.push(`/(tabs)/education/vegetables/${item.id}`)
+                        safePush({
+                          pathname: "/(tabs)/education/vegetables/[id]",
+                          params: { id: item.id, fromHome: "1" },
+                        })
                       }
                     />
                   ))}
@@ -640,7 +699,7 @@ export default function HomeScreen() {
                 <HomeSectionHeader
                   title="Polecane artykuły"
                   actionLabel="Zobacz wszystkie"
-                  onActionPress={() => router.push("/(tabs)/education/articles")}
+                  onActionPress={() => safePush("/(tabs)/education/articles")}
                 />
                 {articlesLoading ? (
                   <View style={styles.loadingWrap}>
@@ -653,7 +712,7 @@ export default function HomeScreen() {
                       prefetchArticleCover(tips[0].coverImageUrl)
                     }
                     onPress={() =>
-                      router.push({
+                      safePush({
                         pathname: "/(tabs)/education/articles/[id]",
                         params: { id: tips[0].id, fromHome: "1" },
                       })
@@ -670,7 +729,7 @@ export default function HomeScreen() {
                         prefetchArticleCover(article.coverImageUrl)
                       }
                       onPress={() =>
-                        router.push({
+                        safePush({
                           pathname: "/(tabs)/education/articles/[id]",
                           params: { id: article.id, fromHome: "1" },
                         })
