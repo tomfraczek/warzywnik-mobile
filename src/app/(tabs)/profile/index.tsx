@@ -427,21 +427,37 @@ export default function ProfileScreen() {
         </Card>
 
         {entitlements?.source === "trial" && entitlements?.isPremium ? (
-          <Card title="Dostep próbny Premium">
+          <Card title="Dostęp próbny Premium">
             <Text style={styles.preferenceDescription}>
-              Korzystasz z 3-dniowego dostępu Premium. Po zakończeniu okresu
-              próbnego część funkcji zostanie zablokowana.
+              Korzystasz z 7-dniowego dostępu Premium za darmo. Po zakończeniu
+              okresu próbnego część funkcji zostanie zablokowana.
             </Text>
-            {entitlements.trialEndsAt ? (
-              <Text style={[styles.label, { marginTop: spacing.sm }]}>
-                Dostęp próbny do:{" "}
-                {new Intl.DateTimeFormat("pl-PL", {
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                }).format(new Date(entitlements.trialEndsAt))}
-              </Text>
-            ) : null}
+            {entitlements.trialEndsAt ? (() => {
+              const endsAt = new Date(entitlements.trialEndsAt);
+              const daysLeft = Math.max(
+                0,
+                Math.ceil(
+                  (endsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+                ),
+              );
+              return (
+                <>
+                  <Text style={[styles.label, { marginTop: spacing.sm }]}>
+                    Trial kończy się:{" "}
+                    {new Intl.DateTimeFormat("pl-PL", {
+                      day: "2-digit",
+                      month: "long",
+                      year: "numeric",
+                    }).format(endsAt)}
+                  </Text>
+                  {daysLeft > 0 ? (
+                    <Text style={styles.helper}>
+                      Pozostało: {daysLeft} {daysLeft === 1 ? "dzień" : daysLeft < 5 ? "dni" : "dni"}
+                    </Text>
+                  ) : null}
+                </>
+              );
+            })() : null}
           </Card>
         ) : null}
 
@@ -452,13 +468,25 @@ export default function ProfileScreen() {
               label={
                 entitlements?.isPremium
                   ? entitlements.source === "trial"
-                    ? "Trial"
-                    : "Premium"
-                  : "Free"
+                    ? "Premium trial aktywny"
+                    : "Premium aktywne"
+                  : "Plan Free"
               }
               tone={entitlements?.isPremium ? "success" : "neutral"}
             />
           </View>
+          {entitlements?.isPremium &&
+          entitlements.source === "subscription" &&
+          entitlements.subscriptionExpiresAt ? (
+            <Text style={styles.helper}>
+              Premium aktywne do:{" "}
+              {new Intl.DateTimeFormat("pl-PL", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              }).format(new Date(entitlements.subscriptionExpiresAt))}
+            </Text>
+          ) : null}
           {!entitlements?.isPremium ? (
             <Button
               mode="outlined"

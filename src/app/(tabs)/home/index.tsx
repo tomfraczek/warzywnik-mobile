@@ -5,6 +5,11 @@ import { WeatherStatusLevel } from "@/src/api/queries/users/meTypes";
 import { useGetMyWeather } from "@/src/api/queries/users/useGetMyWeather";
 import { NotificationsBellButton } from "@/src/components/navigation/NotificationsBellButton";
 import { Screen } from "@/src/components/Screen";
+import {
+  hasSeenTrialWelcomeModal,
+  markTrialWelcomeModalSeen,
+  TrialWelcomeModal,
+} from "@/src/components/TrialWelcomeModal";
 import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
 import { ArticlePreviewCard } from "@/src/components/ui/ArticlePreviewCard";
 import { Card } from "@/src/components/ui/Card";
@@ -21,11 +26,12 @@ import {
   formatWeatherStatusTimeWindow,
   normalizeWeatherStatus,
 } from "@/src/utils/weatherStatus";
+import { useUser } from "@clerk/clerk-expo";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
@@ -262,6 +268,7 @@ export default function HomeScreen() {
   const styles = makeStyles(theme);
   const { profile, location, tutorials, setTutorials } = useSettings();
   const { entitlements } = usePremium();
+  const { user } = useUser();
 
   const navLockRef = useRef(false);
   const safePush = useCallback(
@@ -286,15 +293,48 @@ export default function HomeScreen() {
   const vegetablesScrollY = useRef(0);
   const articlesScrollY = useRef(0);
 
+  const [onboardingReady, setOnboardingReady] = useState(false);
+  const [showTrialModal, setShowTrialModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const trialModalCheckedRef = useRef(false);
 
+  // One-time check: decide whether to show trial modal or let tutorial run normally
+  useEffect(() => {
+    if (!user?.id || !entitlements || trialModalCheckedRef.current) return;
+    trialModalCheckedRef.current = true;
+
+    const isTrialActive =
+      entitlements.source === "trial" && entitlements.isPremium;
+
+    if (!isTrialActive) {
+      setOnboardingReady(true);
+      return;
+    }
+
+    void hasSeenTrialWelcomeModal(user.id).then((seen) => {
+      if (!seen) {
+        setShowTrialModal(true);
+      }
+      setOnboardingReady(true);
+    });
+  }, [user?.id, entitlements]);
+
+  // Show tutorial once onboarding is ready and trial modal is not blocking
   useFocusEffect(
     useCallback(() => {
+      if (!onboardingReady || showTrialModal) return;
       if (tutorials.enabled && !tutorials.homeSeen) {
         setShowTutorial(true);
       }
-    }, [tutorials.enabled, tutorials.homeSeen]),
+    }, [onboardingReady, showTrialModal, tutorials.enabled, tutorials.homeSeen]),
   );
+
+  const handleTrialModalClose = useCallback(() => {
+    setShowTrialModal(false);
+    if (user?.id) {
+      void markTrialWelcomeModalSeen(user.id);
+    }
+  }, [user?.id]);
 
   const handleTutorialDismiss = useCallback(
     (dontShowAgain: boolean) => {
@@ -741,6 +781,11 @@ export default function HomeScreen() {
           </>
         )}
       </ScrollView>
+
+      <TrialWelcomeModal
+        visible={showTrialModal}
+        onClose={handleTrialModalClose}
+      />
 
       <CoachMarkOverlay
         visible={showTutorial}

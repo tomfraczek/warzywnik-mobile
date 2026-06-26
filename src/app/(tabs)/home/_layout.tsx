@@ -44,7 +44,7 @@ export default function HomeLayout() {
       />
       <Stack.Screen
         name="delete-account"
-        options={{ title: "Usuń konto", headerBackTitle: "Ustawienia" }}
+        options={{ headerBackTitle: "Ustawienia" }}
       />
     </Stack>
   );

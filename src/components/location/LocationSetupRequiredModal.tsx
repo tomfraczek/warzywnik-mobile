@@ -319,6 +319,7 @@ export function LocationSetupRequiredModal() {
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.keyboardView}
         >
           <Text style={styles.title}>Ustaw lokalizację</Text>
           <Text style={styles.description}>
@@ -388,6 +389,8 @@ const makeStyles = (theme: MD3Theme) =>
       borderRadius: radius.lg,
       padding: spacing.md,
       backgroundColor: theme.colors.surface,
+    },
+    keyboardView: {
       gap: spacing.sm,
     },
     title: {
@@ -400,7 +403,6 @@ const makeStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurfaceVariant,
     },
     locationInput: {
-      marginTop: spacing.xs,
       backgroundColor: theme.colors.surface,
     },
     results: {

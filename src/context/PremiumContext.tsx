@@ -157,12 +157,14 @@ function PaywallContent({
   const isTrialEnded =
     entitlements?.source === "trial" && !entitlements?.isPremium;
 
-  const headerSubtitle = isTrialEnded
-    ? "Twój okres próbny zakończył się. Odblokuj Premium, aby kontynuować."
-    : "Odblokuj pełny potencjał swojego ogrodu z planem Premium.";
+  const headerSubtitle = isTrialActive
+    ? "Korzystasz z Premium za darmo."
+    : isTrialEnded
+      ? "Twój okres próbny zakończył się. Odblokuj Premium, aby kontynuować."
+      : "Odblokuj pełny potencjał swojego ogrodu z planem Premium.";
 
   const reasonMessage = REASON_MESSAGES[reason];
-  const showReasonMessage = reason !== "premiumRequired";
+  const showReasonMessage = reason !== "premiumRequired" && !isTrialActive;
 
   const hasAnyPackage = !!monthlyPackage || !!annualPackage;
 
@@ -253,7 +255,10 @@ function PaywallContent({
         <View style={styles.trialBanner}>
           <Icon source="clock-outline" size={16} color={theme.colors.primary} />
           <Text style={styles.trialText}>
-            Korzystasz z 3-dniowego dostępu Premium.
+            {"Korzystasz z Premium za darmo."}
+            {entitlements?.trialEndsAt
+              ? `\nTwój okres próbny kończy się ${formatDate(entitlements.trialEndsAt)}.`
+              : null}
           </Text>
         </View>
       ) : null}

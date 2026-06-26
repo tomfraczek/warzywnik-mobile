@@ -62,9 +62,13 @@ restClient.interceptors.response.use(
     const responseData = err?.response?.data as
       | Record<string, unknown>
       | undefined;
+    const requestHeaders = err?.config?.headers as Record<string, unknown> | undefined;
+    const hadAuthHeader = !!(
+      requestHeaders?.["Authorization"] ?? requestHeaders?.["authorization"]
+    );
     if (status === 403 && responseData?.code === "PREMIUM_REQUIRED") {
       premiumErrorHandler?.(responseData);
-    } else if (status === 401 || status === 403) {
+    } else if ((status === 401 || status === 403) && hadAuthHeader) {
       authErrorHandler?.(status);
     }
     if (__DEV__) {
