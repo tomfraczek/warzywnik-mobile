@@ -18,8 +18,15 @@ export const setAuthTokenProvider = (fn: () => Promise<string | null>) => {
 };
 
 let authErrorHandler: ((status: number) => void) | null = null;
-export const setAuthErrorHandler = (fn: (status: number) => void) => {
+export const setAuthErrorHandler = (fn: ((status: number) => void) | null) => {
   authErrorHandler = fn;
+};
+
+// Timestamp of the last sign-in. Auth errors within 3s of sign-in are
+// suppressed to avoid race-condition logouts during the Clerk token warm-up.
+let lastSignInAt = 0;
+export const markSignedIn = () => {
+  lastSignInAt = Date.now();
 };
 
 let premiumErrorHandler: ((data: unknown) => void) | null = null;
@@ -69,7 +76,10 @@ restClient.interceptors.response.use(
     if (status === 403 && responseData?.code === "PREMIUM_REQUIRED") {
       premiumErrorHandler?.(responseData);
     } else if ((status === 401 || status === 403) && hadAuthHeader) {
-      authErrorHandler?.(status);
+      const justSignedIn = Date.now() - lastSignInAt < 3000;
+      if (!justSignedIn) {
+        authErrorHandler?.(status);
+      }
     }
     if (__DEV__) {
       console.error("API error:", {

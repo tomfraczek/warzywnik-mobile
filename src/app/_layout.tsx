@@ -1,6 +1,6 @@
 // app/_layout.tsx (albo odpowiedni RootLayout w Twoim projekcie)
 
-import { setAuthErrorHandler, setAuthTokenProvider } from "@/src/api/axios";
+import { markSignedIn, setAuthErrorHandler, setAuthTokenProvider } from "@/src/api/axios";
 import {
   configureRevenueCat,
   logOutRevenueCat,
@@ -165,12 +165,14 @@ function AuthBootstrapGate() {
         setProfile({ name: "", avatarId: null });
         void logOutRevenueCat();
       }
+      setAuthErrorHandler(null);
       setAuthTokenProvider(async () => null);
       setReady(true);
       return;
     }
 
     wasSignedInRef.current = true;
+    markSignedIn();
     setAuthTokenProvider(async () => (await getToken()) ?? null);
 
     setAuthErrorHandler(async (_status) => {

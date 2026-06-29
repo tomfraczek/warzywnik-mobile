@@ -32,7 +32,7 @@ type HighlightRect = {
 type Props = {
   steps: CoachMarkStep[];
   visible: boolean;
-  onDismiss: (dontShowAgain: boolean) => void;
+  onDismiss: (dontShowAgain: boolean, skipped: boolean) => void;
   beforeStepMeasure?: (stepIndex: number) => Promise<void>;
 };
 
@@ -143,7 +143,7 @@ export function CoachMarkOverlay({
 
   const handleNext = () => {
     if (isLastStep) {
-      onDismiss(dontShowAgain);
+      onDismiss(dontShowAgain, false);
     } else {
       setStepIndex((i) => i + 1);
     }
@@ -154,7 +154,7 @@ export function CoachMarkOverlay({
   };
 
   const handleSkip = () => {
-    onDismiss(false);
+    onDismiss(dontShowAgain, true);
   };
 
   if (!visible || !currentStep) return null;
@@ -223,19 +223,17 @@ export function CoachMarkOverlay({
           <Text style={styles.tooltipTitle}>{currentStep.title}</Text>
           <Text style={styles.tooltipDescription}>{currentStep.description}</Text>
 
-          {isLastStep ? (
-            <Pressable
-              style={styles.checkboxRow}
+          <Pressable
+            style={styles.checkboxRow}
+            onPress={() => setDontShowAgain((v) => !v)}
+          >
+            <Checkbox
+              status={dontShowAgain ? "checked" : "unchecked"}
               onPress={() => setDontShowAgain((v) => !v)}
-            >
-              <Checkbox
-                status={dontShowAgain ? "checked" : "unchecked"}
-                onPress={() => setDontShowAgain((v) => !v)}
-                color="#4C7A5E"
-              />
-              <Text style={styles.checkboxLabel}>Nie pokazuj więcej</Text>
-            </Pressable>
-          ) : null}
+              color="#4C7A5E"
+            />
+            <Text style={styles.checkboxLabel}>Nie pokazuj więcej</Text>
+          </Pressable>
 
           <View style={styles.buttonRow}>
             {stepIndex > 0 ? (
@@ -247,9 +245,11 @@ export function CoachMarkOverlay({
             )}
 
             <View style={styles.rightButtons}>
-              <Pressable onPress={handleSkip} hitSlop={8}>
-                <Text style={styles.skipText}>Pomiń</Text>
-              </Pressable>
+              {!isLastStep ? (
+                <Pressable onPress={handleSkip} hitSlop={8}>
+                  <Text style={styles.skipText}>Pomiń</Text>
+                </Pressable>
+              ) : null}
               <Pressable onPress={handleNext} style={styles.nextButton}>
                 <Text style={styles.nextText}>
                   {isLastStep ? "Zakończ" : "Dalej →"}

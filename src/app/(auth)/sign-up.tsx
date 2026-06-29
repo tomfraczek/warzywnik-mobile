@@ -78,6 +78,8 @@ export default function SignUpScreen() {
       const code = clerkErr?.errors?.[0]?.code ?? "";
       if (code === "form_identifier_exists") {
         setEmailError("Proszę użyć innego adresu e-mail.");
+      } else if (code === "form_param_format_invalid") {
+        setEmailError("Podaj prawidłowy adres e-mail.");
       } else {
         console.error(JSON.stringify(err, null, 2));
       }

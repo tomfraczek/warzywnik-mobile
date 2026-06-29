@@ -2,6 +2,7 @@ import { restClient } from "@/src/api/axios";
 import { GeoSearchItem } from "@/src/api/queries/geo/types";
 import { useGeoSearch } from "@/src/api/queries/geo/useGeoSearch";
 import { useUpdateUserLocation } from "@/src/api/queries/geo/useUpdateUserLocation";
+import { usePremium } from "@/src/context/PremiumContext";
 import {
   LocationMode,
   StoredLocation,
@@ -14,7 +15,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import { isAxiosError } from "axios";
 import * as Location from "expo-location";
 import { usePathname, useSegments } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -49,10 +50,35 @@ const hasValidLocation = (location: unknown): location is { label: string } => {
   );
 };
 
+const LocationTextInput = memo(function LocationTextInput({
+  defaultValue,
+  onChangeText,
+  disabled,
+  inputStyle,
+}: {
+  defaultValue: string;
+  onChangeText: (text: string) => void;
+  disabled: boolean;
+  inputStyle: object;
+}) {
+  return (
+    <TextInput
+      mode="outlined"
+      defaultValue={defaultValue}
+      onChangeText={onChangeText}
+      placeholder="Wpisz miasto, ulicę lub adres"
+      style={inputStyle}
+      left={<TextInput.Icon icon="map-marker" />}
+      disabled={disabled}
+    />
+  );
+});
+
 export function LocationSetupRequiredModal() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const { isLoaded, isSignedIn, getToken } = useAuth();
+  const { trialCheckDone, trialModalShowing } = usePremium();
   const { location, setLocationPreference, languagePreference } = useSettings();
   const segments = useSegments();
   const pathname = usePathname();
@@ -302,10 +328,16 @@ export function LocationSetupRequiredModal() {
     }
   }, [applyLocationLocally, isOffline, updateLocation]);
 
+  const handleLocationQueryChange = useCallback((value: string) => {
+    setLocationQuery(value);
+    setSelectedLocationLabel(null);
+    setErrorMessage(null);
+  }, []);
+
   const isBusy = isChecking || updateLocation.isPending;
   const shouldShow = useMemo(
-    () => shouldRunCheck && visible,
-    [shouldRunCheck, visible],
+    () => shouldRunCheck && visible && trialCheckDone && !trialModalShowing,
+    [shouldRunCheck, visible, trialCheckDone, trialModalShowing],
   );
 
   if (!shouldRunCheck) return null;
@@ -318,7 +350,7 @@ export function LocationSetupRequiredModal() {
         contentContainerStyle={styles.modalContent}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.keyboardView}
         >
           <Text style={styles.title}>Ustaw lokalizację</Text>
@@ -327,18 +359,11 @@ export function LocationSetupRequiredModal() {
             pobierać pogodę i ostrzeżenia.
           </Text>
 
-          <TextInput
-            mode="outlined"
-            value={locationQuery}
-            onChangeText={(value) => {
-              setLocationQuery(value);
-              setSelectedLocationLabel(null);
-              setErrorMessage(null);
-            }}
-            placeholder="Wpisz miasto, ulicę lub adres"
-            style={styles.locationInput}
-            left={<TextInput.Icon icon="map-marker" />}
+          <LocationTextInput
+            defaultValue={locationQuery}
+            onChangeText={handleLocationQueryChange}
             disabled={isBusy || isOffline}
+            inputStyle={styles.locationInput}
           />
 
           {locationResults.length > 0 ? (

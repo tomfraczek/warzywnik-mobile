@@ -592,12 +592,20 @@ type PremiumContextValue = {
   openPremiumPaywall: (args: { reason: PremiumPaywallReason }) => void;
   entitlements: EntitlementsDto | undefined;
   isEntitlementsLoading: boolean;
+  trialCheckDone: boolean;
+  setTrialCheckDone: () => void;
+  trialModalShowing: boolean;
+  setTrialModalShowing: (showing: boolean) => void;
 };
 
 const PremiumContext = createContext<PremiumContextValue>({
   openPremiumPaywall: () => {},
   entitlements: undefined,
   isEntitlementsLoading: false,
+  trialCheckDone: true,
+  setTrialCheckDone: () => {},
+  trialModalShowing: false,
+  setTrialModalShowing: () => {},
 });
 
 function PaywallModal({
@@ -664,6 +672,30 @@ export function PremiumProvider({
 
   const [isOpen, setIsOpen] = useState(false);
   const [reason, setReason] = useState<PremiumPaywallReason>("premiumRequired");
+  const [trialCheckDone, setTrialCheckDone_] = useState(false);
+  const [trialModalShowing, setTrialModalShowing_] = useState(false);
+
+  // Reset gate on sign-out so the next sign-in re-evaluates
+  useEffect(() => {
+    if (!isSignedIn) {
+      setTrialCheckDone_(false);
+      setTrialModalShowing_(false);
+    }
+  }, [isSignedIn]);
+
+  // Non-trial users don't need the trial modal → open gate immediately
+  useEffect(() => {
+    if (!entitlements || trialCheckDone) return;
+    const isTrialActive =
+      entitlements.source === "trial" && entitlements.isPremium;
+    if (!isTrialActive) setTrialCheckDone_(true);
+  }, [entitlements, trialCheckDone]);
+
+  const setTrialCheckDone = useCallback(() => setTrialCheckDone_(true), []);
+  const setTrialModalShowing = useCallback(
+    (showing: boolean) => setTrialModalShowing_(showing),
+    [],
+  );
 
   const openPremiumPaywall = useCallback(
     (args: { reason: PremiumPaywallReason }) => {
@@ -689,7 +721,15 @@ export function PremiumProvider({
 
   return (
     <PremiumContext.Provider
-      value={{ openPremiumPaywall, entitlements, isEntitlementsLoading: isLoading }}
+      value={{
+        openPremiumPaywall,
+        entitlements,
+        isEntitlementsLoading: isLoading,
+        trialCheckDone,
+        setTrialCheckDone,
+        trialModalShowing,
+        setTrialModalShowing,
+      }}
     >
       {children}
       <PaywallModal

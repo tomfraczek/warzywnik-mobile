@@ -13,7 +13,6 @@ import {
 import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
 import { ArticlePreviewCard } from "@/src/components/ui/ArticlePreviewCard";
 import { Card } from "@/src/components/ui/Card";
-import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { usePremium } from "@/src/context/PremiumContext";
 import { useSettings } from "@/src/context/SettingsProvider";
 import { radius, spacing } from "@/src/theme/ui";
@@ -37,6 +36,7 @@ import {
   ActivityIndicator,
   Button,
   MD3Theme,
+  Snackbar,
   Text,
   useTheme,
 } from "react-native-paper";
@@ -234,7 +234,11 @@ function SubscriptionBadge({
   if (isPremium && source === "trial") {
     return (
       <View style={badgeStyles.row}>
-        <MaterialCommunityIcons name="crown-outline" size={13} color="#7DAA8A" />
+        <MaterialCommunityIcons
+          name="crown-outline"
+          size={13}
+          color="#7DAA8A"
+        />
         <Text style={[badgeStyles.label, { color: "#7DAA8A" }]}>Trial</Text>
       </View>
     );
@@ -267,7 +271,8 @@ export default function HomeScreen() {
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
   const { profile, location, tutorials, setTutorials } = useSettings();
-  const { entitlements } = usePremium();
+  const { entitlements, setTrialCheckDone, setTrialModalShowing } =
+    usePremium();
   const { user } = useUser();
 
   const navLockRef = useRef(false);
@@ -308,39 +313,57 @@ export default function HomeScreen() {
 
     if (!isTrialActive) {
       setOnboardingReady(true);
+      setTrialCheckDone();
       return;
     }
 
     void hasSeenTrialWelcomeModal(user.id).then((seen) => {
       if (!seen) {
         setShowTrialModal(true);
+        setTrialModalShowing(true);
+      } else {
+        setTrialCheckDone();
       }
       setOnboardingReady(true);
     });
   }, [user?.id, entitlements]);
 
-  // Show tutorial once onboarding is ready and trial modal is not blocking
+  // Show tutorial only when onboarding is ready, trial modal is gone, and location is set
   useFocusEffect(
     useCallback(() => {
       if (!onboardingReady || showTrialModal) return;
+      if (!location?.label) return;
       if (tutorials.enabled && !tutorials.homeSeen) {
         setShowTutorial(true);
       }
-    }, [onboardingReady, showTrialModal, tutorials.enabled, tutorials.homeSeen]),
+    }, [
+      onboardingReady,
+      showTrialModal,
+      location?.label,
+      tutorials.enabled,
+      tutorials.homeSeen,
+    ]),
   );
 
   const handleTrialModalClose = useCallback(() => {
     setShowTrialModal(false);
+    setTrialModalShowing(false);
+    setTrialCheckDone();
     if (user?.id) {
       void markTrialWelcomeModalSeen(user.id);
     }
-  }, [user?.id]);
+  }, [user?.id, setTrialCheckDone, setTrialModalShowing]);
+
+  const [showTutorialSkipInfo, setShowTutorialSkipInfo] = useState(false);
 
   const handleTutorialDismiss = useCallback(
-    (dontShowAgain: boolean) => {
+    (dontShowAgain: boolean, skipped: boolean) => {
       setShowTutorial(false);
       if (dontShowAgain) {
         setTutorials({ homeSeen: true });
+      }
+      if (skipped) {
+        setShowTutorialSkipInfo(true);
       }
     },
     [setTutorials],
@@ -453,26 +476,6 @@ export default function HomeScreen() {
               />
             </View>
           </View>
-          <StatusBadge
-            label={
-              isWeatherError && weatherData
-                ? "Pogoda: ostatnie dane"
-                : weatherData?.stale
-                  ? "Pogoda: nieaktualna"
-                  : weatherData
-                    ? "Pogoda: aktualna"
-                    : "Pogoda: brak danych"
-            }
-            tone={
-              isWeatherError && weatherData
-                ? "warning"
-                : weatherData?.stale
-                  ? "warning"
-                  : weatherData
-                    ? "success"
-                    : "neutral"
-            }
-          />
         </View>
 
         {isLoading ? (
@@ -486,83 +489,84 @@ export default function HomeScreen() {
               collapsable={false}
               testID="home-weather-card"
             >
-            <Pressable onPress={() => safePush("/(tabs)/home/weather")}>
-              <Card title="Pogoda teraz" subtitle={weatherSubtitle}>
-                {isWeatherError && !weatherData ? (
-                  <View style={styles.weatherErrorWrap}>
-                    <Text style={styles.placeholder}>
-                      {isWeatherMissingLocationError(weatherError)
-                        ? "Ustaw lokalizację, aby pobrać pogodę."
-                        : isWeatherUnavailableError(weatherError)
-                          ? "Pogoda chwilowo niedostępna."
-                          : "Nie udało się pobrać pogody (błąd serwera)."}
-                    </Text>
-                    {isWeatherMissingLocationError(weatherError) &&
-                    localLocationLabel ? (
-                      <Text style={styles.weatherMeta}>
-                        Lokalnie: {localLocationLabel}. Serwer nie ma jeszcze
-                        tej lokalizacji.
+              <Pressable onPress={() => safePush("/(tabs)/home/weather")}>
+                <Card title="Pogoda teraz" subtitle={weatherSubtitle}>
+                  {isWeatherError && !weatherData ? (
+                    <View style={styles.weatherErrorWrap}>
+                      <Text style={styles.placeholder}>
+                        {isWeatherMissingLocationError(weatherError)
+                          ? "Ustaw lokalizację, aby pobrać pogodę."
+                          : isWeatherUnavailableError(weatherError)
+                            ? "Pogoda chwilowo niedostępna."
+                            : "Nie udało się pobrać pogody (błąd serwera)."}
                       </Text>
-                    ) : null}
-                    <View style={styles.weatherErrorActions}>
-                      <Button
-                        compact
-                        mode="text"
-                        onPress={() => safePush("/(tabs)/home/weather")}
-                      >
-                        Szczegóły
-                      </Button>
+                      {isWeatherMissingLocationError(weatherError) &&
+                      localLocationLabel ? (
+                        <Text style={styles.weatherMeta}>
+                          Lokalnie: {localLocationLabel}. Serwer nie ma jeszcze
+                          tej lokalizacji.
+                        </Text>
+                      ) : null}
+                      <View style={styles.weatherErrorActions}>
+                        <Button
+                          compact
+                          mode="text"
+                          onPress={() => safePush("/(tabs)/home/weather")}
+                        >
+                          Szczegóły
+                        </Button>
+                      </View>
                     </View>
-                  </View>
-                ) : (
-                  <View style={styles.weatherRow}>
-                    <View style={styles.weatherMainData}>
-                      <Text style={styles.weatherTemp}>
-                        {weatherData?.current?.temp != null
-                          ? `${formatTemperature(weatherData.current.temp)}°`
-                          : "--°"}
-                      </Text>
-                      <Text style={styles.weatherTypeText}>
-                        {resolveWeatherLabel(
-                          weatherData?.current?.weatherLabel,
-                          weatherData?.current?.weatherType,
-                          {
-                            precip: weatherData?.current?.precip,
-                            rain: weatherData?.current?.rain,
-                            snow: weatherData?.current?.snow,
-                            isDay: weatherData?.current?.isDay,
-                          },
-                        )}
-                      </Text>
-                      <Text style={styles.weatherMeta}>
-                        Min {formatTemperature(weatherData?.today?.tempMin)}° •
-                        Max {formatTemperature(weatherData?.today?.tempMax)}°
-                      </Text>
-                      <Text style={styles.weatherMeta}>
-                        Wiatr {weatherData?.current?.windSpeed ?? "--"} km/h •
-                        Opad {weatherData?.current?.precip ?? "--"} mm
-                      </Text>
-                    </View>
+                  ) : (
+                    <View style={styles.weatherRow}>
+                      <View style={styles.weatherMainData}>
+                        <Text style={styles.weatherTemp}>
+                          {weatherData?.current?.temp != null
+                            ? `${formatTemperature(weatherData.current.temp)}°`
+                            : "--°"}
+                        </Text>
+                        <Text style={styles.weatherTypeText}>
+                          {resolveWeatherLabel(
+                            weatherData?.current?.weatherLabel,
+                            weatherData?.current?.weatherType,
+                            {
+                              precip: weatherData?.current?.precip,
+                              rain: weatherData?.current?.rain,
+                              snow: weatherData?.current?.snow,
+                              isDay: weatherData?.current?.isDay,
+                            },
+                          )}
+                        </Text>
+                        <Text style={styles.weatherMeta}>
+                          Min {formatTemperature(weatherData?.today?.tempMin)}°
+                          • Max {formatTemperature(weatherData?.today?.tempMax)}
+                          °
+                        </Text>
+                        <Text style={styles.weatherMeta}>
+                          Wiatr {weatherData?.current?.windSpeed ?? "--"} km/h •
+                          Opad {weatherData?.current?.precip ?? "--"} mm
+                        </Text>
+                      </View>
 
-                    <View style={styles.weatherIconWrap}>
-                      <MaterialCommunityIcons
-                        name={getWeatherIconName(
-                          weatherData?.current?.weatherType,
-                          {
-                            precip: weatherData?.current?.precip,
-                            rain: weatherData?.current?.rain,
-                            snow: weatherData?.current?.snow,
-                            isDay: weatherData?.current?.isDay,
-                          },
-                        )}
-                        size={26}
-                        color={theme.colors.primary}
-                      />
+                      <View style={styles.weatherIconWrap}>
+                        <MaterialCommunityIcons
+                          name={getWeatherIconName(
+                            weatherData?.current?.weatherType,
+                            {
+                              precip: weatherData?.current?.precip,
+                              rain: weatherData?.current?.rain,
+                              snow: weatherData?.current?.snow,
+                              isDay: weatherData?.current?.isDay,
+                            },
+                          )}
+                          size={26}
+                          color={theme.colors.primary}
+                        />
+                      </View>
                     </View>
-                  </View>
-                )}
-              </Card>
-            </Pressable>
+                  )}
+                </Card>
+              </Pressable>
             </View>
 
             {!isWeatherError && weatherStatus
@@ -698,9 +702,7 @@ export default function HomeScreen() {
               <HomeSectionHeader
                 title="Popularne warzywa w tym sezonie"
                 actionLabel="Zobacz wszystkie"
-                onActionPress={() =>
-                  safePush("/(tabs)/education/vegetables")
-                }
+                onActionPress={() => safePush("/(tabs)/education/vegetables")}
               />
               {vegetablesLoading ? (
                 <View style={styles.loadingWrap}>
@@ -787,6 +789,16 @@ export default function HomeScreen() {
         onClose={handleTrialModalClose}
       />
 
+      <Snackbar
+        visible={showTutorialSkipInfo}
+        onDismiss={() => setShowTutorialSkipInfo(false)}
+        duration={6000}
+        action={{ label: "OK", onPress: () => setShowTutorialSkipInfo(false) }}
+      >
+        Tutoriale znajdziesz w Ustawieniach konta — możesz je włączyć, wyłączyć
+        i przejść ponownie.
+      </Snackbar>
+
       <CoachMarkOverlay
         visible={showTutorial}
         onDismiss={handleTutorialDismiss}
@@ -824,7 +836,7 @@ export default function HomeScreen() {
             ref: vegetablesSectionRef,
             title: "Popularne warzywa sezonu",
             description:
-              "Odkryj, co inni hodują w tym sezonie. Dotknij \"Zobacz wszystkie\", aby przejść do pełnej biblioteki.",
+              'Odkryj, co inni hodują w tym sezonie. Dotknij "Zobacz wszystkie", aby przejść do pełnej biblioteki.',
             placement: "bottom",
           },
           {
