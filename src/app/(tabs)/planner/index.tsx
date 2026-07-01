@@ -1,13 +1,13 @@
 import { Screen } from "@/src/components/Screen";
 import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
 import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
-import { useSettings } from "@/src/context/SettingsProvider";
+import { useTutorial } from "@/src/hooks/useTutorial";
 import { getTaskNavigationTarget } from "@/src/features/tasks/taskRouting";
 import { spacing } from "@/src/theme/ui";
 import { pluralize } from "@/src/utils/pluralize";
-import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useIsFocused } from "@react-navigation/native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, MD3Theme, Text, useTheme } from "react-native-paper";
 import { PlannerDayGroup } from "./_components/PlannerDayGroup";
@@ -32,7 +32,10 @@ export default function PlannerScreen() {
   const overview = usePlannerOverview(30);
   const actions = usePlannerActions();
 
-  const { tutorials, setTutorials } = useSettings();
+  const tutorial = useTutorial("calendar");
+  const params = useLocalSearchParams<{ showTutorial?: string }>();
+  const isForced = params.showTutorial === "1";
+  const forcedShownRef = useRef(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const scrollViewRef = useRef<ScrollView | null>(null);
   const summaryCardRef = useRef<View | null>(null);
@@ -40,23 +43,30 @@ export default function PlannerScreen() {
   const todaySectionRef = useRef<View | null>(null);
   const todaySectionY = useRef(0);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (tutorials.enabled && !tutorials.plannerSeen) {
-        setShowTutorial(true);
-      }
-    }, [tutorials.enabled, tutorials.plannerSeen]),
-  );
+  const isFocused = useIsFocused();
 
-  const handleTutorialDismiss = useCallback(
-    (dontShowAgain: boolean) => {
-      setShowTutorial(false);
-      if (dontShowAgain) {
-        setTutorials({ plannerSeen: true });
-      }
-    },
-    [setTutorials],
-  );
+  useEffect(() => {
+    if (!isForced) forcedShownRef.current = false;
+  }, [isForced]);
+
+  useEffect(() => {
+    if (!isFocused) return;
+    if (tutorial.shouldShow) {
+      setShowTutorial(true);
+    } else if (isForced && !forcedShownRef.current) {
+      forcedShownRef.current = true;
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      setShowTutorial(true);
+    }
+  }, [isFocused, tutorial.shouldShow, isForced]);
+
+  const handleTutorialDismiss = useCallback((skipped: boolean) => {
+    setShowTutorial(false);
+    if (!isForced) {
+      if (skipped) tutorial.disable();
+      else tutorial.complete();
+    }
+  }, [tutorial, isForced]);
 
   const handleBeforeStepMeasure = useCallback(
     (stepIndex: number): Promise<void> =>
@@ -386,6 +396,7 @@ export default function PlannerScreen() {
         visible={showTutorial}
         onDismiss={handleTutorialDismiss}
         beforeStepMeasure={handleBeforeStepMeasure}
+        showCheckbox={!isForced}
         steps={[
           {
             ref: summaryCardRef,

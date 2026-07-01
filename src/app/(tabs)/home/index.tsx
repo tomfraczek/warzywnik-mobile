@@ -15,6 +15,7 @@ import { ArticlePreviewCard } from "@/src/components/ui/ArticlePreviewCard";
 import { Card } from "@/src/components/ui/Card";
 import { usePremium } from "@/src/context/PremiumContext";
 import { useSettings } from "@/src/context/SettingsProvider";
+import { useTutorial } from "@/src/hooks/useTutorial";
 import { radius, spacing } from "@/src/theme/ui";
 import {
   formatTemperature,
@@ -29,14 +30,14 @@ import { useUser } from "@clerk/clerk-expo";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Button,
   MD3Theme,
-  Snackbar,
   Text,
   useTheme,
 } from "react-native-paper";
@@ -270,7 +271,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
-  const { profile, location, tutorials, setTutorials } = useSettings();
+  const { profile, location } = useSettings();
+  const tutorial = useTutorial("home");
+  const params = useLocalSearchParams<{ showTutorial?: string }>();
+  const isForced = params.showTutorial === "1";
+  const forcedShownRef = useRef(false);
   const { entitlements, setTrialCheckDone, setTrialModalShowing } =
     usePremium();
   const { user } = useUser();
@@ -328,22 +333,25 @@ export default function HomeScreen() {
     });
   }, [user?.id, entitlements]);
 
+  const isFocused = useIsFocused();
+
+  useEffect(() => {
+    if (!isForced) forcedShownRef.current = false;
+  }, [isForced]);
+
   // Show tutorial only when onboarding is ready, trial modal is gone, and location is set
-  useFocusEffect(
-    useCallback(() => {
-      if (!onboardingReady || showTrialModal) return;
-      if (!location?.label) return;
-      if (tutorials.enabled && !tutorials.homeSeen) {
-        setShowTutorial(true);
-      }
-    }, [
-      onboardingReady,
-      showTrialModal,
-      location?.label,
-      tutorials.enabled,
-      tutorials.homeSeen,
-    ]),
-  );
+  useEffect(() => {
+    if (!isFocused) return;
+    if (!onboardingReady || showTrialModal) return;
+    if (!location?.label && !isForced) return;
+    if (tutorial.shouldShow) {
+      setShowTutorial(true);
+    } else if (isForced && !forcedShownRef.current) {
+      forcedShownRef.current = true;
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      setShowTutorial(true);
+    }
+  }, [isFocused, onboardingReady, showTrialModal, location?.label, tutorial.shouldShow, isForced]);
 
   const handleTrialModalClose = useCallback(() => {
     setShowTrialModal(false);
@@ -354,19 +362,18 @@ export default function HomeScreen() {
     }
   }, [user?.id, setTrialCheckDone, setTrialModalShowing]);
 
-  const [showTutorialSkipInfo, setShowTutorialSkipInfo] = useState(false);
-
   const handleTutorialDismiss = useCallback(
-    (dontShowAgain: boolean, skipped: boolean) => {
+    (skipped: boolean) => {
       setShowTutorial(false);
-      if (dontShowAgain) {
-        setTutorials({ homeSeen: true });
-      }
-      if (skipped) {
-        setShowTutorialSkipInfo(true);
+      if (!isForced) {
+        if (skipped) {
+          tutorial.disable();
+        } else {
+          tutorial.complete();
+        }
       }
     },
-    [setTutorials],
+    [tutorial, isForced],
   );
 
   const beforeStepMeasure = useCallback(
@@ -385,6 +392,7 @@ export default function HomeScreen() {
           });
           setTimeout(resolve, 500);
         } else {
+          scrollViewRef.current?.scrollTo({ y: 0, animated: false });
           setTimeout(resolve, 300);
         }
       }),
@@ -789,20 +797,11 @@ export default function HomeScreen() {
         onClose={handleTrialModalClose}
       />
 
-      <Snackbar
-        visible={showTutorialSkipInfo}
-        onDismiss={() => setShowTutorialSkipInfo(false)}
-        duration={6000}
-        action={{ label: "OK", onPress: () => setShowTutorialSkipInfo(false) }}
-      >
-        Tutoriale znajdziesz w Ustawieniach konta — możesz je włączyć, wyłączyć
-        i przejść ponownie.
-      </Snackbar>
-
       <CoachMarkOverlay
         visible={showTutorial}
         onDismiss={handleTutorialDismiss}
         beforeStepMeasure={beforeStepMeasure}
+        showCheckbox={!isForced}
         steps={[
           {
             ref: notificationsRef,

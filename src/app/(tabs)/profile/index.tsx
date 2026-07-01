@@ -6,6 +6,10 @@ import { useGeoSearch } from "@/src/api/queries/geo/useGeoSearch";
 import { useUpdateUserLocation } from "@/src/api/queries/geo/useUpdateUserLocation";
 import { UpdateNotificationPreferencesDto } from "@/src/api/queries/notifications/types";
 import { useGetNotificationPreferences } from "@/src/api/queries/notifications/useGetNotificationPreferences";
+import { useResetTutorial } from "@/src/api/queries/tutorials/useResetTutorial";
+import { useResetTutorials } from "@/src/api/queries/tutorials/useResetTutorials";
+import { useSetTutorialsEnabled } from "@/src/api/queries/tutorials/useSetTutorialsEnabled";
+import { useTutorials } from "@/src/api/queries/tutorials/useTutorials";
 import { updateMe } from "@/src/api/queries/users/useUpdateMe";
 import { queryClient } from "@/src/api/queryClient";
 import { Screen } from "@/src/components/Screen";
@@ -124,9 +128,13 @@ export default function ProfileScreen() {
     setLanguagePreference,
     location,
     setLocationPreference,
-    tutorials,
-    setTutorials,
   } = useSettings();
+  const { data: tutorialsData } = useTutorials();
+  const { mutate: setTutorialsEnabled, isPending: isSettingEnabled } =
+    useSetTutorialsEnabled();
+  const { mutate: resetTutorials, isPending: isResettingTutorials } =
+    useResetTutorials();
+  const { mutate: resetTutorial } = useResetTutorial();
   const updateLocation = useUpdateUserLocation();
   const { openPremiumPaywall, entitlements } = usePremium();
 
@@ -432,32 +440,39 @@ export default function ProfileScreen() {
               Korzystasz z 7-dniowego dostępu Premium za darmo. Po zakończeniu
               okresu próbnego część funkcji zostanie zablokowana.
             </Text>
-            {entitlements.trialEndsAt ? (() => {
-              const endsAt = new Date(entitlements.trialEndsAt);
-              const daysLeft = Math.max(
-                0,
-                Math.ceil(
-                  (endsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-                ),
-              );
-              return (
-                <>
-                  <Text style={[styles.label, { marginTop: spacing.sm }]}>
-                    Trial kończy się:{" "}
-                    {new Intl.DateTimeFormat("pl-PL", {
-                      day: "2-digit",
-                      month: "long",
-                      year: "numeric",
-                    }).format(endsAt)}
-                  </Text>
-                  {daysLeft > 0 ? (
-                    <Text style={styles.helper}>
-                      Pozostało: {daysLeft} {daysLeft === 1 ? "dzień" : daysLeft < 5 ? "dni" : "dni"}
-                    </Text>
-                  ) : null}
-                </>
-              );
-            })() : null}
+            {entitlements.trialEndsAt
+              ? (() => {
+                  const endsAt = new Date(entitlements.trialEndsAt);
+                  const daysLeft = Math.max(
+                    0,
+                    Math.ceil(
+                      (endsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+                    ),
+                  );
+                  return (
+                    <>
+                      <Text style={[styles.label, { marginTop: spacing.sm }]}>
+                        Trial kończy się:{" "}
+                        {new Intl.DateTimeFormat("pl-PL", {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric",
+                        }).format(endsAt)}
+                      </Text>
+                      {daysLeft > 0 ? (
+                        <Text style={styles.helper}>
+                          Pozostało: {daysLeft}{" "}
+                          {daysLeft === 1
+                            ? "dzień"
+                            : daysLeft < 5
+                              ? "dni"
+                              : "dni"}
+                        </Text>
+                      ) : null}
+                    </>
+                  );
+                })()
+              : null}
           </Card>
         ) : null}
 
@@ -725,10 +740,16 @@ export default function ProfileScreen() {
               </Text>
             </View>
             <Switch
-              value={tutorials.enabled}
+              value={tutorialsData?.enabled ?? false}
               onValueChange={(value) => {
-                setTutorials({ enabled: value });
+                if (value) {
+                  resetTutorials();
+                  setTutorialsEnabled(true);
+                } else {
+                  setTutorialsEnabled(false);
+                }
               }}
+              disabled={isSettingEnabled || isResettingTutorials}
             />
           </View>
 
@@ -742,11 +763,12 @@ export default function ProfileScreen() {
             <Button
               compact
               mode="outlined"
-              disabled={!tutorials.enabled}
-              onPress={() => {
-                setTutorials({ homeSeen: false });
-                router.navigate("/(tabs)/home");
-              }}
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/home",
+                  params: { showTutorial: "1" },
+                } as any)
+              }
             >
               Powtórz
             </Button>
@@ -762,11 +784,12 @@ export default function ProfileScreen() {
             <Button
               compact
               mode="outlined"
-              disabled={!tutorials.enabled}
-              onPress={() => {
-                setTutorials({ bedsSeen: false });
-                router.navigate("/(tabs)/beds");
-              }}
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/beds",
+                  params: { showTutorial: "1" },
+                } as any)
+              }
             >
               Powtórz
             </Button>
@@ -782,10 +805,7 @@ export default function ProfileScreen() {
             <Button
               compact
               mode="outlined"
-              disabled={!tutorials.enabled}
-              onPress={() => {
-                setTutorials({ bedDetailSeen: false });
-              }}
+              onPress={() => resetTutorial("bedDetails")}
             >
               Resetuj
             </Button>
@@ -801,11 +821,12 @@ export default function ProfileScreen() {
             <Button
               compact
               mode="outlined"
-              disabled={!tutorials.enabled}
-              onPress={() => {
-                setTutorials({ plannerSeen: false });
-                router.navigate("/(tabs)/planner");
-              }}
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/planner",
+                  params: { showTutorial: "1" },
+                } as any)
+              }
             >
               Powtórz
             </Button>
@@ -821,11 +842,12 @@ export default function ProfileScreen() {
             <Button
               compact
               mode="outlined"
-              disabled={!tutorials.enabled}
-              onPress={() => {
-                setTutorials({ educationSeen: false });
-                router.navigate("/(tabs)/education");
-              }}
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/education",
+                  params: { showTutorial: "1" },
+                } as any)
+              }
             >
               Powtórz
             </Button>
@@ -841,10 +863,7 @@ export default function ProfileScreen() {
             <Button
               compact
               mode="outlined"
-              disabled={!tutorials.enabled}
-              onPress={() => {
-                setTutorials({ plantingSeen: false });
-              }}
+              onPress={() => resetTutorial("addPlanting")}
             >
               Resetuj
             </Button>

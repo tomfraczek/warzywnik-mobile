@@ -40,7 +40,7 @@ import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
 import { BottomSheetModal } from "@/src/components/ui/BottomSheetModal";
 import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
-import { useSettings } from "@/src/context/SettingsProvider";
+import { useTutorial } from "@/src/hooks/useTutorial";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import {
   getPlantingStatusLabel,
@@ -60,7 +60,7 @@ import {
 } from "@/src/features/tasks/taskPresentation";
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { pluralize } from "@/src/utils/pluralize";
-import { useFocusEffect } from "@react-navigation/native";
+import { useIsFocused } from "@react-navigation/native";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -545,7 +545,7 @@ export default function BedDetailsScreen() {
 
   const isOffline = useIsOffline();
 
-  const { tutorials, setTutorials } = useSettings();
+  const tutorial = useTutorial("bedDetails");
   const [showTutorial, setShowTutorial] = useState(false);
   const scrollViewRef = useRef<ScrollView | null>(null);
   const heroCardRef = useRef<View | null>(null);
@@ -561,23 +561,20 @@ export default function BedDetailsScreen() {
   const historySectionY = useRef(0);
   const seasonHistoryY = useRef(0);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (tutorials.enabled && !tutorials.bedDetailSeen && !isLoading && bed) {
-        setShowTutorial(true);
-      }
-    }, [tutorials.enabled, tutorials.bedDetailSeen, isLoading, bed]),
-  );
+  const isFocused = useIsFocused();
 
-  const handleTutorialDismiss = useCallback(
-    (dontShowAgain: boolean) => {
-      setShowTutorial(false);
-      if (dontShowAgain) {
-        setTutorials({ bedDetailSeen: true });
-      }
-    },
-    [setTutorials],
-  );
+  useEffect(() => {
+    if (!isFocused) return;
+    if (tutorial.shouldShow && !isLoading && bed) {
+      setShowTutorial(true);
+    }
+  }, [isFocused, tutorial.shouldShow, isLoading, bed]);
+
+  const handleTutorialDismiss = useCallback((skipped: boolean) => {
+    setShowTutorial(false);
+    if (skipped) tutorial.disable();
+    else tutorial.complete();
+  }, [tutorial]);
 
   const handleBeforeStepMeasure = useCallback(
     (stepIndex: number): Promise<void> => {

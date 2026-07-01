@@ -6,12 +6,12 @@ import { usePremium } from "@/src/context/PremiumContext";
 import { PrimaryScreenHeading } from "@/src/components/navigation/PrimaryScreenHeading";
 import { Screen } from "@/src/components/Screen";
 import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
-import { useSettings } from "@/src/context/SettingsProvider";
+import { useTutorial } from "@/src/hooks/useTutorial";
 import { isPlantingActiveLifecycleStatus } from "@/src/features/plantings/status";
 import { pluralize } from "@/src/utils/pluralize";
-import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
-import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
+import { useIsFocused } from "@react-navigation/native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   FlatList,
   Pressable,
@@ -420,30 +420,42 @@ export default function BedsListScreen() {
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
   const debouncedSearch = useDebouncedValue(searchInput, 350);
 
-  const { tutorials, setTutorials } = useSettings();
+  const tutorial = useTutorial("beds");
+  const params = useLocalSearchParams<{ showTutorial?: string }>();
+  const isForced = params.showTutorial === "1";
+  const forcedShownRef = useRef(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
   const addBtnRef = useRef<View | null>(null);
   const filterChipsRef = useRef<View | null>(null);
   const firstBedCardRef = useRef<View | null>(null);
   const emptyStateRef = useRef<View | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (tutorials.enabled && !tutorials.bedsSeen) {
-        setShowTutorial(true);
-      }
-    }, [tutorials.enabled, tutorials.bedsSeen]),
-  );
+  const isFocused = useIsFocused();
 
-  const handleTutorialDismiss = useCallback(
-    (dontShowAgain: boolean) => {
-      setShowTutorial(false);
-      if (dontShowAgain) {
-        setTutorials({ bedsSeen: true });
-      }
-    },
-    [setTutorials],
-  );
+  useEffect(() => {
+    if (!isForced) forcedShownRef.current = false;
+  }, [isForced]);
+
+  useEffect(() => {
+    if (!isFocused) return;
+    if (tutorial.shouldShow) {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      setShowTutorial(true);
+    } else if (isForced && !forcedShownRef.current) {
+      forcedShownRef.current = true;
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      setShowTutorial(true);
+    }
+  }, [isFocused, tutorial.shouldShow, isForced]);
+
+  const handleTutorialDismiss = useCallback((skipped: boolean) => {
+    setShowTutorial(false);
+    if (!isForced) {
+      if (skipped) tutorial.disable();
+      else tutorial.complete();
+    }
+  }, [tutorial, isForced]);
 
   const isActiveParam =
     activeFilter === "active"
@@ -534,6 +546,7 @@ export default function BedsListScreen() {
       safeAreaEdges={["top", "left", "right"]}
     >
       <FlatList
+        ref={flatListRef}
         data={isLoading ? [] : visibleBeds}
         keyExtractor={(item) => item.id}
         contentContainerStyle={[
@@ -673,6 +686,7 @@ export default function BedsListScreen() {
         visible={showTutorial}
         onDismiss={handleTutorialDismiss}
         steps={tutorialSteps}
+        showCheckbox={!isForced}
       />
     </Screen>
   );

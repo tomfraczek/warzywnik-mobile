@@ -43,16 +43,6 @@ export type PushNotificationsSettings = {
   deviceId: string | null;
 };
 
-export type TutorialSettings = {
-  enabled: boolean;
-  homeSeen: boolean;
-  bedsSeen: boolean;
-  bedDetailSeen: boolean;
-  plannerSeen: boolean;
-  educationSeen: boolean;
-  plantingSeen: boolean;
-};
-
 export type AppSettings = {
   themeMode: ThemeMode;
   languagePreference: LanguagePreference;
@@ -60,7 +50,6 @@ export type AppSettings = {
   location: StoredLocation | null;
   profile: ProfileSettings;
   pushNotifications: PushNotificationsSettings;
-  tutorials: TutorialSettings;
 };
 
 type SettingsContextValue = AppSettings & {
@@ -70,7 +59,6 @@ type SettingsContextValue = AppSettings & {
   setLocationPreference: (location: StoredLocation | null) => void;
   setProfile: (profile: Partial<ProfileSettings>) => void;
   setPushNotifications: (patch: Partial<PushNotificationsSettings>) => void;
-  setTutorials: (patch: Partial<TutorialSettings>) => void;
   resetSettings: () => Promise<void>;
   isReady: boolean;
 };
@@ -93,15 +81,6 @@ const defaultSettings: AppSettings = {
   pushNotifications: {
     enabled: false,
     deviceId: null,
-  },
-  tutorials: {
-    enabled: true,
-    homeSeen: false,
-    bedsSeen: false,
-    bedDetailSeen: false,
-    plannerSeen: false,
-    educationSeen: false,
-    plantingSeen: false,
   },
 };
 
@@ -148,9 +127,6 @@ const parseSettings = (raw: string | null): AppSettings => {
     const unitsCandidate = parsed.units as UnitsSettings | undefined;
     const pushCandidate = parsed.pushNotifications as
       | PushNotificationsSettings
-      | undefined;
-    const tutorialsCandidate = parsed.tutorials as
-      | TutorialSettings
       | undefined;
 
     return {
@@ -218,36 +194,6 @@ const parseSettings = (raw: string | null): AppSettings => {
           typeof pushCandidate?.deviceId === "string"
             ? pushCandidate.deviceId
             : defaultSettings.pushNotifications.deviceId,
-      },
-      tutorials: {
-        enabled:
-          typeof tutorialsCandidate?.enabled === "boolean"
-            ? tutorialsCandidate.enabled
-            : defaultSettings.tutorials.enabled,
-        homeSeen:
-          typeof tutorialsCandidate?.homeSeen === "boolean"
-            ? tutorialsCandidate.homeSeen
-            : defaultSettings.tutorials.homeSeen,
-        bedsSeen:
-          typeof tutorialsCandidate?.bedsSeen === "boolean"
-            ? tutorialsCandidate.bedsSeen
-            : defaultSettings.tutorials.bedsSeen,
-        bedDetailSeen:
-          typeof tutorialsCandidate?.bedDetailSeen === "boolean"
-            ? tutorialsCandidate.bedDetailSeen
-            : defaultSettings.tutorials.bedDetailSeen,
-        plannerSeen:
-          typeof tutorialsCandidate?.plannerSeen === "boolean"
-            ? tutorialsCandidate.plannerSeen
-            : defaultSettings.tutorials.plannerSeen,
-        educationSeen:
-          typeof tutorialsCandidate?.educationSeen === "boolean"
-            ? tutorialsCandidate.educationSeen
-            : defaultSettings.tutorials.educationSeen,
-        plantingSeen:
-          typeof tutorialsCandidate?.plantingSeen === "boolean"
-            ? tutorialsCandidate.plantingSeen
-            : defaultSettings.tutorials.plantingSeen,
       },
     };
   } catch (error) {
@@ -363,19 +309,6 @@ export function SettingsProvider({ children }: PropsWithChildren) {
     [updateSettings],
   );
 
-  const setTutorials = useCallback(
-    (patch: Partial<TutorialSettings>) => {
-      updateSettings((prev) => ({
-        ...prev,
-        tutorials: {
-          ...prev.tutorials,
-          ...patch,
-        },
-      }));
-    },
-    [updateSettings],
-  );
-
   const resetSettings = useCallback(async () => {
     setSettings(defaultSettings);
     try {
@@ -394,7 +327,6 @@ export function SettingsProvider({ children }: PropsWithChildren) {
       setLocationPreference,
       setProfile,
       setPushNotifications,
-      setTutorials,
       resetSettings,
       isReady,
     }),
@@ -406,7 +338,6 @@ export function SettingsProvider({ children }: PropsWithChildren) {
       setLocationPreference,
       setProfile,
       setPushNotifications,
-      setTutorials,
       resetSettings,
       isReady,
     ],

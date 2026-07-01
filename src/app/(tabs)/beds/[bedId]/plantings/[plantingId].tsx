@@ -47,7 +47,7 @@ import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
 import { BottomSheetModal } from "@/src/components/ui/BottomSheetModal";
 import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
-import { useSettings } from "@/src/context/SettingsProvider";
+import { useTutorial } from "@/src/hooks/useTutorial";
 import { OFFLINE_MUTATION_MESSAGE } from "@/src/features/network/offline";
 import {
   getPlantingStatusLabel,
@@ -61,7 +61,7 @@ import {
 import { useIsOffline } from "@/src/hooks/useNetworkStatus";
 import { getTodayKey } from "@/src/utils/date";
 import { formatQualityRating, formatYield } from "@/src/utils/learningMappers";
-import { useFocusEffect } from "@react-navigation/native";
+import { useIsFocused } from "@react-navigation/native";
 import { isAxiosError } from "axios";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -569,7 +569,7 @@ export default function PlantingDetailsScreen() {
 
   const isOffline = useIsOffline();
 
-  const { tutorials, setTutorials } = useSettings();
+  const tutorial = useTutorial("addPlanting");
   const [showTutorial, setShowTutorial] = useState(false);
   const scrollViewRef = useRef<ScrollView | null>(null);
   const heroCardRef = useRef<View | null>(null);
@@ -589,26 +589,20 @@ export default function PlantingDetailsScreen() {
   const harvestResultsRef = useRef<View | null>(null);
   const harvestSectionY = useRef(0);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (
-        tutorials.enabled &&
-        !tutorials.plantingSeen &&
-        !isLoading &&
-        planting
-      ) {
-        setShowTutorial(true);
-      }
-    }, [tutorials.enabled, tutorials.plantingSeen, isLoading, planting]),
-  );
+  const isFocused = useIsFocused();
 
-  const handleTutorialDismiss = useCallback(
-    (dontShowAgain: boolean) => {
-      setShowTutorial(false);
-      if (dontShowAgain) setTutorials({ plantingSeen: true });
-    },
-    [setTutorials],
-  );
+  useEffect(() => {
+    if (!isFocused) return;
+    if (tutorial.shouldShow && !isLoading && planting) {
+      setShowTutorial(true);
+    }
+  }, [isFocused, tutorial.shouldShow, isLoading, planting]);
+
+  const handleTutorialDismiss = useCallback((skipped: boolean) => {
+    setShowTutorial(false);
+    if (skipped) tutorial.disable();
+    else tutorial.complete();
+  }, [tutorial]);
 
   const handleBeforeStepMeasure = useCallback(
     (stepIndex: number): Promise<void> =>

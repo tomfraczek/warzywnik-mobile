@@ -12,7 +12,6 @@ import {
   hasRevenueCatPremium,
   isRevenueCatUserCancellation,
   purchaseRevenueCatPackage,
-  restoreRevenueCatPurchases,
 } from "@/src/services/revenueCat/revenueCatService";
 import { useAuth } from "@clerk/clerk-expo";
 import { PurchasesPackage } from "react-native-purchases";
@@ -24,7 +23,14 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import { Alert, Platform, ScrollView, StyleSheet, View } from "react-native";
+import {
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import {
   ActivityIndicator,
   Button,
@@ -150,6 +156,9 @@ function PaywallContent({
     type: "error" | "info";
     text: string;
   } | null>(null);
+  const [step, setStep] = useState<"info" | "purchase">("info");
+  const [selectedPackage, setSelectedPackage] =
+    useState<PurchasesPackage | null>(annualPackage ?? monthlyPackage ?? null);
 
   const isAndroid = Platform.OS === "android";
   const isTrialActive =
@@ -200,40 +209,127 @@ function PaywallContent({
     }
   };
 
-  const handleRestore = async () => {
-    setIsActionLoading(true);
-    setStatusMessage(null);
-    try {
-      const customerInfo = await restoreRevenueCatPurchases();
-      if (hasRevenueCatPremium(customerInfo)) {
-        try {
-          await syncSubscription();
-        } catch {
-          setStatusMessage({
-            type: "error",
-            text: 'Zakup został zakończony, ale nie udało się odświeżyć statusu Premium. Spróbuj ponownie za chwilę lub użyj „Przywróć zakup".',
-          });
-          setIsActionLoading(false);
-          return;
-        }
-        setIsActionLoading(false);
-        onClose();
-        Alert.alert("Zakup przywrócony", "Zakup został przywrócony.");
-      } else {
-        setIsActionLoading(false);
-        setStatusMessage({
-          type: "info",
-          text: "Nie znaleziono aktywnej subskrypcji Premium.",
-        });
-      }
-    } catch {
-      setIsActionLoading(false);
-      setStatusMessage({
-        type: "error",
-        text: "Nie udało się przywrócić zakupów. Spróbuj ponownie później.",
-      });
-    }
-  };
+  if (step === "purchase") {
+    return (
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <View style={styles.iconWrap}>
+            <Icon source="crown" size={32} color={theme.colors.primary} />
+          </View>
+          <Text style={styles.title}>Wybierz plan</Text>
+        </View>
+
+        {monthlyPackage ? (
+          <Pressable onPress={() => setSelectedPackage(monthlyPackage)}>
+            <View
+              style={[
+                styles.pricingCard,
+                selectedPackage === monthlyPackage &&
+                  styles.pricingCardSelected,
+              ]}
+            >
+              <View style={styles.pricingRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pricingLabel}>Miesięczny</Text>
+                  <Text style={styles.pricingPrice}>
+                    {monthlyPackage.product.priceString} / miesiąc
+                  </Text>
+                </View>
+                {selectedPackage === monthlyPackage ? (
+                  <Icon
+                    source="check-circle"
+                    size={22}
+                    color={theme.colors.primary}
+                  />
+                ) : null}
+              </View>
+            </View>
+          </Pressable>
+        ) : null}
+
+        {annualPackage ? (
+          <Pressable onPress={() => setSelectedPackage(annualPackage)}>
+            <View
+              style={[
+                styles.pricingCard,
+                styles.pricingCardFeatured,
+                selectedPackage === annualPackage && styles.pricingCardSelected,
+              ]}
+            >
+              <View style={styles.pricingRow}>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      styles.pricingLabel,
+                      { color: theme.colors.primary },
+                    ]}
+                  >
+                    Roczny
+                  </Text>
+                  <Text
+                    style={[
+                      styles.pricingPrice,
+                      { color: theme.colors.primary },
+                    ]}
+                  >
+                    {annualPackage.product.priceString} / rok
+                  </Text>
+                </View>
+                <View style={{ alignItems: "flex-end", gap: 6 }}>
+                  <View style={styles.saveBadge}>
+                    <Text style={styles.saveBadgeText}>Najlepsza cena</Text>
+                  </View>
+                  {selectedPackage === annualPackage ? (
+                    <Icon
+                      source="check-circle"
+                      size={22}
+                      color={theme.colors.primary}
+                    />
+                  ) : null}
+                </View>
+              </View>
+            </View>
+          </Pressable>
+        ) : null}
+
+        {statusMessage ? (
+          <View
+            style={[
+              styles.statusBanner,
+              statusMessage.type === "error"
+                ? styles.statusBannerError
+                : styles.statusBannerInfo,
+            ]}
+          >
+            <Text style={styles.statusText}>{statusMessage.text}</Text>
+          </View>
+        ) : null}
+
+        <Button
+          mode="contained"
+          style={styles.purchaseButton}
+          contentStyle={styles.purchaseButtonContent}
+          disabled={isActionLoading || !selectedPackage}
+          loading={isActionLoading}
+          onPress={() => selectedPackage && void handlePurchase(selectedPackage)}
+        >
+          Kup
+        </Button>
+        <Button
+          mode="text"
+          style={styles.laterButton}
+          disabled={isActionLoading}
+          onPress={() => setStep("info")}
+        >
+          Anuluj
+        </Button>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
@@ -290,121 +386,29 @@ function PaywallContent({
         ))}
       </View>
 
-      {/* pricing & purchase – Android only */}
+      {/* buy premium button – Android only */}
       {isAndroid ? (
-        <>
-          <Text style={styles.sectionTitle}>Cennik</Text>
-
-          {isOfferingLoading ? (
-            <ActivityIndicator
-              style={styles.offeringLoader}
-              color={theme.colors.primary}
-            />
-          ) : !hasAnyPackage ? (
-            <View style={styles.unavailableBanner}>
-              <Text style={styles.unavailableText}>
-                Płatności są chwilowo niedostępne. Spróbuj ponownie później.
-              </Text>
-            </View>
-          ) : (
-            <>
-              {/* monthly card */}
-              {monthlyPackage ? (
-                <View style={styles.pricingCard}>
-                  <View style={styles.pricingRow}>
-                    <View>
-                      <Text style={styles.pricingLabel}>Miesięczny</Text>
-                      <Text style={styles.pricingPrice}>
-                        {monthlyPackage.product.priceString} / miesiąc
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              ) : null}
-
-              {/* annual card */}
-              {annualPackage ? (
-                <View
-                  style={[styles.pricingCard, styles.pricingCardFeatured]}
-                >
-                  <View style={styles.pricingRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          styles.pricingLabel,
-                          { color: theme.colors.primary },
-                        ]}
-                      >
-                        Roczny
-                      </Text>
-                      <Text
-                        style={[
-                          styles.pricingPrice,
-                          { color: theme.colors.primary },
-                        ]}
-                      >
-                        {annualPackage.product.priceString} / rok
-                      </Text>
-                    </View>
-                    <View style={styles.saveBadge}>
-                      <Text style={styles.saveBadgeText}>Najlepsza cena</Text>
-                    </View>
-                  </View>
-                </View>
-              ) : null}
-
-              {/* status message */}
-              {statusMessage ? (
-                <View
-                  style={[
-                    styles.statusBanner,
-                    statusMessage.type === "error"
-                      ? styles.statusBannerError
-                      : styles.statusBannerInfo,
-                  ]}
-                >
-                  <Text style={styles.statusText}>{statusMessage.text}</Text>
-                </View>
-              ) : null}
-
-              {/* purchase buttons */}
-              {monthlyPackage ? (
-                <Button
-                  mode="outlined"
-                  style={styles.purchaseButton}
-                  contentStyle={styles.purchaseButtonContent}
-                  disabled={isActionLoading}
-                  loading={isActionLoading}
-                  onPress={() => void handlePurchase(monthlyPackage)}
-                >
-                  Kup plan miesięczny
-                </Button>
-              ) : null}
-              {annualPackage ? (
-                <Button
-                  mode="contained"
-                  style={styles.purchaseButton}
-                  contentStyle={styles.purchaseButtonContent}
-                  disabled={isActionLoading}
-                  loading={isActionLoading}
-                  onPress={() => void handlePurchase(annualPackage)}
-                >
-                  Kup plan roczny
-                </Button>
-              ) : null}
-
-              {/* restore purchase */}
-              <Button
-                mode="text"
-                style={styles.restoreButton}
-                disabled={isActionLoading}
-                onPress={() => void handleRestore()}
-              >
-                Przywróć zakup
-              </Button>
-            </>
-          )}
-        </>
+        isOfferingLoading ? (
+          <ActivityIndicator
+            style={styles.offeringLoader}
+            color={theme.colors.primary}
+          />
+        ) : !hasAnyPackage ? (
+          <View style={styles.unavailableBanner}>
+            <Text style={styles.unavailableText}>
+              Płatności są chwilowo niedostępne. Spróbuj ponownie później.
+            </Text>
+          </View>
+        ) : (
+          <Button
+            mode="contained"
+            style={styles.purchaseButton}
+            contentStyle={styles.purchaseButtonContent}
+            onPress={() => setStep("purchase")}
+          >
+            Kup Premium
+          </Button>
+        )
       ) : null}
 
       {/* dismiss */}
@@ -524,8 +528,11 @@ function makeStyles(theme: MD3Theme) {
     },
     pricingCardFeatured: {
       borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.primaryContainer,
       marginBottom: 16,
+    },
+    pricingCardSelected: {
+      borderColor: theme.colors.primary,
+      borderWidth: 2,
     },
     pricingRow: {
       flexDirection: "row",
@@ -574,10 +581,6 @@ function makeStyles(theme: MD3Theme) {
     },
     purchaseButtonContent: {
       paddingVertical: 6,
-    },
-    restoreButton: {
-      alignSelf: "center",
-      marginBottom: 4,
     },
     laterButton: {
       alignSelf: "center",

@@ -32,8 +32,9 @@ type HighlightRect = {
 type Props = {
   steps: CoachMarkStep[];
   visible: boolean;
-  onDismiss: (dontShowAgain: boolean, skipped: boolean) => void;
+  onDismiss: (skipped: boolean) => void;
   beforeStepMeasure?: (stepIndex: number) => Promise<void>;
+  showCheckbox?: boolean;
 };
 
 const PADDING = 8;
@@ -78,10 +79,11 @@ export function CoachMarkOverlay({
   visible,
   onDismiss,
   beforeStepMeasure,
+  showCheckbox = true,
 }: Props) {
   const [stepIndex, setStepIndex] = useState(0);
   const [highlight, setHighlight] = useState<HighlightRect | null>(null);
-  const [dontShowAgain, setDontShowAgain] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   const { height: screenHeight } = useWindowDimensions();
   const { top: safeTop, left: safeLeft } = useSafeAreaInsets();
 
@@ -133,17 +135,18 @@ export function CoachMarkOverlay({
     if (!visible) {
       setStepIndex(0);
       setHighlight(null);
-      setDontShowAgain(false);
+      setShowHint(false);
       animTop.value = screenHeight / 2 - TOOLTIP_HEIGHT_ESTIMATE / 2;
       return;
     }
+    setShowHint(false);
     measureCurrentStep();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, stepIndex, measureCurrentStep]);
 
   const handleNext = () => {
     if (isLastStep) {
-      onDismiss(dontShowAgain, false);
+      onDismiss(false);
     } else {
       setStepIndex((i) => i + 1);
     }
@@ -154,7 +157,7 @@ export function CoachMarkOverlay({
   };
 
   const handleSkip = () => {
-    onDismiss(dontShowAgain, true);
+    onDismiss(true);
   };
 
   if (!visible || !currentStep) return null;
@@ -223,17 +226,28 @@ export function CoachMarkOverlay({
           <Text style={styles.tooltipTitle}>{currentStep.title}</Text>
           <Text style={styles.tooltipDescription}>{currentStep.description}</Text>
 
-          <Pressable
-            style={styles.checkboxRow}
-            onPress={() => setDontShowAgain((v) => !v)}
-          >
-            <Checkbox
-              status={dontShowAgain ? "checked" : "unchecked"}
-              onPress={() => setDontShowAgain((v) => !v)}
-              color="#4C7A5E"
-            />
-            <Text style={styles.checkboxLabel}>Nie pokazuj więcej</Text>
-          </Pressable>
+          {showCheckbox ? (
+            <>
+              <Pressable
+                style={styles.checkboxRow}
+                onPress={() => setShowHint((v) => !v)}
+              >
+                <Checkbox
+                  status={showHint ? "checked" : "unchecked"}
+                  color="#4C7A5E"
+                />
+                <Text style={styles.checkboxLabel}>Nie pokazuj więcej</Text>
+              </Pressable>
+
+              {showHint ? (
+                <View style={styles.hintBubble}>
+                  <Text style={styles.hintText}>
+                    Tutoriale możesz włączyć i wyłączyć w Ustawieniach konta.
+                  </Text>
+                </View>
+              ) : null}
+            </>
+          ) : null}
 
           <View style={styles.buttonRow}>
             {stepIndex > 0 ? (
@@ -325,6 +339,19 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     fontSize: 14,
     color: "#1D2420",
+  },
+  hintBubble: {
+    backgroundColor: "#F0F4F2",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderLeftWidth: 2,
+    borderLeftColor: "#4C7A5E",
+  },
+  hintText: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: "#4D5753",
   },
   buttonRow: {
     flexDirection: "row",

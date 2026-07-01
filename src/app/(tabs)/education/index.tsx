@@ -9,11 +9,11 @@ import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { PrimaryScreenHeading } from "@/src/components/navigation/PrimaryScreenHeading";
 import { Screen } from "@/src/components/Screen";
 import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
-import { useSettings } from "@/src/context/SettingsProvider";
-import { useFocusEffect } from "@react-navigation/native";
+import { useTutorial } from "@/src/hooks/useTutorial";
+import { useIsFocused } from "@react-navigation/native";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Icon, MD3Theme, Text, useTheme } from "react-native-paper";
 
@@ -351,28 +351,40 @@ export default function EducationScreen() {
   const { data: favoritesData, isLoading: isFavoritesLoading } =
     useGetFavoritesGrouped();
 
-  const { tutorials, setTutorials } = useSettings();
+  const tutorial = useTutorial("articles");
+  const params = useLocalSearchParams<{ showTutorial?: string }>();
+  const isForced = params.showTutorial === "1";
+  const forcedShownRef = useRef(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const scrollViewRef = useRef<ScrollView | null>(null);
   const categoriesRef = useRef<View | null>(null);
   const favoritesRef = useRef<View | null>(null);
   const favoritesSectionY = useRef(0);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (tutorials.enabled && !tutorials.educationSeen) {
-        setShowTutorial(true);
-      }
-    }, [tutorials.enabled, tutorials.educationSeen]),
-  );
+  const isFocused = useIsFocused();
 
-  const handleTutorialDismiss = useCallback(
-    (dontShowAgain: boolean) => {
-      setShowTutorial(false);
-      if (dontShowAgain) setTutorials({ educationSeen: true });
-    },
-    [setTutorials],
-  );
+  useEffect(() => {
+    if (!isForced) forcedShownRef.current = false;
+  }, [isForced]);
+
+  useEffect(() => {
+    if (!isFocused) return;
+    if (tutorial.shouldShow) {
+      setShowTutorial(true);
+    } else if (isForced && !forcedShownRef.current) {
+      forcedShownRef.current = true;
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+      setShowTutorial(true);
+    }
+  }, [isFocused, tutorial.shouldShow, isForced]);
+
+  const handleTutorialDismiss = useCallback((skipped: boolean) => {
+    setShowTutorial(false);
+    if (!isForced) {
+      if (skipped) tutorial.disable();
+      else tutorial.complete();
+    }
+  }, [tutorial, isForced]);
 
   const handleBeforeStepMeasure = useCallback(
     (stepIndex: number): Promise<void> =>
@@ -554,6 +566,7 @@ export default function EducationScreen() {
         visible={showTutorial}
         onDismiss={handleTutorialDismiss}
         beforeStepMeasure={handleBeforeStepMeasure}
+        showCheckbox={!isForced}
         steps={[
           {
             ref: categoriesRef,
