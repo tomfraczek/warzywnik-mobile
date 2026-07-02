@@ -14,6 +14,7 @@ import { updateMe } from "@/src/api/queries/users/useUpdateMe";
 import { queryClient } from "@/src/api/queryClient";
 import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
+import { ExpandableCard } from "@/src/components/ui/ExpandableCard";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { getAvatarSource } from "@/src/constants/avatars";
 import { usePremium } from "@/src/context/PremiumContext";
@@ -510,22 +511,9 @@ export default function ProfileScreen() {
               Odblokuj Premium
             </Button>
           ) : null}
-          <Text style={[styles.label, { marginTop: spacing.md }]}>
-            [DEV] Symuluj plan
-          </Text>
-          <SegmentedButtons
-            value={currentDevPlan}
-            onValueChange={handleDevPlanChange}
-            buttons={[
-              { value: "free", label: "Free" },
-              { value: "trial", label: "Trial" },
-              { value: "premium", label: "Premium" },
-              { value: "server", label: "Serwer" },
-            ]}
-          />
         </Card>
 
-        <Card title="Powiadomienia Push">
+        <ExpandableCard title="Powiadomienia Push">
           <Text style={styles.preferenceDescription}>
             Powiadomienia przychodzące na telefon pomogą Ci być na bieżąco z
             ważnymi informacjami o Twoim ogrodzie, pogodzie i uprawach. Możesz
@@ -729,9 +717,9 @@ export default function ProfileScreen() {
               Otwórz diagnostykę push
             </Button>
           ) : null} */}
-        </Card>
+        </ExpandableCard>
 
-        <Card title="Tutoriale">
+        <ExpandableCard title="Tutoriale">
           <View style={styles.preferenceRow}>
             <View style={styles.preferenceTextWrap}>
               <Text style={styles.preferenceTitle}>Pokazuj tutoriale</Text>
@@ -868,17 +856,10 @@ export default function ProfileScreen() {
               Resetuj
             </Button>
           </View>
-        </Card>
+        </ExpandableCard>
 
-        <Card title="Dane">
+        <Card title="Danger zone">
           <Divider />
-          {/* <Button
-            mode="contained"
-            buttonColor={theme.colors.backdrop}
-            onPress={() => router.push("/(tabs)/home/export-data")}
-          >
-            Eksport danych
-          </Button> */}
           <Button mode="contained" onPress={handleSignOut}>
             Wyloguj
           </Button>

@@ -2,8 +2,8 @@
   "expo": {
     "name": "Warzywnik",
     "slug": "warzywnik-mobile",
-    "version": "2.1.0",
-    "runtimeVersion": "2.1.0",
+    "version": "2.2.0",
+    "runtimeVersion": "2.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo-with-brand.png",
     "scheme": "warzywnikmobile",
