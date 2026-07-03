@@ -1,6 +1,10 @@
 import type { TimelineItem } from "@/src/api/queries/plantings/learningTypes";
 import { useGetPlantingTimeline } from "@/src/api/queries/plantings/useGetPlantingTimeline";
 import {
+  FeaturePremiumLock,
+  isPremiumFeatureLocked,
+} from "@/src/components/ui/FeaturePremiumLock";
+import {
   formatLocalDateTime,
   getTimelineItemPresentation,
 } from "@/src/utils/learningMappers";
@@ -123,18 +127,22 @@ export function PlantingTimelineSection({ plantingId }: Props) {
       {isLoading ? <ActivityIndicator style={styles.loader} /> : null}
 
       {error && !isLoading ? (
-        <View>
-          <Text style={styles.errorText}>
-            Nie udało się załadować historii sezonu.
-          </Text>
-          <Button
-            mode="outlined"
-            onPress={() => refetch()}
-            style={styles.retryBtn}
-          >
-            Spróbuj ponownie
-          </Button>
-        </View>
+        isPremiumFeatureLocked(error) ? (
+          <FeaturePremiumLock label="Historia sezonu dostępna jest w planie Premium." />
+        ) : (
+          <View>
+            <Text style={styles.errorText}>
+              Nie udało się załadować historii sezonu.
+            </Text>
+            <Button
+              mode="outlined"
+              onPress={() => refetch()}
+              style={styles.retryBtn}
+            >
+              Spróbuj ponownie
+            </Button>
+          </View>
+        )
       ) : null}
 
       {!isLoading && !error && (data?.items ?? []).length === 0 ? (
@@ -171,8 +179,8 @@ const makeStyles = (theme: MD3Theme) =>
       backgroundColor: theme.colors.surface,
     },
     sectionTitle: {
-      fontSize: 15,
-      fontWeight: "600",
+      fontSize: 19,
+      fontWeight: "700",
       color: theme.colors.onSurface,
       marginBottom: 10,
     },

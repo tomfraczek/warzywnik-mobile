@@ -628,6 +628,7 @@ const sharedStyles = StyleSheet.create({
     borderColor: "#E8ECE7",
     backgroundColor: "#FFFFFF",
     padding: 20,
+    alignItems: "center",
   },
   categoryIconWrap: {
     width: 58,
@@ -642,11 +643,13 @@ const sharedStyles = StyleSheet.create({
     fontWeight: "700",
     color: "#1D2420",
     marginBottom: 8,
+    textAlign: "center",
   },
   categorySubtitle: {
     fontSize: 14,
     lineHeight: 20,
     color: "#738078",
+    textAlign: "center",
   },
   vegetableCard: {
     minHeight: 138,

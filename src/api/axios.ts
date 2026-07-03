@@ -74,22 +74,36 @@ restClient.interceptors.response.use(
       requestHeaders?.["Authorization"] ?? requestHeaders?.["authorization"]
     );
     if (status === 403 && responseData?.code === "PREMIUM_REQUIRED") {
-      premiumErrorHandler?.(responseData);
+      const details = responseData?.details as Record<string, unknown> | undefined;
+      const reason = details?.reason as string | undefined;
+      // Only show paywall for explicit user actions (limit/resource blocks).
+      // FEATURE_LOCKED means a background query loaded a premium-only endpoint —
+      // those components handle the locked state inline.
+      if (reason === "LIMIT_REACHED" || reason === "RESOURCE_LOCKED") {
+        premiumErrorHandler?.(responseData);
+      }
     } else if ((status === 401 || status === 403) && hadAuthHeader) {
       const justSignedIn = Date.now() - lastSignInAt < 3000;
       if (!justSignedIn) {
         authErrorHandler?.(status);
       }
     }
-    if (__DEV__) {
-      console.error("API error:", {
-        status,
-        url: err?.config?.url,
-        method: err?.config?.method,
-        data: err?.response?.data || err.message,
-      });
-    } else {
-      console.error("API error:", err?.response?.data || err.message);
+    const isExpectedFeatureLock =
+      status === 403 &&
+      responseData?.code === "PREMIUM_REQUIRED" &&
+      (responseData?.details as Record<string, unknown> | undefined)?.reason === "FEATURE_LOCKED";
+
+    if (!isExpectedFeatureLock) {
+      if (__DEV__) {
+        console.error("API error:", {
+          status,
+          url: err?.config?.url,
+          method: err?.config?.method,
+          data: err?.response?.data || err.message,
+        });
+      } else {
+        console.error("API error:", err?.response?.data || err.message);
+      }
     }
     return Promise.reject(err);
   },

@@ -45,6 +45,10 @@ import { Screen } from "@/src/components/Screen";
 import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
 import { BottomSheetModal } from "@/src/components/ui/BottomSheetModal";
+import {
+  FeaturePremiumLock,
+  isPremiumFeatureLocked,
+} from "@/src/components/ui/FeaturePremiumLock";
 import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { useTutorial } from "@/src/hooks/useTutorial";
@@ -508,6 +512,9 @@ export default function PlantingDetailsScreen() {
     (diseaseResolvedQuery.data?.length ?? 0) +
       (pestResolvedQuery.data?.length ?? 0) >
     0;
+  const isProblemsLocked =
+    isPremiumFeatureLocked(diseaseActiveQuery.error) ||
+    isPremiumFeatureLocked(pestActiveQuery.error);
   const plantingTasks = useMemo(() => {
     const ownAndRelatedPendingTasks = (
       plantingTasksResponse?.items ?? []
@@ -1891,6 +1898,13 @@ export default function PlantingDetailsScreen() {
           }}
         >
           <Surface style={styles.section} elevation={0}>
+            {isProblemsLocked ? (
+              <>
+                <Text style={styles.sectionTitle}>Problemy</Text>
+                <FeaturePremiumLock label="Historia chorób i szkodników dostępna jest w planie Premium." />
+              </>
+            ) : (
+              <>
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>Problemy</Text>
               <Button
@@ -2147,6 +2161,8 @@ export default function PlantingDetailsScreen() {
                   </View>
                 </Surface>
               ))
+            )}
+              </>
             )}
           </Surface>
         </View>

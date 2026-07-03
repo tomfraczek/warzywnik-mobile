@@ -38,6 +38,7 @@ import { Screen } from "@/src/components/Screen";
 import CustomHeader from "@/src/components/navigation/CustomHeader";
 import { CoachMarkOverlay } from "@/src/components/tutorial/CoachMarkOverlay";
 import { BottomSheetModal } from "@/src/components/ui/BottomSheetModal";
+import { isPremiumFeatureLocked } from "@/src/components/ui/FeaturePremiumLock";
 import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { useTutorial } from "@/src/hooks/useTutorial";
@@ -356,7 +357,7 @@ export default function BedDetailsScreen() {
     },
     { enabled: Boolean(resolvedBedId) && !isBedDeleted },
   );
-  const { data: bedPlan } = useGetBedPlan(
+  const { data: bedPlan, error: bedPlanError } = useGetBedPlan(
     !isBedDeleted ? (resolvedBedId ?? null) : null,
   );
   const {
@@ -544,6 +545,7 @@ export default function BedDetailsScreen() {
   }, [harvestPrompts, activeTasks]);
 
   const isOffline = useIsOffline();
+  const plantingLimit = entitlements?.limits.activePlantings ?? null;
 
   const tutorial = useTutorial("bedDetails");
   const [showTutorial, setShowTutorial] = useState(false);
@@ -560,6 +562,7 @@ export default function BedDetailsScreen() {
   const notesSectionY = useRef(0);
   const historySectionY = useRef(0);
   const seasonHistoryY = useRef(0);
+  const isNavigatingToNewPlantingRef = useRef(false);
 
   const isFocused = useIsFocused();
 
@@ -1091,22 +1094,30 @@ export default function BedDetailsScreen() {
         >
           <PrimaryActionButton
             onPress={() => {
-              const plantingLimit = entitlements?.limits.activePlantings;
               if (
                 plantingLimit !== null &&
-                plantingLimit !== undefined &&
-                activePlantings.length >= plantingLimit
+                activePlantings.length + plannedPlantings.length >= plantingLimit
               ) {
                 openPremiumPaywall({ reason: "plantingsLimit" });
                 return;
               }
+              if (isNavigatingToNewPlantingRef.current) return;
+              isNavigatingToNewPlantingRef.current = true;
               router.push(`/(tabs)/beds/${bed.id}/plantings/new`);
+              setTimeout(() => {
+                isNavigatingToNewPlantingRef.current = false;
+              }, 1000);
             }}
             icon="sprout-outline"
             label="Dodaj warzywo"
             color={palette.secondaryCta}
             disabled={isOffline}
           />
+          {plantingLimit !== null ? (
+            <Text style={styles.plantingLimitInfo}>
+              Plan darmowy: {activePlantings.length + plannedPlantings.length}/{plantingLimit} upraw
+            </Text>
+          ) : null}
         </View>
 
         <BedPlanEntryCard
@@ -1117,6 +1128,7 @@ export default function BedDetailsScreen() {
           fallbackToPlanCopy={
             (bedPlan?.plannedPlantings.length ?? plannedPlantings.length) === 0
           }
+          isPremiumLocked={isPremiumFeatureLocked(bedPlanError)}
           onPress={() => {
             router.push(`/(tabs)/beds/${bed.id}/plan`);
           }}
@@ -2194,6 +2206,12 @@ const makeStyles = (theme: MD3Theme) => {
     },
     addVegetableButton: {
       marginBottom: 14,
+    },
+    plantingLimitInfo: {
+      fontSize: 12,
+      color: palette.meta,
+      textAlign: "center",
+      marginTop: 6,
     },
     section: {
       backgroundColor: palette.cardBg,

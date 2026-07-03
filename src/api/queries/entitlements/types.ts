@@ -56,4 +56,5 @@ export type PremiumPaywallReason =
   | 'postHarvestSuggestions'
   | 'weatherBasedTasks'
   | 'growthStageTasks'
-  | 'premiumRequired';
+  | 'premiumRequired'
+  | 'featureLocked';

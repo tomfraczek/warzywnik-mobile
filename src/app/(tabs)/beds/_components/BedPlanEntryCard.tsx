@@ -1,4 +1,5 @@
 import { BedPlanSummary } from "@/src/api/queries/bedPlan/types";
+import { FeaturePremiumLock } from "@/src/components/ui/FeaturePremiumLock";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type BedPlanEntryCardProps = {
@@ -7,6 +8,7 @@ type BedPlanEntryCardProps = {
   onPress: () => void;
   fallbackToPlanCopy?: boolean;
   disabled?: boolean;
+  isPremiumLocked?: boolean;
 };
 
 export function BedPlanEntryCard({
@@ -15,6 +17,7 @@ export function BedPlanEntryCard({
   onPress,
   fallbackToPlanCopy = false,
   disabled = false,
+  isPremiumLocked = false,
 }: BedPlanEntryCardProps) {
   const hasPlanned = plannedPlantingsCount > 0;
   const subtitle = hasPlanned
@@ -23,6 +26,15 @@ export function BedPlanEntryCard({
   const preparationCopy = summary
     ? `${summary.pending} do przygotowania · ${summary.done} gotowe`
     : null;
+
+  if (isPremiumLocked) {
+    return (
+      <View style={styles.card}>
+        <Text style={styles.title}>Plan grządki</Text>
+        <FeaturePremiumLock label="Planowanie grządki dostępne jest w planie Premium." />
+      </View>
+    );
+  }
 
   return (
     <Pressable

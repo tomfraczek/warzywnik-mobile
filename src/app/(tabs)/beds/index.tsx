@@ -478,16 +478,25 @@ export default function BedsListScreen() {
   );
 
   const visibleBeds = useMemo(() => {
+    let filtered = beds;
     if (activeFilter === "active") {
-      return beds.filter((bed) => bed.isActive === true);
+      filtered = beds.filter((bed) => bed.isActive === true);
+    } else if (activeFilter === "inactive") {
+      filtered = beds.filter((bed) => bed.isActive !== true);
     }
-    if (activeFilter === "inactive") {
-      return beds.filter((bed) => bed.isActive !== true);
-    }
-    return beds;
+    // Available beds always first, locked beds at the bottom (preserve API order within each group)
+    return [
+      ...filtered.filter((bed) => bed.accessStatus !== "locked"),
+      ...filtered.filter((bed) => bed.accessStatus === "locked"),
+    ];
   }, [beds, activeFilter]);
 
   const total = visibleBeds.length;
+
+  const accessibleBedsCount = useMemo(
+    () => beds.filter((bed) => bed.accessStatus !== "locked").length,
+    [beds],
+  );
 
   const activePlantingsCountByBed = useMemo(() => {
     const counts = new Map<string, number>();
@@ -648,21 +657,33 @@ export default function BedsListScreen() {
             ) : null}
           </View>
         }
-        renderItem={({ item, index }) => (
-          <BedCard
-            bed={item}
-            activePlantings={activePlantingsCountByBed.get(item.id) ?? 0}
-            palette={palette}
-            onPress={() => {
-              if (item.accessStatus === "locked") {
-                openPremiumPaywall({ reason: "lockedBed" });
-                return;
-              }
-              router.push(`/(tabs)/beds/${item.id}`);
-            }}
-            wrapperRef={index === 0 ? firstBedCardRef : undefined}
-          />
-        )}
+        renderItem={({ item, index }) => {
+          const bedLimit = entitlements?.limits.beds ?? null;
+          const isFirstAccessible = index === 0 && item.accessStatus !== "locked";
+          return (
+            <>
+              <BedCard
+                bed={item}
+                activePlantings={activePlantingsCountByBed.get(item.id) ?? 0}
+                palette={palette}
+                onPress={() => {
+                  if (item.accessStatus === "locked") {
+                    openPremiumPaywall({ reason: "lockedBed" });
+                    return;
+                  }
+                  router.push(`/(tabs)/beds/${item.id}`);
+                }}
+                wrapperRef={index === 0 ? firstBedCardRef : undefined}
+              />
+              {isFirstAccessible && bedLimit !== null ? (
+                <Text style={[s.bedLimitInfo, { color: palette.meta }]}>
+                  Plan darmowy: {accessibleBedsCount}/{bedLimit}{" "}
+                  {bedLimit === 1 ? "grządka" : bedLimit < 5 ? "grządki" : "grządek"}
+                </Text>
+              ) : null}
+            </>
+          );
+        }}
         ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
         ListEmptyComponent={
           !isLoading ? (
@@ -741,6 +762,12 @@ const s = StyleSheet.create({
   listCount: {
     fontSize: 13,
     marginTop: 2,
+  },
+  bedLimitInfo: {
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 6,
+    marginBottom: 2,
   },
   addBtn: {
     flexDirection: "row",

@@ -1,5 +1,9 @@
 import { useGetBedSeasons } from "@/src/api/queries/beds/useGetBedSeasons";
 import type { SeasonSummary } from "@/src/api/queries/plantings/learningTypes";
+import {
+  FeaturePremiumLock,
+  isPremiumFeatureLocked,
+} from "@/src/components/ui/FeaturePremiumLock";
 import { useGetVegetable } from "@/src/api/queries/vegetables/useGetVegetable";
 import { formatLocalDate, formatYield } from "@/src/utils/learningMappers";
 import {
@@ -253,18 +257,22 @@ export function BedSeasonHistorySection({
       {isLoading ? <ActivityIndicator style={styles.loader} /> : null}
 
       {error && !isLoading ? (
-        <View>
-          <Text style={styles.errorText}>
-            Nie udało się załadować historii upraw.
-          </Text>
-          <Button
-            mode="outlined"
-            onPress={() => refetch()}
-            style={styles.retryBtn}
-          >
-            Spróbuj ponownie
-          </Button>
-        </View>
+        isPremiumFeatureLocked(error) ? (
+          <FeaturePremiumLock label="Historia upraw dostępna jest w planie Premium." />
+        ) : (
+          <View>
+            <Text style={styles.errorText}>
+              Nie udało się załadować historii upraw.
+            </Text>
+            <Button
+              mode="outlined"
+              onPress={() => refetch()}
+              style={styles.retryBtn}
+            >
+              Spróbuj ponownie
+            </Button>
+          </View>
+        )
       ) : null}
 
       {!isLoading && !error && visibleSeasons.length > 0

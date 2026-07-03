@@ -4,6 +4,10 @@ import type {
 } from "@/src/api/queries/plantings/learningTypes";
 import { useGetPlantingSeasonComparison } from "@/src/api/queries/plantings/useGetPlantingSeasonComparison";
 import {
+  FeaturePremiumLock,
+  isPremiumFeatureLocked,
+} from "@/src/components/ui/FeaturePremiumLock";
+import {
   formatDurationDiff,
   formatLocalDate,
   formatStartDiff,
@@ -161,14 +165,20 @@ export function PlantingSeasonSection({ plantingId }: Props) {
     return (
       <Surface style={styles.section} elevation={0}>
         <Text style={styles.sectionTitle}>Podsumowanie sezonu</Text>
-        <Text style={styles.errorText}>Nie udało się załadować danych.</Text>
-        <Button
-          mode="outlined"
-          onPress={() => refetch()}
-          style={styles.retryBtn}
-        >
-          Spróbuj ponownie
-        </Button>
+        {isPremiumFeatureLocked(error) ? (
+          <FeaturePremiumLock label="Statystyki sezonowe dostępne są w planie Premium." />
+        ) : (
+          <>
+            <Text style={styles.errorText}>Nie udało się załadować danych.</Text>
+            <Button
+              mode="outlined"
+              onPress={() => refetch()}
+              style={styles.retryBtn}
+            >
+              Spróbuj ponownie
+            </Button>
+          </>
+        )}
       </Surface>
     );
   }
@@ -257,8 +267,8 @@ const makeStyles = (theme: MD3Theme) =>
       gap: 4,
     },
     sectionTitle: {
-      fontSize: 15,
-      fontWeight: "600",
+      fontSize: 19,
+      fontWeight: "700",
       color: theme.colors.onSurface,
       marginBottom: 4,
     },
