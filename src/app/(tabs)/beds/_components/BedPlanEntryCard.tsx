@@ -1,6 +1,18 @@
 import { BedPlanSummary } from "@/src/api/queries/bedPlan/types";
 import { FeaturePremiumLock } from "@/src/components/ui/FeaturePremiumLock";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { MD3Theme, useTheme } from "react-native-paper";
+
+function buildPalette(dark: boolean) {
+  return {
+    cardBg: dark ? "#1A1F1C" : "#FFFFFF",
+    cardBorder: dark ? "#252D29" : "#E8ECE7",
+    heading: dark ? "#F2F5F1" : "#1D2420",
+    secondary: dark ? "#9AA59E" : "#6E7972",
+    meta: dark ? "#7A8880" : "#97A29B",
+    accent: dark ? "#7AB88A" : "#4A7C59",
+  };
+}
 
 type BedPlanEntryCardProps = {
   plannedPlantingsCount?: number;
@@ -19,6 +31,8 @@ export function BedPlanEntryCard({
   disabled = false,
   isPremiumLocked = false,
 }: BedPlanEntryCardProps) {
+  const theme = useTheme<MD3Theme>();
+  const palette = buildPalette(theme.dark);
   const hasPlanned = plannedPlantingsCount > 0;
   const subtitle = hasPlanned
     ? "Zobacz zaplanowane uprawy i checklistę przygotowania."
@@ -26,6 +40,8 @@ export function BedPlanEntryCard({
   const preparationCopy = summary
     ? `${summary.pending} do przygotowania · ${summary.done} gotowe`
     : null;
+
+  const styles = makeStyles(palette);
 
   if (isPremiumLocked) {
     return (
@@ -72,53 +88,55 @@ export function BedPlanEntryCard({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#E8ECE7",
-    backgroundColor: "#FFFFFF",
-    padding: 18,
-    marginBottom: 20,
-    gap: 10,
-  },
-  cardPressed: {
-    opacity: 0.9,
-  },
-  cardDisabled: {
-    opacity: 0.7,
-  },
-  topRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  title: {
-    fontSize: 19,
-    fontWeight: "700",
-    color: "#1D2420",
-  },
-  linkText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#4A7C59",
-  },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#6E7972",
-  },
-  metaRow: {
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 13,
-    color: "#97A29B",
-  },
-  ctaText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#4A7C59",
-  },
-});
+function makeStyles(palette: ReturnType<typeof buildPalette>) {
+  return StyleSheet.create({
+    card: {
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+      backgroundColor: palette.cardBg,
+      padding: 18,
+      marginBottom: 20,
+      gap: 10,
+    },
+    cardPressed: {
+      opacity: 0.9,
+    },
+    cardDisabled: {
+      opacity: 0.7,
+    },
+    topRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+    },
+    title: {
+      fontSize: 19,
+      fontWeight: "700",
+      color: palette.heading,
+    },
+    linkText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: palette.accent,
+    },
+    subtitle: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: palette.secondary,
+    },
+    metaRow: {
+      gap: 4,
+    },
+    metaText: {
+      fontSize: 13,
+      color: palette.meta,
+    },
+    ctaText: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: palette.accent,
+    },
+  });
+}

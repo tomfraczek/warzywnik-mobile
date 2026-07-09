@@ -44,7 +44,7 @@ function makeStyles(theme: MD3Theme) {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: "#FFFFFF",
+      backgroundColor: theme.colors.surface,
       alignItems: "center",
       justifyContent: "center",
       alignSelf: "center",
