@@ -352,22 +352,6 @@ export default function ProfileScreen() {
         </Card>
 
         <Card title="Preferencje">
-          <Text style={styles.label}>Język i region</Text>
-          <View style={styles.inlineWrap}>
-            {(["system", "pl", "en"] as LanguagePreference[]).map((lang) => (
-              <Pressable
-                key={lang}
-                style={styles.chip}
-                onPress={() => setLanguagePreference(lang)}
-              >
-                <StatusBadge
-                  label={languageLabels[lang]}
-                  tone={languagePreference === lang ? "success" : "neutral"}
-                />
-              </Pressable>
-            ))}
-          </View>
-
           <Text style={styles.label}>Lokalizacja</Text>
           <Text style={styles.helper}>
             {location?.label ?? "Brak ustawionej lokalizacji"}

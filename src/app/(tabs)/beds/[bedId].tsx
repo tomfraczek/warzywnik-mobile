@@ -2616,7 +2616,7 @@ const makeStyles = (theme: MD3Theme) => {
       padding: 16,
       paddingBottom: 26,
       borderWidth: 1,
-      borderColor: theme.colors.outlineVariant,
+      borderColor: palette.cardBorder,
       gap: 12,
     },
     bottomSheetModalWrapper: {

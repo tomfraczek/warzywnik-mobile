@@ -3589,6 +3589,8 @@ const makeStyles = (theme: MD3Theme) =>
       borderRadius: 16,
       padding: 16,
       gap: 12,
+      borderWidth: 1,
+      borderColor: buildPalette(theme.dark).cardBorder,
     },
     statusModal: {
       backgroundColor: theme.colors.surface,

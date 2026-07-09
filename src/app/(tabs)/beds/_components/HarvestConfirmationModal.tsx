@@ -70,6 +70,8 @@ const makeStyles = (theme: MD3Theme) =>
       padding: 16,
       gap: 16,
       backgroundColor: theme.colors.surface,
+      borderWidth: theme.dark ? 1 : 0,
+      borderColor: "rgba(255, 255, 255, 0.12)",
     },
     title: {
       fontSize: 18,

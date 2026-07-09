@@ -87,6 +87,8 @@ function makeStyles(theme: MD3Theme) {
       margin: 24,
       borderRadius: 24,
       backgroundColor: theme.colors.surface,
+      borderWidth: theme.dark ? 1 : 0,
+      borderColor: "rgba(255, 255, 255, 0.12)",
       padding: 28,
       alignItems: "center",
       gap: 12,

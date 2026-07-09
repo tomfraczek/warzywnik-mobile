@@ -161,6 +161,8 @@ const makeStyles = (theme: MD3Theme) =>
       padding: 20,
       borderRadius: 26,
       maxHeight: "80%",
+      borderWidth: theme.dark ? 1 : 0,
+      borderColor: "rgba(255, 255, 255, 0.12)",
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 3 },
       shadowOpacity: 0.1,

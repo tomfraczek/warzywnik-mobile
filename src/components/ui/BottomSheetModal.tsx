@@ -180,7 +180,7 @@ const makeStyles = (theme: MD3Theme) =>
       borderBottomLeftRadius: 0,
       borderBottomRightRadius: 0,
       borderWidth: 1,
-      borderColor: theme.colors.outlineVariant,
+      borderColor: theme.dark ? "rgba(255, 255, 255, 0.12)" : theme.colors.outlineVariant,
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 16,
       paddingTop: 6,

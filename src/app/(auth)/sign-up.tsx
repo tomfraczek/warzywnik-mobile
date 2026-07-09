@@ -16,6 +16,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -175,7 +176,10 @@ export default function SignUpScreen() {
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <View style={styles.container}>
+          <ScrollView
+            contentContainerStyle={styles.container}
+            keyboardShouldPersistTaps="handled"
+          >
             <View style={styles.header}>
               <Text style={styles.subtitle}>
                 Wpisz kod weryfikacyjny, który wysłaliśmy na Twój adres e-mail.
@@ -195,7 +199,7 @@ export default function SignUpScreen() {
             >
               Zweryfikuj
             </Button>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </Screen>
     );
@@ -213,7 +217,10 @@ export default function SignUpScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.header}>
             <BrandLogo
               logoSize={56}
@@ -282,7 +289,7 @@ export default function SignUpScreen() {
               <Text style={styles.link}>Zaloguj się</Text>
             </Link>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   );
@@ -291,7 +298,7 @@ export default function SignUpScreen() {
 const makeStyles = (theme: MD3Theme) =>
   StyleSheet.create({
     container: {
-      flex: 1,
+      flexGrow: 1,
       justifyContent: "center",
       padding: 24,
       gap: 16,
