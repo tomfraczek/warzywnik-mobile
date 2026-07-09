@@ -25,7 +25,21 @@ import {
   Text,
   View,
 } from "react-native";
-import { Button, Icon, Snackbar } from "react-native-paper";
+import { Button, Icon, MD3Theme, Snackbar, useTheme } from "react-native-paper";
+
+function buildPalette(dark: boolean) {
+  return {
+    background: dark ? "#141816" : "#F7F8F5",
+    placeholderBar: dark ? "#252D29" : "#E0E5DF",
+    placeholderCard: dark ? "#1E2522" : "#E0E5DF",
+    blurCardBg: dark ? "#1A1F1C" : "#FFFFFF",
+    blurDivider: dark ? "rgba(255, 255, 255, 0.12)" : "#E8ECE7",
+    blurSuccessBg: dark ? "#1A2E1F" : "#E7F4EC",
+    blurSuccessTitle: dark ? "#7AB88A" : "#1C5A3D",
+    blurSuccessSubtext: dark ? "#5E9A6E" : "#2E7D52",
+    blurTitle: dark ? "#F2F5F1" : "#1D2420",
+  };
+}
 import { AddManualChecklistItemSheet } from "../_components/plan/AddManualChecklistItemSheet";
 import { BedPlanHeaderCard } from "../_components/plan/BedPlanHeaderCard";
 import { EditManualChecklistItemSheet } from "../_components/plan/EditManualChecklistItemSheet";
@@ -36,6 +50,8 @@ import { PlannedPlantingsList } from "../_components/plan/PlannedPlantingsList";
 const DELETE_SNACKBAR_DURATION_MS = 3000;
 
 export default function BedPlanScreen() {
+  const theme = useTheme<MD3Theme>();
+  const palette = buildPalette(theme.dark);
   const { bedId } = useLocalSearchParams<{ bedId?: string | string[] }>();
   const resolvedBedId = Array.isArray(bedId) ? bedId[0] : bedId;
   const router = useRouter();
@@ -239,7 +255,7 @@ export default function BedPlanScreen() {
   };
 
   return (
-    <Screen style={styles.screen} safeAreaEdges={["left", "right"]}>
+    <Screen style={[styles.screen, { backgroundColor: palette.background }]} safeAreaEdges={["left", "right"]}>
       <CustomHeader title="Plan grządki" showBack />
 
       {bedPlanQuery.isLoading ? (
@@ -300,12 +316,12 @@ export default function BedPlanScreen() {
             </ScrollView>
           ) : (
             <View style={styles.placeholderWrap}>
-              <View style={styles.placeholderBar} />
-              <View style={[styles.placeholderBar, styles.placeholderBarWide]} />
-              <View style={styles.placeholderCard} />
-              <View style={styles.placeholderBar} />
-              <View style={[styles.placeholderBar, styles.placeholderBarNarrow]} />
-              <View style={[styles.placeholderCard, styles.placeholderCardTall]} />
+              <View style={[styles.placeholderBar, { backgroundColor: palette.placeholderBar }]} />
+              <View style={[styles.placeholderBar, styles.placeholderBarWide, { backgroundColor: palette.placeholderBar }]} />
+              <View style={[styles.placeholderCard, { backgroundColor: palette.placeholderCard }]} />
+              <View style={[styles.placeholderBar, { backgroundColor: palette.placeholderBar }]} />
+              <View style={[styles.placeholderBar, styles.placeholderBarNarrow, { backgroundColor: palette.placeholderBar }]} />
+              <View style={[styles.placeholderCard, styles.placeholderCardTall, { backgroundColor: palette.placeholderCard }]} />
             </View>
           )}
 
@@ -313,23 +329,23 @@ export default function BedPlanScreen() {
             <BlurView
               style={StyleSheet.absoluteFill}
               intensity={55}
-              tint="light"
+              tint={theme.dark ? "dark" : "light"}
             >
               <View style={styles.blurOverlay}>
-                <View style={styles.blurCard}>
-                  <View style={styles.blurSuccessBadge}>
+                <View style={[styles.blurCard, { backgroundColor: palette.blurCardBg }]}>
+                  <View style={[styles.blurSuccessBadge, { backgroundColor: palette.blurSuccessBg }]}>
                     <View style={styles.blurSuccessIconWrap}>
-                      <Icon source="check-circle" size={28} color="#1C5A3D" />
+                      <Icon source="check-circle" size={28} color={palette.blurSuccessTitle} />
                     </View>
-                    <Text style={styles.blurSuccessTitle}>
+                    <Text style={[styles.blurSuccessTitle, { color: palette.blurSuccessTitle }]}>
                       Uprawa dodana do grządki!
                     </Text>
-                    <Text style={styles.blurSuccessSubtext}>
+                    <Text style={[styles.blurSuccessSubtext, { color: palette.blurSuccessSubtext }]}>
                       Warzywo zostało zapisane w Twojej grządce.
                     </Text>
                   </View>
-                  <View style={styles.blurDivider} />
-                  <Text style={styles.blurTitle}>
+                  <View style={[styles.blurDivider, { backgroundColor: palette.blurDivider }]} />
+                  <Text style={[styles.blurTitle, { color: palette.blurTitle }]}>
                     Plan grządki dostępny jest w planie Premium
                   </Text>
                   <PremiumUnlockButton
@@ -388,9 +404,7 @@ export default function BedPlanScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: "#F7F8F5",
-  },
+  screen: {},
   contentWrap: {
     padding: 16,
   },
@@ -422,7 +436,6 @@ const styles = StyleSheet.create({
   placeholderBar: {
     height: 16,
     borderRadius: 8,
-    backgroundColor: "#E0E5DF",
     width: "60%",
   },
   placeholderBarWide: {
@@ -434,7 +447,6 @@ const styles = StyleSheet.create({
   placeholderCard: {
     height: 100,
     borderRadius: 16,
-    backgroundColor: "#E0E5DF",
   },
   placeholderCardTall: {
     height: 160,
@@ -446,7 +458,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   blurCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     padding: 24,
     width: "100%",
@@ -460,11 +471,9 @@ const styles = StyleSheet.create({
   },
   blurDivider: {
     height: 1,
-    backgroundColor: "#E8ECE7",
     width: "100%",
   },
   blurSuccessBadge: {
-    backgroundColor: "#E7F4EC",
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 20,
@@ -478,18 +487,15 @@ const styles = StyleSheet.create({
   blurSuccessTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#1C5A3D",
     textAlign: "center",
   },
   blurSuccessSubtext: {
     fontSize: 13,
-    color: "#2E7D52",
     textAlign: "center",
   },
   blurTitle: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#1D2420",
     textAlign: "center",
     lineHeight: 22,
   },

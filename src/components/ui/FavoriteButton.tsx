@@ -1,7 +1,7 @@
 import { FavoriteTargetType } from "@/src/api/queries/favorites/types";
 import { useFavoriteToggle } from "@/src/api/queries/favorites/useFavoriteToggle";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Icon } from "react-native-paper";
+import { Icon, MD3Theme, useTheme } from "react-native-paper";
 
 type Props = {
   targetType: FavoriteTargetType;
@@ -26,6 +26,7 @@ export function FavoriteButton({
   size = 22,
   inactiveColor = "#C0CAC4",
 }: Props) {
+  const theme = useTheme<MD3Theme>();
   const { isFavorited, toggle, isBusy, isAvailable } = useFavoriteToggle(
     targetType,
     targetSlug,
@@ -69,7 +70,7 @@ export function FavoriteButton({
         <Icon
           source={isFavorited ? "heart" : "heart-outline"}
           size={size}
-          color={isFavorited ? "#E05252" : "#B0BAB5"}
+          color={isFavorited ? "#E05252" : theme.dark ? "#9AA59E" : "#B0BAB5"}
         />
       </Pressable>
     );

@@ -46,7 +46,7 @@ export function WarningCard({
             <MaterialCommunityIcons
               name="information-outline"
               size={18}
-              color="#3F6A52"
+              color={theme.dark ? "#7AB88A" : "#3F6A52"}
             />
           </Pressable>
         </View>
@@ -114,9 +114,9 @@ const makeStyles = (theme: MD3Theme, accentColor: string) =>
       borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "#ECF5EE",
+      backgroundColor: theme.dark ? "#1A2E1F" : "#ECF5EE",
       borderWidth: 1,
-      borderColor: "#D7E8DB",
+      borderColor: theme.dark ? "#2A4A32" : "#D7E8DB",
     },
     title: {
       fontSize: 14,

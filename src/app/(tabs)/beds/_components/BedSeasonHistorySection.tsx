@@ -305,8 +305,8 @@ const makeStyles = (theme: MD3Theme) =>
       backgroundColor: theme.colors.surface,
     },
     sectionTitle: {
-      fontSize: 15,
-      fontWeight: "600",
+      fontSize: 19,
+      fontWeight: "700",
       marginBottom: 4,
       color: theme.colors.onSurface,
     },

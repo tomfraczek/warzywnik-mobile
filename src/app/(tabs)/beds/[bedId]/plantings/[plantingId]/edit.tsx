@@ -25,8 +25,10 @@ import {
   Text,
   View,
 } from "react-native";
+import { MD3Theme, useTheme } from "react-native-paper";
 
 export default function PlantingEditScreen() {
+  const theme = useTheme<MD3Theme>();
   const { bedId, plantingId } = useLocalSearchParams<{
     bedId?: string | string[];
     plantingId?: string | string[];
@@ -120,9 +122,11 @@ export default function PlantingEditScreen() {
     }
   };
 
+  const dynamicStyles = makeDynamicStyles(theme);
+
   if (isLoading) {
     return (
-      <View style={styles.center}>
+      <View style={dynamicStyles.center}>
         <ActivityIndicator />
       </View>
     );
@@ -130,10 +134,10 @@ export default function PlantingEditScreen() {
 
   if (error && !data) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{String(getResponseError(error))}</Text>
-        <Pressable style={styles.secondaryButton} onPress={() => refetch()}>
-          <Text style={styles.secondaryButtonText}>Spróbuj ponownie</Text>
+      <View style={dynamicStyles.center}>
+        <Text style={dynamicStyles.errorText}>{String(getResponseError(error))}</Text>
+        <Pressable style={dynamicStyles.secondaryButton} onPress={() => refetch()}>
+          <Text style={dynamicStyles.secondaryButtonText}>Spróbuj ponownie</Text>
         </Pressable>
       </View>
     );
@@ -177,29 +181,30 @@ export default function PlantingEditScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 24,
-  },
-  errorText: {
-    fontSize: 14,
-    color: "#dc2626",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  secondaryButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-  },
-  secondaryButtonText: {
-    color: "#111827",
-    fontWeight: "600",
-  },
-});
+const makeDynamicStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    center: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: theme.colors.background,
+      padding: 24,
+    },
+    errorText: {
+      fontSize: 14,
+      color: theme.dark ? "#D66C7A" : "#dc2626",
+      marginBottom: 12,
+      textAlign: "center",
+    },
+    secondaryButton: {
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+    },
+    secondaryButtonText: {
+      color: theme.colors.onSurface,
+      fontWeight: "600",
+    },
+  });

@@ -37,7 +37,7 @@ function buildPalette(dark: boolean) {
     searchPlaceholder: dark ? "#98A49C" : "#8A948D",
     searchIcon: dark ? "#9AA59E" : "#7F8B84",
     cardBg: dark ? "#1A1F1C" : "#FFFFFF",
-    cardBorder: dark ? "#252D29" : "#E8ECE7",
+    cardBorder: dark ? "rgba(255, 255, 255, 0.12)" : "#E8ECE7",
     diseaseIconBg: dark ? "#2E1A1A" : "#FBF0EF",
     diseaseIconColor: dark ? "#C88A85" : "#9A4A45",
     chevron: dark ? "#4A5550" : "#C0CAC4",

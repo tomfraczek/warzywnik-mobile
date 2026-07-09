@@ -243,7 +243,7 @@ function buildPalette(dark: boolean) {
   return {
     background: dark ? "#141816" : "#F7F8F5",
     cardBg: dark ? "#1A1F1C" : "#FFFFFF",
-    border: dark ? "#252D29" : "#E8ECE7",
+    border: dark ? "rgba(255, 255, 255, 0.12)" : "#E8ECE7",
     heading: dark ? "#F2F5F1" : "#1D2420",
     secondary: dark ? "#9AA59E" : "#6E7972",
     meta: dark ? "#5E6A62" : "#97A29B",

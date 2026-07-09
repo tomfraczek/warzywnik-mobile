@@ -29,7 +29,9 @@ type CategoryTile = {
     | "/(tabs)/education/vegetables";
   icon: string;
   tint: string;
+  tintDark: string;
   iconBackground: string;
+  iconBackgroundDark: string;
 };
 
 type SectionHeaderProps = {
@@ -100,6 +102,15 @@ const FAVORITE_TYPE_BG: Record<FavoriteTargetType, string> = {
   FERTILIZER: "#EBF4FD",
 };
 
+const FAVORITE_TYPE_BG_DARK: Record<FavoriteTargetType, string> = {
+  ARTICLE: "#1C2620",
+  VEGETABLE: "#1A2E1F",
+  SOIL: "#2A2318",
+  DISEASE: "#2E1A1C",
+  PEST: "#1A2A1C",
+  FERTILIZER: "#1A2535",
+};
+
 const FAVORITE_TYPE_TINT: Record<FavoriteTargetType, string> = {
   ARTICLE: "#4E7163",
   VEGETABLE: "#3E7C59",
@@ -107,6 +118,15 @@ const FAVORITE_TYPE_TINT: Record<FavoriteTargetType, string> = {
   DISEASE: "#B05B63",
   PEST: "#57745E",
   FERTILIZER: "#4B79A7",
+};
+
+const FAVORITE_TYPE_TINT_DARK: Record<FavoriteTargetType, string> = {
+  ARTICLE: "#7AB88A",
+  VEGETABLE: "#7AB88A",
+  SOIL: "#C4A96B",
+  DISEASE: "#D66C7A",
+  PEST: "#7AB88A",
+  FERTILIZER: "#7AAFD6",
 };
 
 const formatSlug = (slug: string) =>
@@ -121,7 +141,9 @@ const CATEGORY_TILES: CategoryTile[] = [
     route: "/(tabs)/education/vegetables",
     icon: "sprout-outline",
     tint: "#3E7C59",
+    tintDark: "#7AB88A",
     iconBackground: "#EAF7EF",
+    iconBackgroundDark: "#1A2E1F",
   },
   {
     title: "Gleby",
@@ -129,7 +151,9 @@ const CATEGORY_TILES: CategoryTile[] = [
     route: "/(tabs)/education/soils",
     icon: "shovel",
     tint: "#6C6341",
+    tintDark: "#C4A96B",
     iconBackground: "#F7F0E4",
+    iconBackgroundDark: "#2A2318",
   },
   {
     title: "Choroby",
@@ -137,7 +161,9 @@ const CATEGORY_TILES: CategoryTile[] = [
     route: "/(tabs)/education/diseases",
     icon: "heart-pulse",
     tint: "#B05B63",
+    tintDark: "#D66C7A",
     iconBackground: "#FBECEF",
+    iconBackgroundDark: "#2E1A1C",
   },
   {
     title: "Szkodniki",
@@ -145,7 +171,9 @@ const CATEGORY_TILES: CategoryTile[] = [
     route: "/(tabs)/education/pests",
     icon: "bug-outline",
     tint: "#57745E",
+    tintDark: "#7AB88A",
     iconBackground: "#EEF5EF",
+    iconBackgroundDark: "#1A2A1C",
   },
   {
     title: "Nawozy",
@@ -153,7 +181,9 @@ const CATEGORY_TILES: CategoryTile[] = [
     route: "/(tabs)/education/fertilizers",
     icon: "flask-outline",
     tint: "#4B79A7",
+    tintDark: "#7AAFD6",
     iconBackground: "#EBF4FD",
+    iconBackgroundDark: "#1A2535",
   },
   {
     title: "Artykuły",
@@ -161,7 +191,9 @@ const CATEGORY_TILES: CategoryTile[] = [
     route: "/(tabs)/education/articles",
     icon: "text-box-search-outline",
     tint: "#4E7163",
+    tintDark: "#7AB88A",
     iconBackground: "#EFF4F1",
+    iconBackgroundDark: "#1C2620",
   },
 ];
 
@@ -175,6 +207,8 @@ function SectionHeader({
   actionLabel,
   onActionPress,
 }: SectionHeaderProps) {
+  const theme = useTheme<MD3Theme>();
+  const sharedStyles = makeSharedStyles(theme.dark);
   return (
     <View style={sharedStyles.sectionHeader}>
       <Text style={sharedStyles.sectionTitle}>{title}</Text>
@@ -188,16 +222,15 @@ function SectionHeader({
 }
 
 function CategoryCard({ item, onPress }: CategoryCardProps) {
+  const theme = useTheme<MD3Theme>();
+  const sharedStyles = makeSharedStyles(theme.dark);
+  const iconBg = theme.dark ? item.iconBackgroundDark : item.iconBackground;
+  const iconTint = theme.dark ? item.tintDark : item.tint;
   return (
     <Pressable onPress={onPress} hitSlop={6}>
       <View style={sharedStyles.categoryCard}>
-        <View
-          style={[
-            sharedStyles.categoryIconWrap,
-            { backgroundColor: item.iconBackground },
-          ]}
-        >
-          <Icon source={item.icon} size={26} color={item.tint} />
+        <View style={[sharedStyles.categoryIconWrap, { backgroundColor: iconBg }]}>
+          <Icon source={item.icon} size={26} color={iconTint} />
         </View>
         <Text style={sharedStyles.categoryTitle}>{item.title}</Text>
         <Text style={sharedStyles.categorySubtitle}>{item.subtitle}</Text>
@@ -207,6 +240,8 @@ function CategoryCard({ item, onPress }: CategoryCardProps) {
 }
 
 function EmptySectionState({ message }: { message: string }) {
+  const theme = useTheme<MD3Theme>();
+  const sharedStyles = makeSharedStyles(theme.dark);
   return (
     <View style={sharedStyles.emptyCard}>
       <Text style={sharedStyles.emptyText}>{message}</Text>
@@ -215,6 +250,8 @@ function EmptySectionState({ message }: { message: string }) {
 }
 
 function TwoColumnGrid({ children }: { children: React.ReactElement[] }) {
+  const theme = useTheme<MD3Theme>();
+  const sharedStyles = makeSharedStyles(theme.dark);
   const left = children.filter((_, i) => i % 2 === 0);
   const right = children.filter((_, i) => i % 2 === 1);
   return (
@@ -226,6 +263,8 @@ function TwoColumnGrid({ children }: { children: React.ReactElement[] }) {
 }
 
 function FavoriteTileSkeleton({ typeLabel }: { typeLabel: string }) {
+  const theme = useTheme<MD3Theme>();
+  const sharedStyles = makeSharedStyles(theme.dark);
   return (
     <View style={sharedStyles.favTile}>
       <View style={sharedStyles.favTileImageSkeleton} />
@@ -243,6 +282,10 @@ function FavoriteVegetableTile({
   item: FavoriteItem;
   onPress: (detailParam: string | null) => void;
 }) {
+  const theme = useTheme<MD3Theme>();
+  const sharedStyles = makeSharedStyles(theme.dark);
+  const favBg = theme.dark ? FAVORITE_TYPE_BG_DARK.VEGETABLE : FAVORITE_TYPE_BG.VEGETABLE;
+  const favTint = theme.dark ? FAVORITE_TYPE_TINT_DARK.VEGETABLE : FAVORITE_TYPE_TINT.VEGETABLE;
   const detailParam = getFavoriteDetailParam(item);
   const { data: vegetable, isLoading: isVegetableLoading } =
     useGetVegetable(detailParam);
@@ -267,17 +310,8 @@ function FavoriteVegetableTile({
             contentFit="cover"
           />
         ) : (
-          <View
-            style={[
-              sharedStyles.favTileIconWrap,
-              { backgroundColor: FAVORITE_TYPE_BG.VEGETABLE },
-            ]}
-          >
-            <Icon
-              source="sprout-outline"
-              size={28}
-              color={FAVORITE_TYPE_TINT.VEGETABLE}
-            />
+          <View style={[sharedStyles.favTileIconWrap, { backgroundColor: favBg }]}>
+            <Icon source="sprout-outline" size={28} color={favTint} />
           </View>
         )}
         <Text style={sharedStyles.favTileLabel} numberOfLines={2}>
@@ -296,6 +330,10 @@ function FavoriteArticleTile({
   item: FavoriteItem;
   onPress: () => void;
 }) {
+  const theme = useTheme<MD3Theme>();
+  const sharedStyles = makeSharedStyles(theme.dark);
+  const favBg = theme.dark ? FAVORITE_TYPE_BG_DARK.ARTICLE : FAVORITE_TYPE_BG.ARTICLE;
+  const favTint = theme.dark ? FAVORITE_TYPE_TINT_DARK.ARTICLE : FAVORITE_TYPE_TINT.ARTICLE;
   const { data: article, isLoading: isArticleLoading } = useGetArticle(
     item.targetSlug,
   );
@@ -318,17 +356,8 @@ function FavoriteArticleTile({
             recyclingKey={item.targetSlug}
           />
         ) : (
-          <View
-            style={[
-              sharedStyles.favTileIconWrap,
-              { backgroundColor: FAVORITE_TYPE_BG.ARTICLE },
-            ]}
-          >
-            <Icon
-              source="text-box-search-outline"
-              size={28}
-              color={FAVORITE_TYPE_TINT.ARTICLE}
-            />
+          <View style={[sharedStyles.favTileIconWrap, { backgroundColor: favBg }]}>
+            <Icon source="text-box-search-outline" size={28} color={favTint} />
           </View>
         )}
         <Text style={sharedStyles.favTileLabel} numberOfLines={2}>
@@ -344,6 +373,7 @@ export default function EducationScreen() {
   const router = useRouter();
   const theme = useTheme<MD3Theme>();
   const styles = makeStyles(theme);
+  const sharedStyles = makeSharedStyles(theme.dark);
   const [query, setQuery] = useState("");
   void setQuery;
   const needle = query.trim().toLowerCase();
@@ -530,15 +560,18 @@ export default function EducationScreen() {
                         style={[
                           sharedStyles.favTileIconWrap,
                           {
-                            backgroundColor:
-                              FAVORITE_TYPE_BG[item.targetType],
+                            backgroundColor: theme.dark
+                              ? FAVORITE_TYPE_BG_DARK[item.targetType]
+                              : FAVORITE_TYPE_BG[item.targetType],
                           },
                         ]}
                       >
                         <Icon
                           source={cfg.icon}
                           size={28}
-                          color={FAVORITE_TYPE_TINT[item.targetType]}
+                          color={theme.dark
+                            ? FAVORITE_TYPE_TINT_DARK[item.targetType]
+                            : FAVORITE_TYPE_TINT[item.targetType]}
                         />
                       </View>
                       <Text
@@ -588,222 +621,236 @@ export default function EducationScreen() {
   );
 }
 
-const sharedStyles = StyleSheet.create({
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
-    gap: 12,
-  },
-  sectionTitle: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1D2420",
-    letterSpacing: -0.2,
-  },
-  sectionAction: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#5E8A70",
-  },
-  gridItem: {
-    flexBasis: "47%",
-    flexGrow: 1,
-    maxWidth: "50%",
-  },
-  twoColWrap: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  twoColColumn: {
-    flex: 1,
-    gap: 16,
-  },
-  categoryCard: {
-    minHeight: 156,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#E8ECE7",
-    backgroundColor: "#FFFFFF",
-    padding: 20,
-    alignItems: "center",
-  },
-  categoryIconWrap: {
-    width: 58,
-    height: 58,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 22,
-  },
-  categoryTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1D2420",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  categorySubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#738078",
-    textAlign: "center",
-  },
-  vegetableCard: {
-    minHeight: 138,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#E8ECE7",
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-  },
-  vegetableImage: {
-    width: 54,
-    height: 54,
-    borderRadius: 16,
-    marginBottom: 14,
-    backgroundColor: "#F0F3EF",
-  },
-  vegetableEmoji: {
-    fontSize: 46,
-    marginBottom: 14,
-  },
-  vegetableTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    lineHeight: 22,
-    textAlign: "center",
-    color: "#1D2420",
-  },
-  articleCard: {
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#E8ECE7",
-    backgroundColor: "#FFFFFF",
-    overflow: "hidden",
-  },
-  articleImage: {
-    width: "100%",
-    height: 224,
-    backgroundColor: "#EEF2EE",
-  },
-  articleImageFallback: {
-    width: "100%",
-    height: 224,
-    backgroundColor: "#EEF4F0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  articleBody: {
-    padding: 20,
-  },
-  articleEyebrow: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#5E8A70",
-    marginBottom: 10,
-  },
-  articleTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 27,
-    color: "#1D2420",
-    marginBottom: 10,
-  },
-  articleExcerpt: {
-    fontSize: 15,
-    lineHeight: 23,
-    color: "#6E7972",
-    marginBottom: 14,
-  },
-  articleMeta: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#97A29B",
-  },
-  emptyCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#E8ECE7",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-  },
-  emptyText: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#7D8882",
-  },
-  favTile: {
-    minHeight: 138,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#E8ECE7",
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    overflow: "hidden",
-  },
-  favTileImage: {
-    width: 54,
-    height: 54,
-    borderRadius: 16,
-    marginBottom: 14,
-    backgroundColor: "#F0F3EF",
-  },
-  favTileImageSkeleton: {
-    width: 54,
-    height: 54,
-    borderRadius: 16,
-    marginBottom: 14,
-    backgroundColor: "#E8EEEA",
-  },
-  favTileEmoji: {
-    fontSize: 46,
-    marginBottom: 14,
-  },
-  favTileIconWrap: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-  },
-  favTileLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    lineHeight: 20,
-    textAlign: "center",
-    color: "#1D2420",
-  },
-  favTileLabelSkeleton: {
-    width: "78%",
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: "#E8EEEA",
-  },
-  favTileType: {
-    fontSize: 12,
-    color: "#97A29B",
-    marginTop: 4,
-    textAlign: "center",
-  },
-  favTileTypeSkeleton: {
-    width: "44%",
-    height: 10,
-    borderRadius: 5,
-    marginTop: 8,
-    backgroundColor: "#EDF2EE",
-  },
-});
+function makeSharedStyles(dark: boolean) {
+  const palette = {
+    cardBg: dark ? "#1A1F1C" : "#FFFFFF",
+    cardBorder: dark ? "rgba(255, 255, 255, 0.12)" : "#E8ECE7",
+    heading: dark ? "#F2F5F1" : "#1D2420",
+    secondary: dark ? "#9AA59E" : "#738078",
+    meta: dark ? "#7A8880" : "#97A29B",
+    accent: dark ? "#7AB88A" : "#5E8A70",
+    emptyText: dark ? "#9AA59E" : "#7D8882",
+    imageBg: dark ? "#252D29" : "#F0F3EF",
+    skeletonBg: dark ? "#252D29" : "#E8EEEA",
+    skeletonBgLight: dark ? "#1E2522" : "#EDF2EE",
+  };
+  return StyleSheet.create({
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16,
+      gap: 12,
+    },
+    sectionTitle: {
+      flex: 1,
+      fontSize: 20,
+      fontWeight: "700",
+      color: palette.heading,
+      letterSpacing: -0.2,
+    },
+    sectionAction: {
+      fontSize: 15,
+      fontWeight: "500",
+      color: palette.accent,
+    },
+    gridItem: {
+      flexBasis: "47%",
+      flexGrow: 1,
+      maxWidth: "50%",
+    },
+    twoColWrap: {
+      flexDirection: "row",
+      gap: 16,
+    },
+    twoColColumn: {
+      flex: 1,
+      gap: 16,
+    },
+    categoryCard: {
+      minHeight: 156,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+      backgroundColor: palette.cardBg,
+      padding: 20,
+      alignItems: "center",
+    },
+    categoryIconWrap: {
+      width: 58,
+      height: 58,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 22,
+    },
+    categoryTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: palette.heading,
+      marginBottom: 8,
+      textAlign: "center",
+    },
+    categorySubtitle: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: palette.secondary,
+      textAlign: "center",
+    },
+    vegetableCard: {
+      minHeight: 138,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+      backgroundColor: palette.cardBg,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 20,
+    },
+    vegetableImage: {
+      width: 54,
+      height: 54,
+      borderRadius: 16,
+      marginBottom: 14,
+      backgroundColor: palette.imageBg,
+    },
+    vegetableEmoji: {
+      fontSize: 46,
+      marginBottom: 14,
+    },
+    vegetableTitle: {
+      fontSize: 17,
+      fontWeight: "600",
+      lineHeight: 22,
+      textAlign: "center",
+      color: palette.heading,
+    },
+    articleCard: {
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+      backgroundColor: palette.cardBg,
+      overflow: "hidden",
+    },
+    articleImage: {
+      width: "100%",
+      height: 224,
+      backgroundColor: palette.imageBg,
+    },
+    articleImageFallback: {
+      width: "100%",
+      height: 224,
+      backgroundColor: palette.imageBg,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    articleBody: {
+      padding: 20,
+    },
+    articleEyebrow: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: palette.accent,
+      marginBottom: 10,
+    },
+    articleTitle: {
+      fontSize: 20,
+      fontWeight: "700",
+      lineHeight: 27,
+      color: palette.heading,
+      marginBottom: 10,
+    },
+    articleExcerpt: {
+      fontSize: 15,
+      lineHeight: 23,
+      color: palette.secondary,
+      marginBottom: 14,
+    },
+    articleMeta: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: palette.meta,
+    },
+    emptyCard: {
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+      backgroundColor: palette.cardBg,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+    },
+    emptyText: {
+      fontSize: 15,
+      lineHeight: 22,
+      color: palette.emptyText,
+    },
+    favTile: {
+      minHeight: 138,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+      backgroundColor: palette.cardBg,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 20,
+      overflow: "hidden",
+    },
+    favTileImage: {
+      width: 54,
+      height: 54,
+      borderRadius: 16,
+      marginBottom: 14,
+      backgroundColor: palette.imageBg,
+    },
+    favTileImageSkeleton: {
+      width: 54,
+      height: 54,
+      borderRadius: 16,
+      marginBottom: 14,
+      backgroundColor: palette.skeletonBg,
+    },
+    favTileEmoji: {
+      fontSize: 46,
+      marginBottom: 14,
+    },
+    favTileIconWrap: {
+      width: 58,
+      height: 58,
+      borderRadius: 18,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 14,
+    },
+    favTileLabel: {
+      fontSize: 15,
+      fontWeight: "600",
+      lineHeight: 20,
+      textAlign: "center",
+      color: palette.heading,
+    },
+    favTileLabelSkeleton: {
+      width: "78%",
+      height: 14,
+      borderRadius: 7,
+      backgroundColor: palette.skeletonBg,
+    },
+    favTileType: {
+      fontSize: 12,
+      color: palette.meta,
+      marginTop: 4,
+      textAlign: "center",
+    },
+    favTileTypeSkeleton: {
+      width: "44%",
+      height: 10,
+      borderRadius: 5,
+      marginTop: 8,
+      backgroundColor: palette.skeletonBgLight,
+    },
+  });
+}
 
 const makeStyles = (theme: MD3Theme) => {
   const palette = {

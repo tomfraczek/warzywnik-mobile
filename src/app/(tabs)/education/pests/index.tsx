@@ -37,7 +37,7 @@ function buildPalette(dark: boolean) {
     searchPlaceholder: dark ? "#98A49C" : "#8A948D",
     searchIcon: dark ? "#9AA59E" : "#7F8B84",
     cardBg: dark ? "#1A1F1C" : "#FFFFFF",
-    cardBorder: dark ? "#252D29" : "#E8ECE7",
+    cardBorder: dark ? "rgba(255, 255, 255, 0.12)" : "#E8ECE7",
     pestIconBg: dark ? "#23200F" : "#F5F0E0",
     pestIconColor: dark ? "#C8B870" : "#7A6830",
     chevron: dark ? "#4A5550" : "#C0CAC4",

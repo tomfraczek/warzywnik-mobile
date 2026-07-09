@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { Button, TextInput } from "react-native-paper";
+import { Button, MD3Theme, TextInput, useTheme } from "react-native-paper";
 
 type AddManualChecklistItemSheetProps = {
   visible: boolean;
@@ -22,6 +22,7 @@ export function AddManualChecklistItemSheet({
   onSubmit,
   isSubmitting = false,
 }: AddManualChecklistItemSheetProps) {
+  const theme = useTheme<MD3Theme>();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
@@ -44,7 +45,7 @@ export function AddManualChecklistItemSheet({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.container}>
-          <Text style={styles.title}>Dodaj własny punkt</Text>
+          <Text style={[styles.title, { color: theme.dark ? "#F2F5F1" : "#1D2420" }]}>Dodaj własny punkt</Text>
 
           <TextInput
             mode="outlined"
@@ -98,7 +99,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1D2420",
   },
   actions: {
     marginTop: 4,

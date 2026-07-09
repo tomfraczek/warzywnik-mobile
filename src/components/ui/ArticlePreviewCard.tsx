@@ -1,7 +1,7 @@
 import { ArticleListItem } from "@/src/api/queries/articles/types";
 import { Image } from "expo-image";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Icon, Text } from "react-native-paper";
+import { Icon, MD3Theme, Text, useTheme } from "react-native-paper";
 
 const CONTEXT_LABELS: Record<string, string> = {
   BALCONY: "Balkon",
@@ -43,6 +43,9 @@ export function ArticlePreviewCard({
   onPress,
   onPressIn,
 }: ArticlePreviewCardProps) {
+  const theme = useTheme<MD3Theme>();
+  const styles = makeStyles(theme.dark);
+
   return (
     <Pressable onPress={onPress} onPressIn={onPressIn} hitSlop={6}>
       <View style={styles.articleCard}>
@@ -60,7 +63,7 @@ export function ArticlePreviewCard({
             <Icon
               source="book-open-page-variant-outline"
               size={36}
-              color="#5B7B6C"
+              color={theme.dark ? "#7AB88A" : "#5B7B6C"}
             />
           </View>
         )}
@@ -80,51 +83,53 @@ export function ArticlePreviewCard({
   );
 }
 
-const styles = StyleSheet.create({
-  articleCard: {
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#E8ECE7",
-    backgroundColor: "#FFFFFF",
-    overflow: "hidden",
-  },
-  articleImage: {
-    width: "100%",
-    height: 224,
-    backgroundColor: "#EEF2EE",
-  },
-  articleImageFallback: {
-    width: "100%",
-    height: 224,
-    backgroundColor: "#EEF4F0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  articleBody: {
-    padding: 20,
-  },
-  articleEyebrow: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#5E8A70",
-    marginBottom: 10,
-  },
-  articleTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 27,
-    color: "#1D2420",
-    marginBottom: 10,
-  },
-  articleExcerpt: {
-    fontSize: 15,
-    lineHeight: 23,
-    color: "#6E7972",
-    marginBottom: 14,
-  },
-  articleMeta: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#97A29B",
-  },
-});
+function makeStyles(dark: boolean) {
+  return StyleSheet.create({
+    articleCard: {
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: dark ? "rgba(255, 255, 255, 0.12)" : "#E8ECE7",
+      backgroundColor: dark ? "#1A1F1C" : "#FFFFFF",
+      overflow: "hidden",
+    },
+    articleImage: {
+      width: "100%",
+      height: 224,
+      backgroundColor: dark ? "#1E2722" : "#EEF2EE",
+    },
+    articleImageFallback: {
+      width: "100%",
+      height: 224,
+      backgroundColor: dark ? "#1A2E1F" : "#EEF4F0",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    articleBody: {
+      padding: 20,
+    },
+    articleEyebrow: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: dark ? "#7AB88A" : "#5E8A70",
+      marginBottom: 10,
+    },
+    articleTitle: {
+      fontSize: 20,
+      fontWeight: "700",
+      lineHeight: 27,
+      color: dark ? "#F2F5F1" : "#1D2420",
+      marginBottom: 10,
+    },
+    articleExcerpt: {
+      fontSize: 15,
+      lineHeight: 23,
+      color: dark ? "#9AA59E" : "#6E7972",
+      marginBottom: 14,
+    },
+    articleMeta: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: dark ? "#7A8880" : "#97A29B",
+    },
+  });
+}

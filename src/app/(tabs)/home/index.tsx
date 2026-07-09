@@ -138,6 +138,8 @@ function HomeSectionHeader({
   actionLabel?: string;
   onActionPress?: () => void;
 }) {
+  const theme = useTheme<MD3Theme>();
+  const libStyles = makeLibStyles(theme.dark);
   return (
     <View style={libStyles.sectionHeader}>
       <Text style={libStyles.sectionTitle}>{title}</Text>
@@ -151,6 +153,8 @@ function HomeSectionHeader({
 }
 
 function TwoColumnGrid({ children }: { children: React.ReactElement[] }) {
+  const theme = useTheme<MD3Theme>();
+  const libStyles = makeLibStyles(theme.dark);
   const left = children.filter((_, i) => i % 2 === 0);
   const right = children.filter((_, i) => i % 2 === 1);
   return (
@@ -174,6 +178,9 @@ function HomeVegetableCard({
   rank: number;
   onPress: () => void;
 }) {
+  const theme = useTheme<MD3Theme>();
+  const libStyles = makeLibStyles(theme.dark);
+
   const medalIcon =
     rank === 1 ? "medal" : rank === 2 ? "medal-outline" : "medal-outline";
 
@@ -1149,82 +1156,94 @@ const makeStyles = (theme: MD3Theme) =>
   });
 
 // ─── library preview styles (same as education/index.tsx) ────────────────────
-const libStyles = StyleSheet.create({
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
-    gap: 12,
-  },
-  sectionTitle: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1D2420",
-    letterSpacing: -0.2,
-  },
-  sectionAction: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#5E8A70",
-  },
-  twoColWrap: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  twoColColumn: {
-    flex: 1,
-    gap: 16,
-  },
-  vegetableCard: {
-    position: "relative",
-    minHeight: 138,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#E8ECE7",
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-  },
-  rankBadge: {
-    position: "absolute",
-    right: 10,
-    top: 10,
-    zIndex: 2,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.95)",
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: "#E4E9E4",
-  },
-  rankBadgeText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#374139",
-  },
-  vegetableImage: {
-    width: 54,
-    height: 54,
-    borderRadius: 16,
-    marginBottom: 14,
-    backgroundColor: "#F0F3EF",
-  },
-  vegetableEmoji: {
-    fontSize: 46,
-    marginBottom: 14,
-  },
-  vegetableTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    lineHeight: 22,
-    textAlign: "center",
-    color: "#1D2420",
-  },
-});
+function makeLibStyles(dark: boolean) {
+  const palette = {
+    cardBg: dark ? "#1A1F1C" : "#FFFFFF",
+    cardBorder: dark ? "rgba(255, 255, 255, 0.12)" : "#E8ECE7",
+    heading: dark ? "#F2F5F1" : "#1D2420",
+    accent: dark ? "#7AB88A" : "#5E8A70",
+    imageBg: dark ? "#252D29" : "#F0F3EF",
+    rankBg: dark ? "rgba(26,31,28,0.95)" : "rgba(255,255,255,0.95)",
+    rankBorder: dark ? "#252D29" : "#E4E9E4",
+    rankText: dark ? "#F2F5F1" : "#374139",
+  };
+  return StyleSheet.create({
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16,
+      gap: 12,
+    },
+    sectionTitle: {
+      flex: 1,
+      fontSize: 20,
+      fontWeight: "700",
+      color: palette.heading,
+      letterSpacing: -0.2,
+    },
+    sectionAction: {
+      fontSize: 15,
+      fontWeight: "500",
+      color: palette.accent,
+    },
+    twoColWrap: {
+      flexDirection: "row",
+      gap: 16,
+    },
+    twoColColumn: {
+      flex: 1,
+      gap: 16,
+    },
+    vegetableCard: {
+      position: "relative",
+      minHeight: 138,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+      backgroundColor: palette.cardBg,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 20,
+    },
+    rankBadge: {
+      position: "absolute",
+      right: 10,
+      top: 10,
+      zIndex: 2,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      borderRadius: 999,
+      backgroundColor: palette.rankBg,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      borderWidth: 1,
+      borderColor: palette.rankBorder,
+    },
+    rankBadgeText: {
+      fontSize: 11,
+      fontWeight: "700",
+      color: palette.rankText,
+    },
+    vegetableImage: {
+      width: 54,
+      height: 54,
+      borderRadius: 16,
+      marginBottom: 14,
+      backgroundColor: palette.imageBg,
+    },
+    vegetableEmoji: {
+      fontSize: 46,
+      marginBottom: 14,
+    },
+    vegetableTitle: {
+      fontSize: 17,
+      fontWeight: "600",
+      lineHeight: 22,
+      textAlign: "center",
+      color: palette.heading,
+    },
+  });
+}

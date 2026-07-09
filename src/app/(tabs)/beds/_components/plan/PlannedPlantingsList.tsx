@@ -1,6 +1,7 @@
 import { PlannedPlanting } from "@/src/api/queries/bedPlan/types";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { MD3Theme, useTheme } from "react-native-paper";
 
 const formatDate = (value?: string | null) => {
   if (!value) return "Brak daty";
@@ -26,11 +27,26 @@ type PlannedPlantingsListProps = {
   onPressAddVegetable: () => void;
 };
 
+function buildPalette(dark: boolean) {
+  return {
+    cardBg: dark ? "#1A1F1C" : "#FFFFFF",
+    cardBorder: dark ? "rgba(255, 255, 255, 0.12)" : "#E8ECE7",
+    innerBg: dark ? "#161C19" : "#FBFCFA",
+    heading: dark ? "#F2F5F1" : "#1D2420",
+    secondary: dark ? "#9AA59E" : "#6E7972",
+    accent: dark ? "#7AB88A" : "#4A7C59",
+  };
+}
+
 export function PlannedPlantingsList({
   items,
   onPressPlanting,
   onPressAddVegetable,
 }: PlannedPlantingsListProps) {
+  const theme = useTheme<MD3Theme>();
+  const palette = buildPalette(theme.dark);
+  const styles = makeStyles(palette);
+
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Zaplanowane uprawy</Text>
@@ -70,58 +86,60 @@ export function PlannedPlantingsList({
   );
 }
 
-const styles = StyleSheet.create({
-  section: {
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#E8ECE7",
-    backgroundColor: "#FFFFFF",
-    padding: 18,
-    gap: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1D2420",
-  },
-  list: {
-    gap: 10,
-  },
-  card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E8ECE7",
-    backgroundColor: "#FBFCFA",
-    padding: 14,
-    gap: 6,
-  },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 8,
-  },
-  name: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1D2420",
-  },
-  meta: {
-    fontSize: 13,
-    color: "#6E7972",
-  },
-  emptyState: {
-    gap: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#6E7972",
-  },
-  link: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#4A7C59",
-  },
-});
+function makeStyles(palette: ReturnType<typeof buildPalette>) {
+  return StyleSheet.create({
+    section: {
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+      backgroundColor: palette.cardBg,
+      padding: 18,
+      gap: 12,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: palette.heading,
+    },
+    list: {
+      gap: 10,
+    },
+    card: {
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+      backgroundColor: palette.innerBg,
+      padding: 14,
+      gap: 6,
+    },
+    headerRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: 8,
+    },
+    name: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: "600",
+      color: palette.heading,
+    },
+    meta: {
+      fontSize: 13,
+      color: palette.secondary,
+    },
+    emptyState: {
+      gap: 8,
+    },
+    emptyText: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: palette.secondary,
+    },
+    link: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: palette.accent,
+    },
+  });
+}

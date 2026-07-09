@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { Button, TextInput } from "react-native-paper";
+import { Button, MD3Theme, TextInput, useTheme } from "react-native-paper";
 
 type EditManualChecklistItemSheetProps = {
   item: PlanChecklistItem | null;
@@ -29,6 +29,7 @@ export function EditManualChecklistItemSheet({
   onSubmit,
   isSubmitting = false,
 }: EditManualChecklistItemSheetProps) {
+  const theme = useTheme<MD3Theme>();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
@@ -50,7 +51,7 @@ export function EditManualChecklistItemSheet({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <View style={styles.container}>
-          <Text style={styles.title}>Edytuj własny punkt</Text>
+          <Text style={[styles.title, { color: theme.dark ? "#F2F5F1" : "#1D2420" }]}>Edytuj własny punkt</Text>
 
           <TextInput
             mode="outlined"
@@ -104,7 +105,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1D2420",
   },
   actions: {
     marginTop: 4,

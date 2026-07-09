@@ -35,7 +35,7 @@ function buildPalette(dark: boolean) {
   return {
     background: dark ? "#141816" : "#F7F8F5",
     cardBg: dark ? "#1A1F1C" : "#FFFFFF",
-    cardBorder: dark ? "#252D29" : "#E8ECE7",
+    cardBorder: dark ? "rgba(255, 255, 255, 0.12)" : "#E8ECE7",
     searchBg: dark ? "#1D221F" : "#EDEFEC",
     searchBorder: dark ? "#252D29" : "#E2E7E1",
     heading: dark ? "#F2F5F1" : "#1D2420",

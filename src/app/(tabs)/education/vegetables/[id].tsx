@@ -30,7 +30,7 @@ function buildPalette(dark: boolean) {
     meta: dark ? "#7A8880" : "#97A29B",
     accent: dark ? "#8DB89A" : "#5E8A70",
     cardBg: dark ? "#1A1F1C" : "#FFFFFF",
-    cardBorder: dark ? "#252D29" : "#E8ECE7",
+    cardBorder: dark ? "rgba(255, 255, 255, 0.12)" : "#E8ECE7",
     familyTagBg: dark ? "#1F2E25" : "#EBF4EF",
     familyTagText: dark ? "#88B89A" : "#4A7A60",
     imagePlaceholderBg: dark ? "#1B2620" : "#EEF5F0",

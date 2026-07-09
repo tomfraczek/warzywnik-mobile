@@ -51,11 +51,11 @@ export function PrimaryActionButton({
     >
       <View style={styles.inner}>
         {loading ? (
-          <ActivityIndicator size={20} color="#FFFFFF" />
+          <ActivityIndicator size={20} color={theme.colors.onPrimary} />
         ) : icon ? (
-          <Icon source={icon} size={22} color="#FFFFFF" />
+          <Icon source={icon} size={22} color={theme.colors.onPrimary} />
         ) : null}
-        <Text style={styles.text}>{label}</Text>
+        <Text style={[styles.text, { color: theme.colors.onPrimary }]}>{label}</Text>
       </View>
     </Pressable>
   );
@@ -77,6 +77,5 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#FFFFFF",
   },
 });

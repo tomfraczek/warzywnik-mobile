@@ -4,6 +4,7 @@ import {
 } from "@/src/api/queries/bedPlan/types";
 import { PrimaryActionButton } from "@/src/components/ui/PrimaryActionButton";
 import { StyleSheet, Text, View } from "react-native";
+import { MD3Theme, useTheme } from "react-native-paper";
 import { PlanChecklistItemRow } from "./PlanChecklistItemRow";
 
 type PlanChecklistSectionProps = {
@@ -17,6 +18,18 @@ type PlanChecklistSectionProps = {
   disabled?: boolean;
 };
 
+function buildPalette(dark: boolean) {
+  return {
+    cardBg: dark ? "#1A1F1C" : "#FFFFFF",
+    cardBorder: dark ? "rgba(255, 255, 255, 0.12)" : "#E8ECE7",
+    heading: dark ? "#F2F5F1" : "#1D2420",
+    secondary: dark ? "#9AA59E" : "#6E7972",
+    meta: dark ? "#7A8880" : "#637067",
+    cta: dark ? "#4C7FB1" : "#356FA5",
+    accent: dark ? "#7AB88A" : "#4A7C59",
+  };
+}
+
 export function PlanChecklistSection({
   items,
   plannedPlantingsCount,
@@ -27,6 +40,10 @@ export function PlanChecklistSection({
   onRecompute,
   disabled = false,
 }: PlanChecklistSectionProps) {
+  const theme = useTheme<MD3Theme>();
+  const palette = buildPalette(theme.dark);
+  const styles = makeStyles(palette);
+
   const allDone =
     items.length > 0 && items.every((item) => item.status === "done");
   const allSkipped =
@@ -80,51 +97,53 @@ export function PlanChecklistSection({
         onPress={onAddManual}
         icon="plus"
         label="Dodaj własny punkt"
-        color="#4A7C59"
+        color={palette.accent}
         disabled={disabled}
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  section: {
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#E8ECE7",
-    backgroundColor: "#FFFFFF",
-    padding: 18,
-    gap: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1D2420",
-  },
-  emptyState: {
-    borderTopWidth: 1,
-    borderTopColor: "#E8ECE7",
-    paddingTop: 12,
-  },
-  emptyText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#6E7972",
-  },
-  list: {
-    marginTop: -4,
-  },
-  infoText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: "#637067",
-  },
-  allSkippedWrap: {
-    gap: 4,
-  },
-  linkText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#356FA5",
-  },
-});
+function makeStyles(palette: ReturnType<typeof buildPalette>) {
+  return StyleSheet.create({
+    section: {
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: palette.cardBorder,
+      backgroundColor: palette.cardBg,
+      padding: 18,
+      gap: 12,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: palette.heading,
+    },
+    emptyState: {
+      borderTopWidth: 1,
+      borderTopColor: palette.cardBorder,
+      paddingTop: 12,
+    },
+    emptyText: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: palette.secondary,
+    },
+    list: {
+      marginTop: -4,
+    },
+    infoText: {
+      fontSize: 13,
+      lineHeight: 18,
+      color: palette.meta,
+    },
+    allSkippedWrap: {
+      gap: 4,
+    },
+    linkText: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: palette.cta,
+    },
+  });
+}
