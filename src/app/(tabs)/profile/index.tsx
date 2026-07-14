@@ -38,6 +38,7 @@ import {
   Avatar,
   Button,
   Divider,
+  Icon,
   MD3Theme,
   SegmentedButtons,
   Snackbar,
@@ -848,6 +849,36 @@ export default function ProfileScreen() {
           </View>
         </ExpandableCard>
 
+        <Pressable
+          onPress={() => router.push("/(tabs)/profile/contact")}
+          style={({ pressed }) => (pressed ? styles.contactCardPressed : null)}
+        >
+          <Card>
+            <View style={styles.contactRow}>
+              <View style={styles.contactIconWrap}>
+                <Icon
+                  source="email-outline"
+                  size={22}
+                  color={theme.colors.primary}
+                />
+              </View>
+              <View style={styles.preferenceTextWrap}>
+                <Text style={styles.preferenceTitle}>
+                  Skontaktuj się z nami
+                </Text>
+                <Text style={styles.preferenceDescription}>
+                  Masz pytanie, pomysł lub problem z aplikacją? Napisz do nas.
+                </Text>
+              </View>
+              <Icon
+                source="chevron-right"
+                size={22}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </View>
+          </Card>
+        </Pressable>
+
         <Card title="Danger zone">
           <Divider />
           <Button mode="contained" onPress={handleSignOut}>
@@ -998,5 +1029,21 @@ const makeStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurfaceVariant,
       textAlign: "center",
       paddingBottom: spacing.sm,
+    },
+    contactCardPressed: {
+      opacity: 0.7,
+    },
+    contactRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    contactIconWrap: {
+      width: 42,
+      height: 42,
+      borderRadius: radius.pill,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.surfaceVariant,
     },
   });

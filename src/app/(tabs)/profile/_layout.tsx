@@ -19,6 +19,10 @@ export default function ProfileLayout() {
         options={{ title: "Edycja profilu", headerShown: false }}
       />
       <Stack.Screen
+        name="contact"
+        options={{ title: "Skontaktuj się z nami", headerShown: false }}
+      />
+      <Stack.Screen
         name="push-diagnostics"
         options={{ title: "Push diagnostics", headerShown: false }}
       />
