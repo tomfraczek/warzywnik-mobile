@@ -12,8 +12,12 @@ export const restClient = create({
   baseURL: apiBaseUrl,
 });
 
-let tokenProvider: (() => Promise<string | null>) | null = null;
-export const setAuthTokenProvider = (fn: () => Promise<string | null>) => {
+let tokenProvider:
+  | ((forceRefresh?: boolean) => Promise<string | null>)
+  | null = null;
+export const setAuthTokenProvider = (
+  fn: (forceRefresh?: boolean) => Promise<string | null>,
+) => {
   tokenProvider = fn;
 };
 
@@ -64,12 +68,15 @@ restClient.interceptors.request.use(async (config) => {
 
 restClient.interceptors.response.use(
   (res) => res,
-  (err) => {
+  async (err) => {
     const status = err?.response?.status;
     const responseData = err?.response?.data as
       | Record<string, unknown>
       | undefined;
-    const requestHeaders = err?.config?.headers as Record<string, unknown> | undefined;
+    const config = err?.config as
+      | (Record<string, unknown> & { _retriedAfterAuthError?: boolean })
+      | undefined;
+    const requestHeaders = config?.headers as Record<string, unknown> | undefined;
     const hadAuthHeader = !!(
       requestHeaders?.["Authorization"] ?? requestHeaders?.["authorization"]
     );
@@ -83,6 +90,24 @@ restClient.interceptors.response.use(
         premiumErrorHandler?.(responseData);
       }
     } else if ((status === 401 || status === 403) && hadAuthHeader) {
+      // Before giving up on the session, force a fresh token past Clerk's
+      // cache and retry once — a stale/expiring cached token racing a
+      // legitimate request is far more common than an actually-dead session.
+      if (config && !config._retriedAfterAuthError && tokenProvider) {
+        config._retriedAfterAuthError = true;
+        const freshToken = await tokenProvider(true).catch(() => null);
+        if (freshToken) {
+          config.headers = {
+            ...(config.headers as Record<string, unknown>),
+            Authorization: `Bearer ${freshToken}`,
+          };
+          try {
+            return await restClient.request(config as any);
+          } catch (retryErr) {
+            return Promise.reject(retryErr);
+          }
+        }
+      }
       const justSignedIn = Date.now() - lastSignInAt < 3000;
       if (!justSignedIn) {
         authErrorHandler?.(status);

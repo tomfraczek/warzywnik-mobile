@@ -173,7 +173,11 @@ function AuthBootstrapGate() {
 
     wasSignedInRef.current = true;
     markSignedIn();
-    setAuthTokenProvider(async () => (await getToken()) ?? null);
+    setAuthTokenProvider(
+      async (forceRefresh) =>
+        (await getToken(forceRefresh ? { skipCache: true } : undefined)) ??
+        null,
+    );
 
     setAuthErrorHandler(async (_status) => {
       if (isHandlingAuthError.current) return;

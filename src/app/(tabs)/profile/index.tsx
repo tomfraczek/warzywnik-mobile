@@ -15,6 +15,7 @@ import { queryClient } from "@/src/api/queryClient";
 import { Screen } from "@/src/components/Screen";
 import { Card } from "@/src/components/ui/Card";
 import { ExpandableCard } from "@/src/components/ui/ExpandableCard";
+import { PremiumUnlockButton } from "@/src/components/ui/PremiumUnlockButton";
 import { StatusBadge } from "@/src/components/ui/StatusBadge";
 import { getAvatarSource } from "@/src/constants/avatars";
 import { usePremium } from "@/src/context/PremiumContext";
@@ -458,6 +459,11 @@ export default function ProfileScreen() {
                   );
                 })()
               : null}
+            <PremiumUnlockButton
+              compact={false}
+              style={{ marginTop: spacing.sm }}
+              reason="premiumRequired"
+            />
           </Card>
         ) : null}
 

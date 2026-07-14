@@ -8,7 +8,12 @@ import {
   endSsoAuth,
   isSsoAuthInProgress,
 } from "@/src/features/push/authFlowState";
-import { useSignUp, useSSO } from "@clerk/clerk-expo";
+import {
+  isClerkAPIResponseError,
+  isClerkRuntimeError,
+  useSignUp,
+  useSSO,
+} from "@clerk/clerk-expo";
 import * as AuthSession from "expo-auth-session";
 import { Link, useRouter } from "expo-router";
 import * as React from "react";
@@ -91,6 +96,11 @@ export default function SignUpScreen() {
     if (!isLoaded) return;
 
     try {
+      console.error("SSO redirectUrl:", JSON.stringify(redirectUrl));
+      console.error(
+        "Active Clerk key prefix:",
+        process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY?.slice(0, 16),
+      );
       beginSsoAuth();
       setIsGoogleAuthLoading(true);
       const {
@@ -137,7 +147,16 @@ export default function SignUpScreen() {
         "Logowanie przez Google nie powiodło się. Spróbuj ponownie.",
       );
       router.replace("/(auth)");
-      console.error(JSON.stringify(err, null, 2));
+      if (isClerkAPIResponseError(err)) {
+        console.error("Google SSO ClerkAPIResponseError:", err.errors);
+      } else if (isClerkRuntimeError(err)) {
+        console.error("Google SSO ClerkRuntimeError:", err.code, err.message);
+      } else {
+        console.error(
+          "Google SSO error:",
+          err instanceof Error ? err.message : err,
+        );
+      }
     }
   };
 
