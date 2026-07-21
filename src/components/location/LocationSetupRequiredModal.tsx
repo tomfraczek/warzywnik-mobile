@@ -334,6 +334,69 @@ export function LocationSetupRequiredModal() {
     setErrorMessage(null);
   }, []);
 
+  const saveTypedLocation = useCallback(async () => {
+    const trimmed = locationQuery.trim();
+    if (!trimmed) return;
+
+    const exactMatch = locationResults.find(
+      (result) => result.label.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (exactMatch) {
+      await saveManualLocation(exactMatch);
+      return;
+    }
+
+    if (locationResults.length > 0) {
+      await saveManualLocation(locationResults[0]);
+      return;
+    }
+
+    if (isOffline) {
+      Alert.alert("Tryb offline", OFFLINE_MUTATION_MESSAGE);
+      return;
+    }
+
+    setErrorMessage(null);
+    try {
+      const geocoded = await Location.geocodeAsync(trimmed);
+      if (geocoded.length === 0) {
+        setErrorMessage("Nie znaleziono takiej lokalizacji.");
+        return;
+      }
+
+      const { latitude, longitude } = geocoded[0];
+
+      await updateLocation.mutateAsync({
+        mode: "MANUAL",
+        label: trimmed,
+        lat: latitude,
+        lon: longitude,
+      });
+
+      applyLocationLocally({
+        label: trimmed,
+        lat: latitude,
+        lon: longitude,
+        mode: "MANUAL",
+      });
+      setVisible(false);
+    } catch {
+      setErrorMessage("Nie udało się zapisać lokalizacji.");
+    }
+  }, [
+    applyLocationLocally,
+    isOffline,
+    locationQuery,
+    locationResults,
+    saveManualLocation,
+    updateLocation,
+  ]);
+
+  const handleCancel = useCallback(() => {
+    setErrorMessage(null);
+    setVisible(false);
+  }, []);
+
   const isBusy = isChecking || updateLocation.isPending;
   const shouldShow = useMemo(
     () => shouldRunCheck && visible && trialCheckDone && !trialModalShowing,
@@ -401,6 +464,26 @@ export function LocationSetupRequiredModal() {
           {errorMessage ? (
             <Text style={styles.errorText}>{errorMessage}</Text>
           ) : null}
+
+          <View style={styles.actionsRow}>
+            <Button
+              mode="outlined"
+              onPress={handleCancel}
+              disabled={isBusy}
+              style={styles.actionButton}
+            >
+              Anuluj
+            </Button>
+            <Button
+              mode="contained"
+              onPress={saveTypedLocation}
+              loading={isBusy}
+              disabled={isBusy || isOffline || !locationQuery.trim()}
+              style={styles.actionButton}
+            >
+              Zapisz
+            </Button>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
     </Portal>
@@ -456,5 +539,12 @@ const makeStyles = (theme: MD3Theme) =>
     errorText: {
       fontSize: 12,
       color: theme.colors.error,
+    },
+    actionsRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
+    actionButton: {
+      flex: 1,
     },
   });
