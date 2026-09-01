@@ -6,6 +6,12 @@ import { useGetMyWeather } from "@/src/api/queries/users/useGetMyWeather";
 import { NotificationsBellButton } from "@/src/components/navigation/NotificationsBellButton";
 import { Screen } from "@/src/components/Screen";
 import {
+  getTrialDaysRemaining,
+  hasSeenTrialEndingModalToday,
+  markTrialEndingModalSeenToday,
+  TrialEndingModal,
+} from "@/src/components/TrialEndingModal";
+import {
   hasSeenTrialWelcomeModal,
   markTrialWelcomeModalSeen,
   TrialWelcomeModal,
@@ -283,7 +289,7 @@ export default function HomeScreen() {
   const params = useLocalSearchParams<{ showTutorial?: string }>();
   const isForced = params.showTutorial === "1";
   const forcedShownRef = useRef(false);
-  const { entitlements, setTrialCheckDone, setTrialModalShowing } =
+  const { entitlements, trialCheckDone, setTrialCheckDone, setTrialModalShowing } =
     usePremium();
   const { user } = useUser();
 
@@ -312,8 +318,11 @@ export default function HomeScreen() {
 
   const [onboardingReady, setOnboardingReady] = useState(false);
   const [showTrialModal, setShowTrialModal] = useState(false);
+  const [showTrialEndingModal, setShowTrialEndingModal] = useState(false);
+  const [trialDaysRemaining, setTrialDaysRemaining] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
   const trialModalCheckedRef = useRef(false);
+  const trialEndingCheckedRef = useRef(false);
 
   // One-time check: decide whether to show trial modal or let tutorial run normally
   useEffect(() => {
@@ -340,16 +349,45 @@ export default function HomeScreen() {
     });
   }, [user?.id, entitlements]);
 
+  // Once-a-day check: remind about the trial ending on its last 3, 2 and 1 days.
+  // Waits for the welcome-modal gate so the two never show at the same time.
+  useEffect(() => {
+    if (
+      !user?.id ||
+      !entitlements ||
+      !trialCheckDone ||
+      trialEndingCheckedRef.current
+    )
+      return;
+    trialEndingCheckedRef.current = true;
+
+    const isTrialActive =
+      entitlements.source === "trial" && entitlements.isPremium;
+    if (!isTrialActive) return;
+
+    const daysRemaining = getTrialDaysRemaining(entitlements.trialEndsAt);
+    if (daysRemaining === null || daysRemaining < 1 || daysRemaining > 3) {
+      return;
+    }
+
+    void hasSeenTrialEndingModalToday(user.id).then((seen) => {
+      if (seen) return;
+      setTrialDaysRemaining(daysRemaining);
+      setShowTrialEndingModal(true);
+      setTrialModalShowing(true);
+    });
+  }, [user?.id, entitlements, trialCheckDone]);
+
   const isFocused = useIsFocused();
 
   useEffect(() => {
     if (!isForced) forcedShownRef.current = false;
   }, [isForced]);
 
-  // Show tutorial only when onboarding is ready, trial modal is gone, and location is set
+  // Show tutorial only when onboarding is ready, trial modals are gone, and location is set
   useEffect(() => {
     if (!isFocused) return;
-    if (!onboardingReady || showTrialModal) return;
+    if (!onboardingReady || showTrialModal || showTrialEndingModal) return;
     if (!location?.label && !isForced) return;
     if (tutorial.shouldShow) {
       setShowTutorial(true);
@@ -358,7 +396,15 @@ export default function HomeScreen() {
       scrollViewRef.current?.scrollTo({ y: 0, animated: false });
       setShowTutorial(true);
     }
-  }, [isFocused, onboardingReady, showTrialModal, location?.label, tutorial.shouldShow, isForced]);
+  }, [
+    isFocused,
+    onboardingReady,
+    showTrialModal,
+    showTrialEndingModal,
+    location?.label,
+    tutorial.shouldShow,
+    isForced,
+  ]);
 
   const handleTrialModalClose = useCallback(() => {
     setShowTrialModal(false);
@@ -368,6 +414,19 @@ export default function HomeScreen() {
       void markTrialWelcomeModalSeen(user.id);
     }
   }, [user?.id, setTrialCheckDone, setTrialModalShowing]);
+
+  const handleTrialEndingModalClose = useCallback(() => {
+    setShowTrialEndingModal(false);
+    setTrialModalShowing(false);
+    if (user?.id) {
+      void markTrialEndingModalSeenToday(user.id);
+    }
+  }, [user?.id, setTrialModalShowing]);
+
+  const handleTrialEndingUpgrade = useCallback(() => {
+    handleTrialEndingModalClose();
+    safePush("/premium");
+  }, [handleTrialEndingModalClose, safePush]);
 
   const handleTutorialDismiss = useCallback(
     (skipped: boolean) => {
@@ -802,6 +861,13 @@ export default function HomeScreen() {
       <TrialWelcomeModal
         visible={showTrialModal}
         onClose={handleTrialModalClose}
+      />
+
+      <TrialEndingModal
+        visible={showTrialEndingModal}
+        daysRemaining={trialDaysRemaining}
+        onUpgrade={handleTrialEndingUpgrade}
+        onClose={handleTrialEndingModalClose}
       />
 
       <CoachMarkOverlay
